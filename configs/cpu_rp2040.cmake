@@ -34,6 +34,10 @@ set(PLAN2040_PROGS
     wc grep headtail tee hexdump remember cpmv rm fsck mkfs df ls
 )
 
+# Built-in scripts: scripts/<name> (or the app's), "boot" runs at power-up
+# unless /fram/boot exists.
+set(PLAN2040_SCRIPTS boot)
+
 # Other sources the devices above need.
 set(PLAN2040_FS      framfs hours)               # fs/<name>.cpp
 set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons)   # drivers/<name>.cpp

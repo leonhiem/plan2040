@@ -233,7 +233,9 @@ Order, one commit each, tested on the PC and then the board:
   `boards/bringup.cpp` (EEPROM test), `drivers/at24c`,
   `configs/babywarmer_v1.cmake` with the generic devices only: the
   first test after the hack. **Built 2026-11-21**, board test pending.
-- **3b** apps in CMake (`apps/<app>/dev,prog`), the boot script as a file.
+- **3b** apps in CMake (`apps/<app>/dev,prog,scripts`), the built-in
+  scripts as files (`scripts/boot`). **Built 2026-11-21** (saves 4 KB
+  RAM: the scripts stay in flash), board test pending.
 - **3c** sensors: `drivers/ads1115`, ntc, skintemp, ambient, current.
 - **3d** outputs: heater + its tpo task, relay, seg7 + `/dev/leds`, alarm.
 - **3e** control: setpoint, heaterauto, percent, pid, phase, safelut,

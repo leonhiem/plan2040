@@ -173,8 +173,9 @@ One tree for every board and every firmware (TODO.md idea 3, restructured
 | `drivers/` | chips: `pcf8563` (RTC), `fm24cl64` (FRAM), `at24c` (24C256/512 EEPROM), `buttons` (debounce) | generic, picked per config |
 | `boards/<board>/` | `board.h` (pin map, buses, each chip's bus and address, FRAM layout), `board.cpp` (`board_init()`, `board_pins_init()`) | one per board: `cpu_rp2040`, `babywarmer_v1` |
 | `boards/bringup.cpp` | the board test, for every board (from its `board.h`) | yes |
+| `scripts/` | built-in scripts, plain files: `boot` | generic, picked per config |
 | `configs/<name>.cmake` | one firmware: board, devices, programs, sizes: `cpu_rp2040`, `babywarmer_v1` | one per firmware |
-| `apps/<app>/` | (later) babywarmer, gateway | per application |
+| `apps/<app>/` | an application's own `dev/`, `prog/`, `scripts/` and other sources: babywarmer (step 3), gateway (later) | per application |
 | `tests/host/` | PC tests | |
 
 A config is a short list, Plan 9 kernel-config style. From
@@ -185,6 +186,7 @@ set(PLAN2040_BOARD   cpu_rp2040)
 set(PLAN2040_DEVS    led lamp buttons rtc uptime cputemp reboot fram mem hours cron cons)
 set(PLAN2040_PROGS   cat echo label thresh hyst toggle adjust follow select date uptime
                      wc grep headtail tee hexdump remember cpmv rm fsck mkfs df ls)
+set(PLAN2040_SCRIPTS boot)
 set(PLAN2040_FS      framfs hours)
 set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons)
 set(PLAN2040_SIZES   MAX_JOBS=20 STAGE_BUF=4096 PROG_MAX=48 FS_MAX_DEVICES=64 TASK_MAX=32)
@@ -196,6 +198,13 @@ How it's built:
   in `PLAN2040_PROGS` is `prog/cat.cpp` (a file can hold more than one
   program: `headtail` is `head` and `tail`, `cpmv` is `cp` and `mv`). A
   name without a file stops `cmake` with a message.
+- **An app** (`set(PLAN2040_APP babywarmer)`) adds `apps/<app>/dev/`,
+  `prog/` and `scripts/`: every name is looked up there first, then in
+  the generic `dev/`, `prog/`, `scripts/`. An app's file of the same name
+  shadows the generic one (cmake says so), like a Plan 9 `bind`. The
+  app's other sources (a screen, a table) go in `PLAN2040_APP_SRC`,
+  relative to `apps/<app>/`, and its headers are found from there.
+- `PLAN2040_SCRIPTS` names the built-in scripts (see "Scripts").
 - CMake writes `build/conf.cpp` from the lists, the way Plan 9's
   `mkdevc` builds a kernel's device table from its conf file: one
   `conf_register()` that calls `dev_<name>_register()` and
@@ -645,6 +654,16 @@ cat > /fram/boot
 
 and add to it later with `cat >> /fram/boot`. `rm /fram/boot` brings the
 built-in boot script back.
+
+**Built-in scripts are files too**, in the source tree: `scripts/boot`
+(the generic one above), and an app's own in `apps/<app>/scripts/`
+(babywarmer's boot wires the whole heater controller). The config
+names which ones go in (`PLAN2040_SCRIPTS boot`; an app's file of the
+same name wins), and CMake builds them into the firmware as read-only
+text: comment lines and empty lines left out, at most 1023 bytes each,
+and `boot` must be there. `scripts` lists them. (Until 2026-11-21 they
+were C strings in `shell.cpp`, copied into a 4 KB RAM table at start-up;
+now they stay in flash: 4 KB more free RAM.)
 
 **`cat >>` or `echo "..." >>`.** One line with `|`, `<`, `>`, `&` or `#`
 in it can be added with `echo`, **if it's quoted**:
@@ -1158,6 +1177,19 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-21, built-in scripts from files, apps in CMake** (step 3b,
+`plan2040.uf2` for cpu_rp2040): the built-in `boot` is `scripts/boot`
+now, built into the firmware as read-only text (4160 bytes less RAM,
+4 KB less flash). Behaviour should be the same as before. On the PC:
+both configs build without warnings; host tests 15 ok, with the boot
+script generated from the real `scripts/boot`.
+
+| Test | Result |
+|---|---|
+| Boot without `/fram/boot` | pending: `running built-in 'boot' automatically...`, `date`, job 1 = the LAMP toggle |
+| `scripts` | pending: `boot (built-in)`, `files: ls /fram` |
+| `run boot` | pending: the same two lines again (a second LAMP toggle job) |
+
 **2026-11-21, babywarmer_v1: the cpu_rp2040 board as the babywarmer
 PCB's CPU** (`build-babywarmer_v1/bringup.uf2`, then `plan2040.uf2`):
 step 3a, for after the hardware hack. Built on the PC, no hardware yet.
@@ -1355,7 +1387,7 @@ press/release is printed (mute, up, down, manual, start, lamp).
 | | Used | Available | |
 |---|---|---|---|
 | Flash (W25Q16JV) | 101 KB (`picoos.bin` 2026-11-16; `plan2040.bin` the same 102988 bytes of code after the restructure, 2026-11-21) | 2048 KB | 5 % |
-| RAM | ~39 KB (2026-11-16; ~45 KB before the pipeline storage change) | 264 KB | 15 % |
+| RAM | ~35 KB (2026-11-21, built-in scripts moved to flash; ~39 KB 2026-11-16, ~45 KB before the pipeline storage change) | 264 KB | 13 % |
 | Stack, worst path | ~1 KB | 2 KB reserved | ok |
 | FRAM | ~1 KB metadata | 8 KB | the real limit |
 | GPIO | 11 (I2C 2, LED, lamp, 6 buttons, + ADC temp internal) | 30 | |

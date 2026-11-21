@@ -14,7 +14,7 @@
 P   ?= ../..
 CXX ?= g++
 FS  = $(P)/fs/framfs.cpp
-K   = $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp
+K   = $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp conf_scripts.cpp
 SIM = fakefram.cpp $(K) $(P)/dev/fram.cpp $(FS)
 pr  = $(foreach n,$(1),$(P)/prog/$(n).cpp)
 
@@ -47,6 +47,16 @@ progtest: progtest.cpp $(call pr,wc grep headtail)
 $(SIMS):
 	$(CXX) -w -I fake -I $(P) -DPLAN2040_BOARD='"cpu_rp2040"' -o $@ $^
 
+# The built-in scripts, as CMakeLists.txt builds them into conf.cpp: the
+# real scripts/boot, comment and empty lines left out.
+conf_scripts.cpp: $(P)/scripts/boot
+	awk 'BEGIN { print "struct conf_script { const char *name; const char *text; };"; \
+	             print "extern const conf_script conf_scripts[]; extern const int conf_nscripts;"; \
+	             print "const conf_script conf_scripts[] = { { \"boot\", \"\"" } \
+	     /^[ \t]*#/ || /^[ \t]*$$/ { next } \
+	     { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); print "    \"" $$0 "\\n\"" } \
+	     END { print "} }; const int conf_nscripts = 1;" }' $< > $@
+
 check: $(ALL)
 	@fail=0; for t in $(ALL); do \
 	    ./$$t > $$t.out 2>&1; echo "exit $$?" >> $$t.out; \
@@ -60,6 +70,6 @@ expected: $(ALL)
 	done
 
 clean:
-	rm -f $(ALL) *.out
+	rm -f $(ALL) *.out conf_scripts.cpp
 
 .PHONY: all check expected clean

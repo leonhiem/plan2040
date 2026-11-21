@@ -1,0 +1,13 @@
+# scripts/boot -- the built-in boot script of a plan2040 without an app
+# (cpu_rp2040, babywarmer_v1 before the babywarmer app).
+#
+# Runs at every power-up, unless /fram/boot exists: that one runs
+# instead. Small on purpose: say what time it is and wire the LAMP
+# button to the lamp output, as on babywarmer -- a two-second check that
+# the RTC, the buttons, background jobs and a device write all work.
+#
+# Comment lines (like these) and empty lines are left out when CMake
+# builds the script into the firmware; a built-in script may be at most
+# 1023 bytes without them.
+date
+toggle /dev/buttons/lamp /dev/lamp &

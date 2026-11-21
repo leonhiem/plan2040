@@ -56,8 +56,9 @@
  * Scripts are files (cpu_rp2040): written with `cat > /fram/<name>`,
  * they survive a power cycle -- the thing picoos never had.
  * `run`/`loop <name>` look for /fram/<name> first, then the built-in
- * table (`scripts[SCRIPT_MAX]`, compiled in: `boot`); a name with a '/'
- * in it is used as a path as-is. `scripts` lists the built-in ones.
+ * ones (conf_scripts[], compiled in from the config's PLAN2040_SCRIPTS:
+ * scripts/<name> or apps/<app>/scripts/<name>); a name with a '/' in it
+ * is used as a path as-is. `scripts` lists the built-in ones.
  *
  * `watch <ms> <stage> [| stage ...] [< path]` -- repeats a pipeline in
  * the foreground every <ms>, printing every time, until Ctrl-C (ASCII
@@ -103,14 +104,14 @@
  * granularity tradeoff `watch` already has, and fine for the same
  * reason -- sub-second in practice, not an indefinite hang.
  *
- * A "boot" script comes pre-loaded into scripts[0] -- baked into the
- * firmware image itself (BOOT_SCRIPT_TEXT below), so it's back after
+ * A "boot" script is built in -- baked into the firmware image from the
+ * config's scripts (scripts/boot on cpu_rp2040), so it's back after
  * every reboot. task_shell() auto-runs "boot" on its very first tick,
  * before the prompt ever appears -- /fram/boot if it exists, which
  * overrides the built-in one, so the board's power-up behavior is a
  * file you edit, not firmware you rebuild. On babywarmer the boot
- * script started the whole heater wiring; the built-in one here is
- * deliberately tiny.
+ * script starts the whole heater wiring (apps/babywarmer/scripts/boot);
+ * the generic one is deliberately tiny.
  *
  * `help` -- lists the builtins and the grammar. Builtins don't show up
  * in `ls` (only devices and programs do), so this is where to find them.
@@ -129,32 +130,18 @@
 #define LINE_MAX    96
 #define MAX_TOKENS  48   // words + operators in one line (16 args x up to 4 stages fit)
 
-#define SCRIPT_MAX       4
-#define SCRIPT_NAME_MAX  16
-#define SCRIPT_TEXT_MAX  1024 // a handful of lines' worth; independent of
-                               // jobs.h's STAGE_BUF -- different concern
-                               // (script storage, not ls's output). Bumped
-                               // from 512 -- BOOT_SCRIPT_TEXT below alone
-                               // is ~480 bytes, too close to that cap to
-                               // leave any real room to grow it further.
+#define SCRIPT_TEXT_MAX  1024 // a script being run (run_buf), file or
+                               // built-in; files are at most 1 KB anyway.
+                               // CMakeLists.txt refuses a built-in script
+                               // longer than this. Bumped from 512 -- the
+                               // babywarmer boot script alone is ~480 bytes.
 
-typedef struct {
-    bool used;
-    char name[SCRIPT_NAME_MAX];
-    char text[SCRIPT_TEXT_MAX]; // lines joined by '\n', nul-terminated
-} script_t;
-
-// Runs at every power-up (see the header comment). Small on purpose:
-// say what time it is and wire the LAMP button to the lamp output, as on
-// babywarmer -- a two-second check that the RTC, the buttons, background
-// jobs and a device write all work.
-#define BOOT_SCRIPT_TEXT \
-    "date\n" \
-    "toggle /dev/buttons/lamp /dev/lamp &\n"
-
-static script_t scripts[SCRIPT_MAX] = {
-    { true, "boot", BOOT_SCRIPT_TEXT },
-};
+// The built-in scripts, read-only in flash: generated into conf.cpp from
+// the config's PLAN2040_SCRIPTS (each one a plain file, comment lines
+// left out). Always at least "boot".
+struct conf_script { const char *name; const char *text; };
+extern const conf_script conf_scripts[];
+extern const int conf_nscripts;
 
 static bool sleeping = false;
 static absolute_time_t wake_time;
@@ -331,13 +318,12 @@ static bool parse_pipeline(char **tok, bool *op, int ntok, pipeline_t *p, bool *
     return true;
 }
 
-// Finds a used script slot by name, or -1. Shared by capture_line()'s
-// "am I redefining an existing script" check, the `run` builtin, and
-// task_shell()'s own boot-time auto-run lookup.
+// Finds a built-in script by name, or -1 (load_script(): `run`, `loop`
+// and the boot-time auto-run).
 static int find_script(const char *name)
 {
-    for (int i = 0; i < SCRIPT_MAX; i++) {
-        if (scripts[i].used && strcmp(scripts[i].name, name) == 0) return i;
+    for (int i = 0; i < conf_nscripts; i++) {
+        if (strcmp(conf_scripts[i].name, name) == 0) return i;
     }
     return -1;
 }
@@ -362,7 +348,7 @@ static bool load_script(const char *name)
     } else {
         int slot = find_script(name);
         if (slot < 0) return false;
-        strncpy(run_buf, scripts[slot].text, SCRIPT_TEXT_MAX - 1);
+        strncpy(run_buf, conf_scripts[slot].text, SCRIPT_TEXT_MAX - 1);
         run_buf[SCRIPT_TEXT_MAX - 1] = '\0';
     }
     snprintf(run_name, sizeof(run_name), "%s", name);
@@ -433,8 +419,8 @@ static void dispatch(char *line)
     if (word0 && strcmp(tok[0], "scripts") == 0) {
         // Built-in ones only: scripts on the FRAM are plain files, listed
         // by `ls /fram` along with everything else stored there.
-        for (int i = 0; i < SCRIPT_MAX; i++)
-            if (scripts[i].used) printf("%s (built-in)\n", scripts[i].name);
+        for (int i = 0; i < conf_nscripts; i++)
+            printf("%s (built-in)\n", conf_scripts[i].name);
         printf("files: ls /fram\n");
         return;
     }
@@ -537,8 +523,8 @@ void task_shell(void)
         banner_shown = true;
 
         // Auto-run 'boot': /fram/boot if it exists, else the built-in one.
-        // scripts[0] is always seeded with "boot" (see BOOT_SCRIPT_TEXT
-        // above), so load_script() only fails here if that ever changes.
+        // CMakeLists.txt makes sure every config has a built-in "boot",
+        // so load_script() only fails here if that ever changes.
         if (load_script("boot")) {
             int fd = fs_open("/fram/boot");
             printf("running %s automatically...\n", fd >= 0 ? "/fram/boot" : "built-in 'boot'");
