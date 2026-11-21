@@ -8,15 +8,15 @@
  * error in picoos once dev/ambient.cpp needed it too.
  *
  * The table: 650 entries, one per 32 ADC codes, covering codes -11025
- * .. 9743 (+-1.024 V range). NOTE (2026-11-21, see TODO
- * idea 3; to be replaced by the EEPROM table, 3g): codes above 21742 wrap around in the (short) arithmetic and
- * land on entry 0, the hottest value (91.8 C), while codes 9744..21742
- * clamp to the coldest, entry 649 (22.9 C). With this recalibrated table
- * nothing reads below 22.9 C: a colder room reads 22.9, and a 10 C low
- * alarm can't fire. Kept as in picoos until decided. The table
- * itself is the 2026-08-30 recalibration for a substitute NTC, see the
- * comment at the top of ntc_lut.h. Later: the EEPROM lookup table
- * (step 3g) replaces it.
+ * .. 9743 (+-1.024 V range): the 2026-08-30 recalibration for a
+ * substitute NTC, see the comment at the top of ntc_lut.h.
+ *
+ * NOTE (2026-11-21, TODO idea 3): codes above 21742 wrap around in the
+ * (short) arithmetic and land on entry 0, the hottest value (91.8 C),
+ * while codes 9744..21742 clamp to the coldest, entry 649 (22.9 C). And
+ * nothing reads below 22.9 C: a colder room reads 22.9, a 10 C low alarm
+ * can't fire. Kept as in picoos; Leon: the table is experimental, the
+ * full EEPROM lookup table (step 3g) replaces it and fixes both.
  */
 #pragma once
 #include <stdint.h>

@@ -1,0 +1,38 @@
+register (seg7's lamp test: all on, then blank):
+    595s latched 56 bits: ff ff ff 7f ff ff ff   (big l3 l2 l1, leds, small s3 s2 s1)
+    595s latched 56 bits: 00 00 00 00 00 00 00   (big l3 l2 l1, leds, small s3 s2 s1)
+  task "tpo" every 100 ms; lamp test took 1000 ms
+heater (TPO, 15000 ms window):
+  echo 0     > /dev/heater: write ok, SSR on   0 of 150 ticks ( 0.0 s of 15), bargraph     0 of 41666
+  echo 25    > /dev/heater: write ok, SSR on  38 of 150 ticks ( 3.8 s of 15), bargraph 10416 of 41666
+  echo 50.5  > /dev/heater: write ok, SSR on  76 of 150 ticks ( 7.6 s of 15), bargraph 21041 of 41666
+  echo 100   > /dev/heater: write ok, SSR on 150 of 150 ticks (15.0 s of 15), bargraph 41666 of 41666
+  echo 150   > /dev/heater: write ok, SSR on 150 of 150 ticks (15.0 s of 15), bargraph 41666 of 41666
+  echo -3    > /dev/heater: write ok, SSR on   0 of 150 ticks ( 0.0 s of 15), bargraph     0 of 41666
+  echo on    > /dev/heater: write ok, SSR on 150 of 150 ticks (15.0 s of 15), bargraph 41666 of 41666
+  echo off   > /dev/heater: write ok, SSR on   0 of 150 ticks ( 0.0 s of 15), bargraph     0 of 41666
+  echo abc   > /dev/heater: write REFUSED, SSR on   0 of 150 ticks ( 0.0 s of 15), bargraph     0 of 41666
+  cat /dev/heater    -> 0.0
+relay (GPIO17):
+  on  -> pin 1
+  off -> pin 0
+  bad -> write -1
+alarm (buzzer GPIO0 1 = sounding, LED GPIO1 0 = lit):
+  on    -> buzzer 1 led 0
+  muted -> buzzer 0 led 0
+  off   -> buzzer 0 led 1
+seg7:
+  echo 36.5 > /dev/seg7big
+    595s latched 56 bits: b6 bf f2 00 00 00 00   (big l3 l2 l1, leds, small s3 s2 s1)
+  echo 37 > /dev/seg7small
+    595s latched 56 bits: b6 bf f2 00 b8 7c 00   (big l3 l2 l1, leds, small s3 s2 s1)
+  echo on > /dev/leds/aut
+    595s latched 56 bits: b6 bf f2 40 b8 7c 00   (big l3 l2 l1, leds, small s3 s2 s1)
+  echo 'man on' > /dev/leds
+    595s latched 56 bits: b6 bf f2 41 b8 7c 00   (big l3 l2 l1, leds, small s3 s2 s1)
+  cat /dev/leds/aut  -> on
+  cat /dev/leds/warm -> off
+  echo 1234 > /dev/seg7big (only 3 digits)
+    595s latched 56 bits: f2 da 60 41 b8 7c 00   (big l3 l2 l1, leds, small s3 s2 s1)
+  latches: 7
+exit 0

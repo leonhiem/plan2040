@@ -7,8 +7,12 @@ sources (kernel/, fs/, dev/, prog/) with g++ on the PC, against fakes:
 
 - `fake/board.h`: the FRAM's size and layout (FRAM_SIZE, SYSAREA_*), in
   place of a real `boards/<board>/board.h`.
-- `fake/pico/stdlib.h`: a fake clock (`fake_now`) and keyboard input from
-  a string (`getchar_timeout_us`).
+- `fake/pico/stdlib.h`: a fake clock (`fake_now`, `sleep_ms()` moves it)
+  and keyboard input from a string (`getchar_timeout_us`).
+- `fake/hardware/gpio.h`, `pwm.h`, `i2c.h`: pin levels in `fake_gpio[]`
+  (with a hook on every `gpio_put()`), PWM levels, just enough I2C for a
+  real `board.h`. `fake_bw/board.h` is the real babywarmer_v1 pin map
+  (for the babywarmer app's tests).
 - `fakefram.cpp`, `fakefram2.cpp`: the FRAM as an 8 KB array, with an
   optional power cut after N writes, and read failures.
 
@@ -43,6 +47,7 @@ the shell did, line by line.
 | `fscksim` | `fsck /fram` from the shell |
 | `helpsim` | `help` output |
 | `progtest` | `wc`, `grep`, `head`, `tail` on their own, self-checking |
+| `outtest` | babywarmer's outputs on fake GPIO/PWM with the real babywarmer_v1 pin map: `/dev/heater`'s SSR ticks per 15 s window and the bargraph, `/dev/relay`, `/dev/alarm`, and the exact 56 bits `/dev/seg7big`, `/dev/seg7small`, `/dev/leds` shift into the 74HC595s |
 | `ntctest` | babywarmer's NTC conversion (`apps/babywarmer/ntc.cpp`): degrees at the interesting ADC codes, incl. the wrap above 21742 |
 
 ## Notes

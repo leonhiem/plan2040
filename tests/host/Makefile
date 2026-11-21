@@ -22,7 +22,9 @@ pr  = $(foreach n,$(1),$(P)/prog/$(n).cpp)
 UNIT = fstest hourstest fscktest mvcut ntctest
 # whole-shell simulations (-w: the fakes are quick and dirty)
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
-ALL  = $(UNIT) $(SIMS)
+# babywarmer app tests (the real babywarmer_v1 pin map, fake GPIO/PWM)
+APP  = outtest
+ALL  = $(UNIT) $(SIMS) $(APP)
 
 all: $(ALL)
 
@@ -34,6 +36,9 @@ ntctest:   ntctest.cpp   $(P)/apps/babywarmer/ntc.cpp
 $(UNIT):
 	$(CXX) -Wall -I fake -I $(P) -I $(P)/apps/babywarmer -o $@ $^
 
+BW  = $(P)/apps/babywarmer
+outtest:  outtest.cpp  $(P)/kernel/fs.cpp $(BW)/heater.cpp $(BW)/seg7.cpp $(BW)/dev/heater.cpp $(BW)/dev/relay.cpp $(BW)/dev/alarm.cpp $(BW)/dev/seg7.cpp
+	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 sim:      sim.cpp      $(SIM) $(call pr,cat echo ls grep wc headtail tee rm mkfs df)
 quotesim: quotesim.cpp $(SIM) $(call pr,cat echo ls mkfs grep wc)
 cronsim:  cronsim.cpp  $(SIM) $(P)/dev/cron.cpp $(P)/dev/cons.cpp $(call pr,cat echo ls mkfs)

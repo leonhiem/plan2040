@@ -251,13 +251,23 @@ make -j$(nproc)
 ```
 
 **The babywarmer app** (`apps/babywarmer/`, from picoos @ 89c16e5) comes
-in step by step (TODO idea 3, steps 3c-3g). So far, step 3c, the sensors:
+in step by step (TODO idea 3, steps 3c-3g). So far the sensors (3c) and
+the outputs (3d):
 
 | Device | | |
 |---|---|---|
 | `/dev/skintemp` | read | Skin temperature, °C (`36.5`): the skin NTC on ADS1115 channels 0-1, one conversion per read. `error` if the ADS1115 doesn't answer. |
 | `/dev/ambient` | read | Room temperature, °C: the room NTC on channels 2-3. Same. |
 | `/dev/current` | read | Heater current sense, raw ADC counts 0..4095 (GPIO26, 8 samples averaged). |
+| `/dev/heater` | read/write | Heater power 0-100 % (`25`, `50.5`; `on` = 100, `off` = 0; clamped). Time-proportional: the SSR (GPIO11) is on for that share of every 15 s window, switched by the `tpo` kernel task every 100 ms; the bargraph (GPIO16, PWM ~3 kHz) shows it. Reading gives what's applied. Heats only with the safety relay energized. |
+| `/dev/relay` | write | The mechanical safety relay (GPIO17): `on` = energized, the heater may run; `off` = released. |
+| `/dev/alarm` | write | Buzzer (GPIO0) + alarm LED (GPIO1): `on` both, `muted` LED only, `off` neither. |
+| `/dev/seg7big`, `/dev/seg7small` | write | The two 3-digit displays: a number, up to 3 digits right-aligned, `.` lights the dot after the middle digit (`36.5`). More digits: the first three show. |
+| `/dev/leds`, `/dev/leds/<name>` | write; read/write | The 7 front-panel LEDs (`aut warm low high fail chk man`): `echo "man on" > /dev/leds`, or `echo on > /dev/leds/man`. |
+
+Every output is off at power-up (`board_pins_init()`: SSR off, relay
+released, buzzer silent) and changes only by a write to its device; the
+7-segment displays and LEDs light up for a 1 s lamp test at boot.
 
 Both NTCs go through the table in `apps/babywarmer/ntc_lut.h` (the
 2026-08-30 recalibration for a substitute NTC). Two things to know
@@ -266,8 +276,8 @@ about it (both to be fixed by the EEPROM table, step 3g): nothing reads below 22
 the hottest entry, 91.8 °C (`ntctest` in `tests/host` shows the whole
 mapping).
 
-Still to come: the outputs, the control, the TFT (3d-3f), the EEPROM
-table (3g); the gateway app (postponed).
+Still to come: the control, the TFT (3e-3f), the EEPROM table (3g); the
+gateway app (postponed).
 
 ## plan2040
 
@@ -1192,6 +1202,24 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | New: `#` comments (`date # hi` runs `date`) | ok: typed and inside `/fram/boot` |
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
+
+**2026-11-21, babywarmer outputs** (step 3d,
+`build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/heater` + the
+`tpo` task, `/dev/relay`, `/dev/alarm`, `/dev/seg7big`/`small`, `/dev/leds`.
+On the PC: `outtest` (SSR ticks per window, bargraph, relay and alarm
+pins, the 56 bits per display write). On the board, **first with the
+safety relay off** (`/dev/relay` stays off unless written), so the SSR
+and the bargraph can be watched without heating:
+
+| Test | Result |
+|---|---|
+| Boot | pending: 1 s lamp test (all digits, dots and LEDs), then blank; buzzer silent; heater off |
+| `echo 36.5 > /dev/seg7big`, `echo 37 > /dev/seg7small` | pending: `36.5` and ` 37` |
+| `echo on > /dev/leds/aut` ... each of the 7 | pending: the matching LED |
+| `echo on > /dev/alarm`, `muted`, `off` | pending: buzzer + LED, LED only, neither |
+| `echo 25 > /dev/heater` (relay off) | pending: SSR on ~3.8 s of every 15 s; bargraph at a quarter; `cat /dev/heater` = `25.0` |
+| `echo on > /dev/relay`, then `off` | pending: the relay clicks |
+| `ls` | pending: the generic devices + the 3c sensors + these, no `/dev/led` |
 
 **2026-11-21, babywarmer sensors** (step 3c,
 `build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/skintemp`,

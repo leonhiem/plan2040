@@ -257,6 +257,11 @@ Order, one commit each, tested on the PC and then the board:
     experimental; both points get fixed with the full EEPROM lookup
     table (3g), not in `ntc.cpp` now.
 - **3d** outputs: heater + its tpo task, relay, seg7 + `/dev/leds`, alarm.
+  **Built 2026-11-21**, board test pending. Ported unchanged apart from
+  the includes and init: `/dev/heater` registers the `tpo` task and the
+  bargraph PWM itself, `/dev/seg7`'s register does the 1 s lamp test (both
+  were in picoos's main()). The config drops `/dev/led` (`/dev/alarm`
+  owns GPIO1). `tests/host/outtest` checks them on fake GPIO/PWM.
 - **3e** control: setpoint, heaterauto, percent, pid, phase, safelut,
   alarmcheck, alarm, ledwire, monitor, and the boot script.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
