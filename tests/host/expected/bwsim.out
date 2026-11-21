@@ -1,0 +1,161 @@
+
+plan2040 on babywarmer_v1
+  ls            list /dev and bin/
+  help          builtins, grammar, often needed (reboot, bootsel, ...)
+running built-in 'boot' automatically...
+% date
+Sun Nov 22 10:00:00 2026
+% toggle /dev/buttons/lamp /dev/lamp &
+[1]
+% follow /dev/heaterauto /dev/setpoint /dev/percent /dev/seg7small &
+[2]
+% toggle /dev/buttons/manual /dev/heaterauto &
+[3]
+% adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 &
+[4]
+% phase &
+[5]
+% select /dev/state boost=80 coast=0 pid=/dev/pidout safe=/dev/safepower > /dev/autopower &
+[6]
+% cat /dev/skintemp | pid /dev/state pid /dev/setpoint > /dev/pidout &
+[7]
+% cat /dev/ambient | safelut > /dev/safepower &
+[8]
+% follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
+[9]
+% cat /dev/skintemp > /dev/seg7big &
+[10]
+% alarmcheck &
+[11]
+% alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow &
+[12]
+% ledwire &
+[13]
+%   0:10  auto off idle  set 35.0 skin 24.04  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  0:20  auto off idle  set 35.0 skin 24.07  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  0:30  auto off idle  set 35.0 skin 24.11  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  0:40  auto off idle  set 35.0 skin 24.15  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  0:50  auto off idle  set 35.0 skin 24.19  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+--- 1:00 press MANUAL (-> auto)
+  1:00  auto off idle  set 35.0 skin 24.22  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  1:10  auto on  boost set 35.0 skin 24.54  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  1:20  auto on  boost set 35.0 skin 24.84  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  1:30  auto on  boost set 35.0 skin 25.14  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  1:40  auto on  boost set 35.0 skin 25.44  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  1:50  auto on  boost set 35.0 skin 25.73  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  2:00  auto on  boost set 35.0 skin 26.01  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  3:00  auto on  boost set 35.0 skin 27.59  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
+  4:00  auto on  boost set 35.0 skin 29.00  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  5:00  auto on  boost set 35.0 skin 30.24  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  6:00  auto on  boost set 35.0 skin 31.35  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
+  7:00  auto on  coast set 35.0 skin 31.61  heater   0.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  8:00  auto on  safe  set 35.0 skin 31.02  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+  9:00  auto on  safe  set 35.0 skin 31.11  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 10:00  auto on  safe  set 35.0 skin 31.19  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 11:00  auto on  safe  set 35.0 skin 31.26  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 12:00  auto on  safe  set 35.0 skin 31.32  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 13:00  auto on  safe  set 35.0 skin 31.37  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 14:00  auto on  safe  set 35.0 skin 31.42  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 15:00  auto on  safe  set 35.0 skin 31.47  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 16:00  auto on  safe  set 35.0 skin 31.50  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 17:00  auto on  safe  set 35.0 skin 31.54  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 18:00  auto on  safe  set 35.0 skin 31.57  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 19:00  auto on  safe  set 35.0 skin 31.59  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 20:00  auto on  safe  set 35.0 skin 31.62  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 21:00  auto on  safe  set 35.0 skin 31.64  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 22:00  auto on  safe  set 35.0 skin 31.66  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 23:00  auto on  safe  set 35.0 skin 31.67  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 24:00  auto on  safe  set 35.0 skin 31.69  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 25:00  auto on  safe  set 35.0 skin 31.70  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 26:00  auto on  safe  set 35.0 skin 31.71  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 27:00  auto on  safe  set 35.0 skin 31.72  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 28:00  auto on  safe  set 35.0 skin 31.73  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 29:00  auto on  safe  set 35.0 skin 31.74  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 30:00  auto on  safe  set 35.0 skin 31.74  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 31:00  auto on  safe  set 35.0 skin 31.75  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 32:00  auto on  safe  set 35.0 skin 31.76  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 33:00  auto on  safe  set 35.0 skin 31.76  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 34:00  auto on  safe  set 35.0 skin 31.77  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 35:00  auto on  safe  set 35.0 skin 31.77  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 36:00  auto on  safe  set 35.0 skin 31.77  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 37:00  auto on  safe  set 35.0 skin 31.78  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 38:00  auto on  safe  set 35.0 skin 31.78  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 39:00  auto on  safe  set 35.0 skin 31.78  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+--- 40:00 press UP twice
+ 40:00  auto on  safe  set 35.0 skin 31.78  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 41:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 42:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 43:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 44:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 45:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 46:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 47:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 48:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 49:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 50:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 51:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 52:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 53:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 54:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 55:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 56:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 57:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 58:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 59:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 60:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 61:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 62:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 63:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 64:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 65:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 66:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 67:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 68:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 69:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+--- 70:00 sensor falls off the baby (reads the room)
+ 70:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 71:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 72:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 73:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 74:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 75:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 76:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 77:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 78:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 79:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 80:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 81:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 82:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 83:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 84:00  auto on  safe  set 36.0 skin 31.80* heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+--- 85:00 sensor back on the baby
+ 85:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 86:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 87:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 88:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 89:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 90:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 91:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 92:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 93:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 94:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 95:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 96:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 97:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 98:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 99:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+--- 100:00 the ADS1115 stops answering
+100:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+101:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+102:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+103:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+104:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+105:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+106:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+107:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+108:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+109:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+110:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+while the ADS1115 was dead: 11250 lines printed by the jobs, 11250 of them "cat: error"
+big display bytes at the end: fe61f2
+exit 0

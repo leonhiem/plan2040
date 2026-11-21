@@ -1,0 +1,33 @@
+# apps/babywarmer/scripts/boot -- the babywarmer's built-in boot script
+#
+# The whole controller, wired from small programs and devices. From
+# picoos @ 89c16e5 (shell.cpp BOOT_SCRIPT_TEXT, "Full heater control" in
+# picoos's README), the same lines in the same order, with two changes:
+#   - added: `date` and the LAMP button, as in plan2040's generic boot
+#     (the LAMP button had no job in picoos's boot);
+#   - not yet: `tftwire &`, the TFT's wiring, comes with the TFT (step 3f).
+# /fram/boot replaces this one when it exists.
+#
+# Read it as a block diagram:
+#   MANUAL toggles auto/manual; UP/DOWN adjust the setpoint (auto) or the
+#   manual percent (manual); the small display follows the same choice.
+#   phase decides idle/boost/coast/pid/safe once a second; select turns
+#   that state into a power (boost 80 %, coast 0, pid = the PID's output,
+#   safe = the table for the room temperature); follow sends the auto or
+#   manual power to the heater. alarmcheck owns the safety relay and the
+#   three alarm conditions, alarm drives the buzzer (MUTE silences it for
+#   a minute), ledwire the front-panel LEDs.
+date
+toggle /dev/buttons/lamp /dev/lamp &
+follow /dev/heaterauto /dev/setpoint /dev/percent /dev/seg7small &
+toggle /dev/buttons/manual /dev/heaterauto &
+adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 &
+phase &
+select /dev/state boost=80 coast=0 pid=/dev/pidout safe=/dev/safepower > /dev/autopower &
+cat /dev/skintemp | pid /dev/state pid /dev/setpoint > /dev/pidout &
+cat /dev/ambient | safelut > /dev/safepower &
+follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
+cat /dev/skintemp > /dev/seg7big &
+alarmcheck &
+alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow &
+ledwire &

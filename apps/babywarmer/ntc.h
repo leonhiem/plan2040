@@ -14,8 +14,8 @@
  * NOTE (2026-11-21, TODO idea 3): codes above 21742 wrap around in the
  * (short) arithmetic and land on entry 0, the hottest value (91.8 C),
  * while codes 9744..21742 clamp to the coldest, entry 649 (22.9 C). And
- * nothing reads below 22.9 C: a colder room reads 22.9, a 10 C low alarm
- * can't fire. Kept as in picoos; Leon: the table is experimental, the
+ * nothing reads below 22.9 C: a colder room reads 22.9 (which is why
+ * alarmcheck's TEMPLOW_C is 23 C, just above that floor). Kept as in picoos; Leon: the table is experimental, the
  * full EEPROM lookup table (step 3g) replaces it and fixes both.
  */
 #pragma once

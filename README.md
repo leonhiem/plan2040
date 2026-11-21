@@ -251,8 +251,8 @@ make -j$(nproc)
 ```
 
 **The babywarmer app** (`apps/babywarmer/`, from picoos @ 89c16e5) comes
-in step by step (TODO idea 3, steps 3c-3g). So far the sensors (3c) and
-the outputs (3d):
+in step by step (TODO idea 3, steps 3c-3g). So far the sensors (3c),
+the outputs (3d) and the control (3e):
 
 | Device | | |
 |---|---|---|
@@ -269,6 +269,36 @@ Every output is off at power-up (`board_pins_init()`: SSR off, relay
 released, buzzer silent) and changes only by a write to its device; the
 7-segment displays and LEDs light up for a 1 s lamp test at boot.
 
+The control, as devices that hold values and programs that run as jobs
+(all from picoos, see the comments in each file for the details):
+
+| Device | | |
+|---|---|---|
+| `/dev/setpoint` | read/write | Skin setpoint, 30.0-39.0 °C, default 35.0. |
+| `/dev/heaterauto` | read/write | `on` = auto (the PID), `off` = manual (`/dev/percent`). Starts `off`. |
+| `/dev/percent` | read/write | Manual heater power, 0-100, default 10. |
+| `/dev/pid/kp`, `ti`, `td`, `dt`, `integral`, `prevmeas`; `/dev/pidout` | read/write | The PID's tuning, its state, and its output. |
+| `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `phase`). |
+| `/dev/autopower`, `/dev/safepower` | read/write | Auto mode's power; safe mode's power (from `safelut`). |
+| `/dev/alarm/heater`, `temphigh`, `templow` | read/write | The three alarm conditions (written by `alarmcheck`). |
+
+| Program | What it does |
+|---|---|
+| `phase` | once a second: idle (manual) → boost (80 %) → coast (0 %) → pid, with watchdogs into `safe` (no rise in boost, a fast or sustained drop in pid) and back |
+| `pid <gate> <state> <setpoint>` | the PID on the skin temperature, while `/dev/state` is `pid` |
+| `safelut` | room temperature → a fixed heater power, for safe mode |
+| `alarmcheck` | every 15 s: the safety relay (off on overtemp or a stuck SSR, on when heating) and the three alarm conditions |
+| `alarm <cond...>` | buzzer + alarm LED from the conditions; MUTE silences the buzzer for a minute |
+| `ledwire` | the front-panel LEDs from mode, phase and alarms |
+| `monitor` | one status line, for `watch` |
+
+**The boot script** (`apps/babywarmer/scripts/boot`) wires it all
+together, 14 lines: MANUAL toggles auto/manual, UP/DOWN adjust the
+setpoint or the manual percent, the displays follow, `phase`, `select`
+and `follow` choose the power for `/dev/heater`, and `alarmcheck`, `alarm`
+and `ledwire` watch over it. `jobs` lists the 13 jobs it starts. Like
+any boot script, `/fram/boot` replaces it.
+
 Both NTCs go through the table in `apps/babywarmer/ntc_lut.h` (the
 2026-08-30 recalibration for a substitute NTC). Two things to know
 about it (both to be fixed by the EEPROM table, step 3g): nothing reads below 22.9 °C
@@ -276,8 +306,13 @@ about it (both to be fixed by the EEPROM table, step 3g): nothing reads below 22
 the hottest entry, 91.8 °C (`ntctest` in `tests/host` shows the whole
 mapping).
 
-Still to come: the control, the TFT (3e-3f), the EEPROM table (3g); the
-gateway app (postponed).
+**Known open points** (TODO idea 3, step 3e): a dead or unplugged
+ADS1115 leaves the heater running at its last safe-mode power (with the
+low alarm sounding); the heater-fail check can false-alarm between 50 and
+99 % power; a failing background job prints its error every 150 ms.
+
+Still to come: the TFT (3f), the EEPROM table (3g); the gateway app
+(postponed).
 
 ## plan2040
 
@@ -1202,6 +1237,24 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | New: `#` comments (`date # hi` runs `date`) | ok: typed and inside `/fram/boot` |
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
+
+**2026-11-22, babywarmer control** (step 3e,
+`build-babywarmer_v1/plan2040.uf2`, after the hack): the control devices
+and programs from picoos and the babywarmer boot script. On the PC:
+builds without warnings; `bwsim` runs the whole controller for 110
+simulated minutes (see the open points above). On the board, **the
+safety relay engages as soon as the heater power is above 0**
+(`alarmcheck`), and manual mode starts at 10 %: test with the heater
+element safe to run, or disconnected.
+
+| Test | Result |
+|---|---|
+| Boot | pending: the babywarmer boot runs, `jobs` shows 13 jobs; small display shows `10` (manual percent), big display the skin temperature |
+| UP/DOWN in manual | pending: percent changes in steps of 0.5 (small display) |
+| MANUAL | pending: auto on: small display shows the setpoint, `cat /dev/state` = `boost`, heater 80 %, AUT LED |
+| `watch 1000 monitor` | pending: one line per second through boost, coast, pid |
+| Warm the NTC by hand above 40 °C | pending: `/dev/alarm/temphigh` on, buzzer; MUTE silences it for a minute |
+| Heater 50-99 % for a few minutes | pending: does `/dev/alarm/heater` false-alarm? (depends on the current-sense circuit's filtering) |
 
 **2026-11-21, babywarmer outputs** (step 3d,
 `build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/heater` + the

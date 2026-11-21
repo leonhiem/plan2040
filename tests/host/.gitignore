@@ -19,3 +19,5 @@ progtest
 conf_scripts.cpp
 ntctest
 outtest
+bwsim
+conf_scripts_bw.cpp

@@ -190,6 +190,32 @@ wires short and neat; 3.3 V only (the RP2040 isn't 5 V tolerant, the
 LESSON in `boards/cpu_rp2040/board.h`); the header bus's pull-ups come
 from the babywarmer PCB / the added parts, ~2-5 kOhm in total.
 
+**The old RP2040 stays on the PCB, held in reset** (Leon, 2026-11-22):
+not desoldered; its RUN pin tied to GND, and it **stays powered** (an
+unpowered RP2040 would clamp every shared net through its ESD diodes
+and be back-powered through its pins). In reset its pads are in their
+reset state: input, output driver off, and (per the RP2040 datasheet,
+to confirm with a meter) the **internal pull-down on, ~50-80 kOhm, on
+every GPIO**. So the nets aren't floating; each gets a weak pull-down:
+- Outputs (SSR, relay, buzzer, LEDs, 7-segment, TFT, lamp): fine, ~66 uA
+  extra load for the new chip.
+- I2C GPIO12/13: fine, the 4k7 pull-ups still give ~3.0 V high.
+- **The six buttons (GPIO 2, 7, 8, 9, 28, 29): a problem.** plan2040 uses
+  only the RP2040's internal pull-ups (~50 kOhm); against the old chip's
+  pull-down a released button sits around 1.65 V, undefined: random
+  presses. **Fix: an external ~10 kOhm pull-up from each button line to
+  3V3** (never 5 V), giving ~2.75 V. Unless the babywarmer PCB has
+  pull-ups there already (picoos used only the internal ones, so
+  probably not).
+- GPIO26 (current sense): the extra ~50 kOhm to ground loads the sense
+  circuit a little; `/dev/current` may read lower than on the old board.
+- RUN straight to GND (a pull-up/reset button on RUN only costs a few
+  hundred uA). One 3V3 source for the shared rail, never two regulator
+  outputs in parallel.
+- Check after soldering, before plan2040: `bringup` with the buttons
+  untouched must report no presses; a released button line measures
+  close to 3.3 V.
+
 Software for this combination, in step 3:
 - `boards/babywarmer_v1/`: cpu_rp2040's local bus (FRAM, RTC) plus the
   babywarmer pin map (`../picoos/warmer.h`) and the header bus i2c0
@@ -251,7 +277,9 @@ Order, one commit each, tested on the PC and then the board:
     alarm logic sees it) rather than any temperature. `ntctest` shows
     the mapping.
   - The recalibrated table (2026-08-30, substitute NTC) bottoms out at
-    22.9 C: a colder room reads 22.9, and a 10 C low alarm can't fire.
+    22.9 C: a colder room reads 22.9 (picoos's alarmcheck puts its low
+    alarm at 23 C for exactly that reason, so it can still fire;
+    corrected 2026-11-22, an earlier note here said a 10 C alarm).
     The EEPROM table (3g) is the real fix; until then, worth knowing.
   - **Decided 2026-11-21 (Leon):** the NTC table is messy and
     experimental; both points get fixed with the full EEPROM lookup
@@ -264,6 +292,37 @@ Order, one commit each, tested on the PC and then the board:
   owns GPIO1). `tests/host/outtest` checks them on fake GPIO/PWM.
 - **3e** control: setpoint, heaterauto, percent, pid, phase, safelut,
   alarmcheck, alarm, ledwire, monitor, and the boot script.
+  **Built 2026-11-22**, board test pending. The 13 files ported
+  unchanged apart from includes and register names; the boot script is
+  picoos's, plus `date` and the LAMP button, minus `tftwire` (3f).
+  `tests/host/bwsim` runs the whole controller on the PC. **Open
+  points it showed (2026-11-22), to decide:**
+  - **A dead ADS1115 keeps the heater running.** Every control program
+    reads a failed device as a fallback value (skin 0.0): `alarmcheck`
+    raises the low alarm (buzzer) but keeps the relay on whenever the
+    power is > 0; `phase` ends in `safe`; and `cat /dev/ambient | safelut`
+    now fails every time, so `/dev/safepower` keeps its last value: the
+    heater runs at, e.g., 39 % with no working sensor. (In picoos a dead
+    ADS1115 hung the board instead, not better.) A sensor fault should
+    probably be an alarm of its own that switches the heater off and the
+    relay off: e.g. `alarmcheck` treating an unreadable `/dev/skintemp`
+    as a fault, and `phase` going to a state with 0 % power.
+  - **The heater-fail check can false-alarm between 50 and 99 % power.**
+    It reads `/dev/current` once every 15 s, 8 samples within
+    microseconds; the TPO has the SSR off for part of every 15 s window,
+    and a check landing there sees "heating hard, no current". bwsim
+    shows it during boost (80 %). babywarmer's original kept a rolling
+    average over time (`curr_sense_table`); picoos's 8 instant samples
+    don't. On the board it depends on whether the current-sense circuit
+    filters (an RC). Fixes: average over a TPO window, or only judge
+    while the SSR is on.
+  - **A failing background job prints its error every 150 ms** (bwsim:
+    11250 `cat: error` lines in 10 minutes from the two NTC pipelines):
+    unusable console exactly when something's wrong. Print once per job
+    until it works again?
+  - In bwsim, safe mode at 39 % never reached the recovery temperature,
+    so it stayed in `safe`; that's the rough thermal model, not a
+    finding, but worth watching on the real warmer.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon.
 - **3g** `/dev/eeprom`, `/dev/lut` and the calibration workflow.

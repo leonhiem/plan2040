@@ -7,4 +7,5 @@ static inline absolute_time_t get_absolute_time(void){ return fake_now; }
 static inline absolute_time_t make_timeout_time_ms(uint32_t ms){ return fake_now + (uint64_t)ms*1000; }
 static inline void sleep_ms(uint32_t ms){ fake_now += (uint64_t)ms*1000; }
 static inline int64_t absolute_time_diff_us(absolute_time_t a, absolute_time_t b){ return (int64_t)(b-a); }
+static inline bool time_reached(absolute_time_t t){ return fake_now >= t; }
 int getchar_timeout_us(uint32_t us);

@@ -23,7 +23,7 @@ UNIT = fstest hourstest fscktest mvcut ntctest
 # whole-shell simulations (-w: the fakes are quick and dirty)
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
 # babywarmer app tests (the real babywarmer_v1 pin map, fake GPIO/PWM)
-APP  = outtest
+APP  = outtest bwsim
 ALL  = $(UNIT) $(SIMS) $(APP)
 
 all: $(ALL)
@@ -39,6 +39,12 @@ $(UNIT):
 BW  = $(P)/apps/babywarmer
 outtest:  outtest.cpp  $(P)/kernel/fs.cpp $(BW)/heater.cpp $(BW)/seg7.cpp $(BW)/dev/heater.cpp $(BW)/dev/relay.cpp $(BW)/dev/alarm.cpp $(BW)/dev/seg7.cpp
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
+BWSRC = $(P)/kernel/task.cpp $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp conf_scripts_bw.cpp \
+        $(P)/dev/lamp.cpp $(P)/dev/buttons.cpp $(call pr,cat echo follow toggle adjust select) \
+        $(BW)/heater.cpp $(BW)/seg7.cpp $(foreach n,heater relay alarm seg7 setpoint heaterauto percent pid phase alarmcheck,$(BW)/dev/$(n).cpp) \
+        $(foreach n,pid phase safelut alarmcheck alarm ledwire monitor,$(BW)/prog/$(n).cpp)
+bwsim:    bwsim.cpp $(BWSRC)
+	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -DPLAN2040_BOARD='"babywarmer_v1"' -o $@ $^
 sim:      sim.cpp      $(SIM) $(call pr,cat echo ls grep wc headtail tee rm mkfs df)
 quotesim: quotesim.cpp $(SIM) $(call pr,cat echo ls mkfs grep wc)
 cronsim:  cronsim.cpp  $(SIM) $(P)/dev/cron.cpp $(P)/dev/cons.cpp $(call pr,cat echo ls mkfs)
@@ -53,15 +59,19 @@ progtest: progtest.cpp $(call pr,wc grep headtail)
 $(SIMS):
 	$(CXX) -w -I fake -I $(P) -DPLAN2040_BOARD='"cpu_rp2040"' -o $@ $^
 
-# The built-in scripts, as CMakeLists.txt builds them into conf.cpp: the
-# real scripts/boot, comment and empty lines left out.
+# The built-in boot script, as CMakeLists.txt builds it into conf.cpp:
+# comment and empty lines left out. scripts/boot for the generic sims,
+# apps/babywarmer/scripts/boot for bwsim.
+MKCONF = awk 'BEGIN { print "struct conf_script { const char *name; const char *text; };"; \
+	              print "extern const conf_script conf_scripts[]; extern const int conf_nscripts;"; \
+	              print "const conf_script conf_scripts[] = { { \"boot\", \"\"" } \
+	      /^[ \t]*\#/ || /^[ \t]*$$/ { next } \
+	      { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); print "    \"" $$0 "\\n\"" } \
+	      END { print "} }; const int conf_nscripts = 1;" }'
 conf_scripts.cpp: $(P)/scripts/boot
-	awk 'BEGIN { print "struct conf_script { const char *name; const char *text; };"; \
-	             print "extern const conf_script conf_scripts[]; extern const int conf_nscripts;"; \
-	             print "const conf_script conf_scripts[] = { { \"boot\", \"\"" } \
-	     /^[ \t]*#/ || /^[ \t]*$$/ { next } \
-	     { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); print "    \"" $$0 "\\n\"" } \
-	     END { print "} }; const int conf_nscripts = 1;" }' $< > $@
+	$(MKCONF) $< > $@
+conf_scripts_bw.cpp: $(BW)/scripts/boot
+	$(MKCONF) $< > $@
 
 check: $(ALL)
 	@fail=0; for t in $(ALL); do \
@@ -76,6 +86,6 @@ expected: $(ALL)
 	done
 
 clean:
-	rm -f $(ALL) *.out conf_scripts.cpp
+	rm -f $(ALL) *.out conf_scripts.cpp conf_scripts_bw.cpp
 
 .PHONY: all check expected clean

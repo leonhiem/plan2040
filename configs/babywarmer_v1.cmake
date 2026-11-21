@@ -8,7 +8,9 @@
 # Built up step by step (TODO.md idea 3): 3a the generic devices, as on
 # cpu_rp2040, to test the hack; 3c the babywarmer's sensors; 3d its
 # outputs (heater, safety relay, buzzer + alarm LED, 7-segment + LEDs),
-# each off at boot and only switched by a write to its device. The TFT
+# each off at boot and only switched by a write to its device; 3e the
+# control (setpoint, auto/manual, PID, phases, alarms) and the boot
+# script that wires it all (apps/babywarmer/scripts/boot). The TFT
 # backlight stays off until 3f.
 
 set(PLAN2040_BOARD   babywarmer_v1)
@@ -34,11 +36,19 @@ set(PLAN2040_DEVS
     relay        # /dev/relay: the mechanical safety relay, on/off
     alarm        # /dev/alarm: buzzer + alarm LED (GPIO0, GPIO1): on | muted | off
     seg7         # /dev/seg7big, /dev/seg7small, /dev/leds + /dev/leds/<name>; lamp test at boot
+    setpoint     # /dev/setpoint: 30.0-39.0 C, default 35.0
+    heaterauto   # /dev/heaterauto: on = auto (PID), off = manual
+    percent      # /dev/percent: manual heater power, default 10
+    pid          # /dev/pid/{kp,ti,td,dt,integral,prevmeas}, /dev/pidout
+    phase        # /dev/state, /dev/autopower, /dev/safepower
+    alarmcheck   # /dev/alarm/{heater,temphigh,templow}
 )
 
 set(PLAN2040_PROGS
     cat echo label thresh hyst toggle adjust follow select date uptime
     wc grep headtail tee hexdump remember cpmv rm fsck mkfs df ls
+    # babywarmer (apps/babywarmer/prog/)
+    pid phase safelut alarmcheck alarm ledwire monitor
 )
 
 # Built-in scripts: scripts/<name> (or the app's), "boot" runs at power-up
@@ -54,6 +64,6 @@ set(PLAN2040_SIZES
     MAX_JOBS=20
     STAGE_BUF=4096
     PROG_MAX=48
-    FS_MAX_DEVICES=64    # the babywarmer app brings ~45 more: 96 then
+    FS_MAX_DEVICES=96    # ~52 now, ~66 with the TFT (3f)
     TASK_MAX=32          # MAX_JOBS + shell, hours, cron, tpo = 24
 )

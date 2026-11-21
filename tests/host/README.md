@@ -48,6 +48,7 @@ the shell did, line by line.
 | `helpsim` | `help` output |
 | `progtest` | `wc`, `grep`, `head`, `tail` on their own, self-checking |
 | `outtest` | babywarmer's outputs on fake GPIO/PWM with the real babywarmer_v1 pin map: `/dev/heater`'s SSR ticks per 15 s window and the bargraph, `/dev/relay`, `/dev/alarm`, and the exact 56 bits `/dev/seg7big`, `/dev/seg7small`, `/dev/leds` shift into the 74HC595s |
+| `bwsim` | the whole babywarmer controller for 110 simulated minutes: the real scheduler, shell, jobs, babywarmer boot script, devices and programs; only the sensors are fakes, fed by a rough thermal model. MANUAL → auto (boost, coast, pid/safe), UP twice, the sensor off the baby and back, then a dead ADS1115. What the jobs print while the ADS1115 is dead is counted, not shown |
 | `ntctest` | babywarmer's NTC conversion (`apps/babywarmer/ntc.cpp`): degrees at the interesting ADC codes, incl. the wrap above 21742 |
 
 ## Notes
