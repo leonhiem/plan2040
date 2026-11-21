@@ -27,7 +27,7 @@ static int rm_run(const char *in, int inlen, int argc, char **argv, char *out, i
 
 static const program_t prog_rm = {"rm", rm_run};
 
-void rm_register(void)
+void prog_rm_register(void)
 {
     prog_register(&prog_rm);
 }

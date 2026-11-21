@@ -1,0 +1,90 @@
+===== first boot, blank FRAM =====
+fram: no filesystem, run: mkfs /fram
+
+plan2040 on cpu_rp2040
+  ls            list /dev and bin/
+  help          builtins, grammar, often needed (reboot, bootsel, ...)
+running built-in 'boot' automatically...
+% date
+date: not found (try 'ls')
+% toggle /dev/buttons/lamp /dev/lamp &
+[1]
+% # a comment line
+% ls /fram   # with a comment
+ls: /fram: not a mount, or no filesystem yet (mkfs /fram)
+% df
+/fram    no filesystem (mkfs /fram)
+% echo hi > /fram/a
+/fram/a: write failed
+% mkfs /fram
+/fram: formatted, 7104 bytes free
+% df
+/fram     7104 total     0 used  7104 free
+% echo hello world > /fram/a.txt
+% cat /fram/a.txt
+hello world
+% echo first>/fram/log
+% echo second >> /fram/log
+% echo third>>/fram/log
+% cat /fram/log
+first
+second
+third
+% cat /fram/log | wc -l
+3
+% cat /fram/log|grep sec
+second
+% ls /fram
+/fram/a.txt
+/fram/log
+% ls -l /fram/
+/fram/a.txt              12
+/fram/log                19
+% ls | tail 4
+bin/rm
+bin/mkfs
+bin/df
+bin/ls
+% cat /fram/nope
+cat: error
+% cat < /fram/a.txt
+hello world
+% rm /fram/a.txt /fram/nope
+rm: /fram/nope: no such file
+% ls /fram
+/fram/log
+% echo x > /fram/waytoolongname
+/fram/waytoolongname: write failed
+% script blink
+script: not found (try 'ls')
+% echo one
+one
+% echo two
+two
+% .
+.: not found (try 'ls')
+% run blink
+run: no such script 'blink'
+% cat /fram/blink
+cat: error
+% echo echo from-fram-boot > /fram/boot
+% echo cat /fram/log >> /fram/boot
+% scripts
+boot (built-in)
+files: ls /fram
+% df
+/fram     7104 total   128 used  6976 free
+% 
+===== reboot: RAM forgotten, FRAM kept =====
+run boot
+% echo from-fram-boot
+from-fram-boot
+% cat /fram/log
+first
+second
+third
+% ls -l /fram
+/fram/boot               34
+/fram/log                19
+% 
+exit 0

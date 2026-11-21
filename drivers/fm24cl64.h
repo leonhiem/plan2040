@@ -5,7 +5,7 @@
  * when the I2C transfer is. Any length, any address up to FRAM_SIZE
  * (board.h); longer writes go out in chunks.
  *
- * Shared by bringup (cell/aliasing tests) and picoos.
+ * Shared by bringup (cell/aliasing tests) and plan2040.
  */
 #pragma once
 

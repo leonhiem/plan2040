@@ -1,0 +1,24 @@
+FAIL wc                    -> 5 5 47
+   expected: 5 5 50
+ok   wc    -l              -> 5
+ok   wc                    -> 0 0 0
+ok   grep  rtc             -> /dev/rtc
+/dev/rtc/vl
+ok   grep  -v       /dev   -> bin/cat
+bin/date
+ok   grep  new             -> no newline
+ok   head  2               -> /dev/led
+/dev/rtc
+ok   head                  -> /dev/led
+/dev/rtc
+/dev/rtc/vl
+bin/cat
+bin/date
+ok   head  0               -> ok   tail  2               -> bin/cat
+bin/date
+ok   tail  9               -> /dev/led
+/dev/rtc
+/dev/rtc/vl
+bin/cat
+bin/date
+ok   tail  0               -> ok   tail  1               -> bexit 0

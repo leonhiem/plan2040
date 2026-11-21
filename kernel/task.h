@@ -1,14 +1,14 @@
 /**
- * kernel/task.h — picoos minimal cooperative task scheduler
+ * kernel/task.h — plan2040 minimal cooperative task scheduler
  *
- * This is the seed of the reusable "OS" part of picoos: a fixed table of
+ * This is the seed of the reusable "OS" part of plan2040 (picoos then): a fixed table of
  * named, periodic, run-to-completion tasks, dispatched from a single loop
  * on one core. No preemption, no per-task stacks, no blocking — a task
  * function must do its work and return quickly, same discipline as the
  * hand-rolled scheduling loop this replaces.
  *
  * Deliberately tiny. The intent is to grow this file (or add siblings next
- * to it, e.g. a future chan.h) as picoos grows toward real processes and
+ * to it, e.g. a future chan.h) as plan2040 grows toward real processes and
  * message passing — not to design that in up front.
  */
 #pragma once

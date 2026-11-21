@@ -23,7 +23,7 @@ static int mkfs_run(const char *in, int inlen, int argc, char **argv, char *out,
 
 static const program_t prog_mkfs = {"mkfs", mkfs_run};
 
-void mkfs_register(void)
+void prog_mkfs_register(void)
 {
     prog_register(&prog_mkfs);
 }

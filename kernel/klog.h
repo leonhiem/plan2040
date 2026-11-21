@@ -11,7 +11,7 @@
  * and single-core: only one task function runs at a time and none of
  * them yield mid-function, so pushes from different tasks can never race
  * with each other or with the drain in klog_flush(). This stops being
- * true if picoos ever gains preemption or uses core1 — see task.h.
+ * true if plan2040 ever gains preemption or uses core1 — see task.h.
  */
 #pragma once
 

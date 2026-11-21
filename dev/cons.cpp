@@ -25,7 +25,7 @@ static int cons_write(const char *buf, int len)
 
 static const device_t dev_cons = {"/dev/cons", 0, 0, 0, cons_write};
 
-void cons_register(void)
+void dev_cons_register(void)
 {
     fs_register(&dev_cons);
 }

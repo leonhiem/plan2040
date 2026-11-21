@@ -4,12 +4,12 @@
  * cat /dev/buttons -> the names of whichever buttons were pressed since
  * the last read, e.g. "up down\n", or "none\n" if nothing's happened.
  * Read-and-clear (event) semantics, not a live "is held down" snapshot:
- * button[] (buttons.cpp) is a sticky per-button flag set once by the
+ * button[] (drivers/buttons.cpp) is a sticky per-button flag set once by the
  * debounce timer callback on press and never cleared since task_input
  * (the old consumer) was ripped out -- this device is now that consumer.
  *
  * Note: button[] is written from the debounce timer's interrupt context
- * (buttons.cpp's repeating_timer_callback) while this read() runs from
+ * (drivers/buttons.cpp's repeating_timer_callback) while this read() runs from
  * the cooperative task_shell. No lock around the read-then-clear here --
  * worst case is a press landing in the few-microsecond window between
  * the two and getting missed on this particular cat. Fine for an
@@ -20,7 +20,7 @@
  * button siblings that don't have the all-or-nothing consumption
  * problem this aggregate device does.
  */
-#include "buttons.h"
+#include "drivers/buttons.h"
 #include "kernel/fs.h"
 #include <cstdio>
 #include <cstring>
@@ -62,11 +62,6 @@ static const device_t dev_buttons = {
     0,             // read-only
 };
 
-void buttons_register(void)
-{
-    fs_register(&dev_buttons);
-}
-
 /* ═══════════════════════════════════════════════════
    /dev/buttons/<name> -- one independent read-and-clear device per
    button, alongside the aggregate /dev/buttons above. The aggregate's
@@ -103,8 +98,10 @@ static const device_t dev_button_manual = {"/dev/buttons/manual", 0, 0, manual_r
 static const device_t dev_button_start  = {"/dev/buttons/start",  0, 0, start_read,  0};
 static const device_t dev_button_lamp   = {"/dev/buttons/lamp",   0, 0, lamp_btn_read, 0};
 
-void button_devices_register(void)
+// /dev/buttons first, then its six siblings (the order ls shows).
+void dev_buttons_register(void)
 {
+    fs_register(&dev_buttons);
     fs_register(&dev_button_up);
     fs_register(&dev_button_down);
     fs_register(&dev_button_mute);

@@ -56,7 +56,7 @@ static int thresh_run(const char *in, int inlen, int argc, char **argv, char *ou
 
 static const program_t prog_thresh = {"thresh", thresh_run};
 
-void thresh_register(void)
+void prog_thresh_register(void)
 {
     prog_register(&prog_thresh);
 }

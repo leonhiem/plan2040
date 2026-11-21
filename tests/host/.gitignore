@@ -1,0 +1,18 @@
+# built by make; see Makefile
+*.out
+!expected/*.out
+fstest
+hourstest
+fscktest
+mvcut
+sim
+quotesim
+cronsim
+catsim
+cpsim
+remsim
+hexsim
+rmsim
+fscksim
+helpsim
+progtest

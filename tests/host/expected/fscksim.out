@@ -1,0 +1,20 @@
+=== boot after the power cut ===
+fram: freed 3 lost block(s), left by a power cut during a write
+
+plan2040 on cpu_rp2040
+  ls            list /dev and bin/
+  help          builtins, grammar, often needed (reboot, bootsel, ...)
+running /fram/boot automatically...
+% date
+date: not found (try 'ls')
+% fsck /fram
+/fram: 1 files, 1 blocks in use, 110 free, no lost blocks
+ok
+% cat /fram/boot
+date
+% fsck
+usage: fsck /fram
+% fsck /dev
+fsck: /dev: not a mount, or not formatted
+% 
+exit 0

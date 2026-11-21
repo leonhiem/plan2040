@@ -37,7 +37,7 @@ static int led_write(const char *buf, int len)
 
 static const device_t dev_led = {"/dev/led", 0, 0, led_read, led_write};
 
-void led_register(void)
+void dev_led_register(void)
 {
     fs_register(&dev_led);
 }

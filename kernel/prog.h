@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#ifndef PROG_MAX  // the config (configs/<name>.cmake) may set it
 #define PROG_MAX 48 // 2026-11-12 (cpu_rp2040): bumped from 24 -- 20 used
                     // after the FRAM commands (rm/mkfs/df), and many
                     // more small programs are the plan. Headroom again.
@@ -18,6 +19,7 @@
                     // through the exact same silent-drop TODO fs_register
                     // had before it got a loud warning (see prog.cpp).
                     // Given headroom this time rather than sized to match.
+#endif
 
 typedef struct {
     const char *name;

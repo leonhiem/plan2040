@@ -5,7 +5,7 @@
  * Seconds bit 7 = VL (clock integrity not guaranteed: VDD fell below
  * ~0.9 V). Control_1 bit 5 = STOP. See README.md "Hardware notes".
  *
- * Shared by bringup (raw register tests) and picoos (dev/rtc.cpp).
+ * Shared by bringup (raw register tests) and plan2040 (dev/rtc.cpp).
  * Blocking I2C calls, each well under a millisecond at 400 kHz.
  */
 #pragma once
@@ -17,7 +17,7 @@ struct rtc_time {
     bool vl;
 };
 
-// One-time setup for picoos: control_1/control_2 to known values (their
+// One-time setup for plan2040: control_1/control_2 to known values (their
 // unused bits power up random), CLKOUT off (pad unused, it only drains
 // the backup supercap). Leaves the time itself alone. Not used by
 // bringup, which wants to see the raw power-on state.

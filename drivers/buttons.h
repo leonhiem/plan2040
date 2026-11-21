@@ -1,5 +1,5 @@
 /**
- * buttons.h — debounced push buttons (same six as babywarmer/picoos)
+ * drivers/buttons.h — debounced push buttons (same six as babywarmer/picoos)
  *
  * A 5ms repeating timer samples every button; a press sets that
  * button's sticky button[] flag, which stays set until a consumer

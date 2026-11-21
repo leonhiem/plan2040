@@ -81,7 +81,7 @@ static int mv_run(const char *in, int inlen, int argc, char **argv, char *out, i
 static const program_t prog_cp = {"cp", cp_run};
 static const program_t prog_mv = {"mv", mv_run};
 
-void cpmv_register(void)
+void prog_cpmv_register(void)
 {
     prog_register(&prog_cp);
     prog_register(&prog_mv);

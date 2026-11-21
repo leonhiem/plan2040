@@ -1,0 +1,103 @@
+fram: no filesystem, run: mkfs /fram
+
+plan2040 on cpu_rp2040
+  ls            list /dev and bin/
+  help          builtins, grammar, often needed (reboot, bootsel, ...)
+running built-in 'boot' automatically...
+% date
+date: not found (try 'ls')
+% toggle /dev/buttons/lamp /dev/lamp &
+[1]
+% mkfs /fram
+/fram: formatted, 7104 bytes free
+% cat > /fram/crontab
+typing into /fram/crontab: end with '.' or Ctrl-D
+> # every minute a tick, LED on even and off odd minutes
+> * * * * * echo tick > /dev/cons
+> */2 * * * * echo on > /dev/led
+> 1-59/2 * * * * echo off > /dev/led
+> 0 8 * * 1-5 echo weekday-0800 > /dev/cons
+> 30 9 * * 0 echo sunday-0 > /dev/cons
+> 30 9 * * 7 echo sunday-7 > /dev/cons
+> 0 12 15 * 3 echo 15th-or-wed > /dev/cons
+> 5,10 13 * * * echo list > /dev/cons
+> 0 14 * * * echo start-job > /dev/lamp &
+> 0 15 * * * sleep 100
+> 61 * * * * echo bad-minute
+> * * * *
+> * * * * 8 echo bad-weekday
+> 5/20 16 * * * echo step-from-5 > /dev/cons
+> .
+% --- boot minute is skipped, then minute by minute ---
+[2026-11-15 07:58 Sun] 
+[2026-11-15 07:59 Sun] tick
+cron: /fram/crontab line 12: bad, ignored
+cron: /fram/crontab line 13: bad, ignored
+cron: /fram/crontab line 14: bad, ignored
+
+[2026-11-15 08:00 Sun] tick
+
+[2026-11-15 08:01 Sun] tick
+
+led on=1 off=2 (expect 1 and 2: 07:59 off, 08:00 on, 08:01 off; 07:58 skipped)
+--- Monday 08:00 (weekday) ---
+[2026-11-16 08:00 Mon] tick
+weekday-0800
+
+--- Sunday 09:30 (weekday 0 and 7 both) ---
+[2026-11-15 09:30 Sun] tick
+sunday-0
+sunday-7
+
+--- day-or-weekday: Sun 15th 12:00, Wed 18th 12:00, Thu 19th 12:00 ---
+[2026-11-15 12:00 Sun] tick
+15th-or-wed
+
+[2026-11-18 12:00 Wed] tick
+15th-or-wed
+
+[2026-11-19 12:00 Thu] tick
+
+--- list 13:05, 13:10, 13:07 ---
+[2026-11-19 13:05 Thu] tick
+list
+
+[2026-11-19 13:10 Thu] tick
+list
+
+[2026-11-19 13:07 Thu] tick
+
+--- 14:00 starts a job, 15:00 tries a builtin ---
+[2026-11-19 14:00 Thu] tick
+
+[2026-11-19 15:00 Thu] tick
+cron: /fram/crontab line 11: not run (builtins can't run from cron)
+
+jobs
+[1] toggle /dev/buttons/lamp /dev/lamp &
+[2] echo start-job > /dev/lamp &
+% --- step from 5: 16:05 16:25 16:45 vs 16:15 ---
+[2026-11-19 16:05 Thu] tick
+step-from-5
+
+[2026-11-19 16:25 Thu] tick
+step-from-5
+
+[2026-11-19 16:15 Thu] tick
+
+--- VL set: nothing runs ---
+(no output above)
+--- off ---
+echo off > /dev/cron
+% cat /dev/cron
+off
+% (no output)
+echo on > /dev/cron
+% tick
+
+--- RTC unreadable: nothing ---
+(no output)
+echo hello > /dev/cons
+hello
+% 
+exit 0

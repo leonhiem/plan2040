@@ -26,7 +26,7 @@ static int cat_run(const char *in, int inlen, int argc, char **argv, char *out, 
 
 static const program_t prog_cat = {"cat", cat_run};
 
-void cat_register(void)
+void prog_cat_register(void)
 {
     prog_register(&prog_cat);
 }

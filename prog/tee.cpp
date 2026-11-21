@@ -25,7 +25,7 @@ static int tee_run(const char *in, int inlen, int argc, char **argv, char *out, 
 
 static const program_t prog_tee = {"tee", tee_run};
 
-void tee_register(void)
+void prog_tee_register(void)
 {
     prog_register(&prog_tee);
 }

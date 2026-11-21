@@ -77,7 +77,7 @@ static int ls_run(const char *in, int inlen, int argc, char **argv, char *out, i
 
 static const program_t prog_ls = {"ls", ls_run};
 
-void ls_register(void)
+void prog_ls_register(void)
 {
     prog_register(&prog_ls);
 }

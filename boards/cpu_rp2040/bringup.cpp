@@ -1,7 +1,7 @@
 /**
  * bringup.cpp — first-power-up test for the cpu_rp2040 PCB
  *
- * Standalone, no picoos kernel: proves the board itself before the OS
+ * Standalone, no plan2040 kernel: proves the board itself before the OS
  * moves onto it. On boot it runs every test once and prints a summary,
  * then stays in a small command loop over USB serial:
  *

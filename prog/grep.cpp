@@ -48,7 +48,7 @@ static int grep_run(const char *in, int inlen, int argc, char **argv, char *out,
 
 static const program_t prog_grep = {"grep", grep_run};
 
-void grep_register(void)
+void prog_grep_register(void)
 {
     prog_register(&prog_grep);
 }

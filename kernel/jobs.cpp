@@ -1,4 +1,4 @@
-#include "jobs.h"
+#include "kernel/jobs.h"
 #include "kernel/task.h"
 #include "kernel/fs.h"
 #include "kernel/prog.h"
@@ -80,12 +80,16 @@ static void run_slot(int i)
 
 // One trampoline per job slot, generated mechanically -- see jobs.h's
 // header comment for why each slot still needs its own distinct
-// function. JOB_SLOTS must list exactly MAX_JOBS entries, X(0)..X(N-1);
-// growing MAX_JOBS means adding more X(n) tokens here, in both places
-// below, nothing else.
+// function. JOB_SLOTS lists 32 of them; only the first MAX_JOBS (set
+// by the config) get registered as tasks, the rest are never called.
+// Each registered slot is a task, so TASK_MAX (kernel/task.cpp) must
+// hold MAX_JOBS + the other tasks (cpu_rp2040: shell, hours, cron).
 #define JOB_SLOTS \
     X(0)  X(1)  X(2)  X(3)  X(4)  X(5)  X(6)  X(7)  X(8)  X(9) \
-    X(10) X(11) X(12) X(13) X(14) X(15) X(16) X(17) X(18) X(19)
+    X(10) X(11) X(12) X(13) X(14) X(15) X(16) X(17) X(18) X(19) \
+    X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(28) X(29) \
+    X(30) X(31)
+static_assert(MAX_JOBS >= 1 && MAX_JOBS <= 32, "MAX_JOBS: 1..32 (JOB_SLOTS)");
 
 #define X(n) static void job_task_##n(void) { run_slot(n); }
 JOB_SLOTS
@@ -94,7 +98,7 @@ JOB_SLOTS
 void jobs_init(void)
 {
     for (int i = 0; i < MAX_JOBS; i++) slots[i].active = false;
-#define X(n) task_register("job" #n, job_task_##n, JOB_POLL_MS);
+#define X(n) if (n < MAX_JOBS) task_register("job" #n, job_task_##n, JOB_POLL_MS);
     JOB_SLOTS
 #undef X
 }

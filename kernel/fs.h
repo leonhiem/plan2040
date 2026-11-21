@@ -10,13 +10,14 @@
  * Deliberately global/flat rather than per-task namespaces (Plan 9's
  * mount/bind machinery) — that's solving a multi-process isolation
  * problem this single-address-space microcontroller doesn't have yet.
- * A real stretch goal if picoos ever grows actual isolated processes,
+ * A real stretch goal if plan2040 ever grows actual isolated processes,
  * not something to build speculatively now.
  */
 #pragma once
 
 #include <stdint.h>
 
+#ifndef FS_MAX_DEVICES  // the config (configs/<name>.cmake) may set it
 #define FS_MAX_DEVICES 64 // 2026-08-16: bumped from 16 after it silently
                           // dropped /dev/setpoint -- registered 17th, past
                           // the old cap, with no warning at all. See fs.cpp.
@@ -29,6 +30,7 @@
                           // devices would have landed at 47/48, one spare;
                           // given real headroom this time instead of just
                           // enough, same lesson as every prior bump here.
+#endif
 #define FS_NAME_MAX    32
 
 typedef struct {

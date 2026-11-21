@@ -1,0 +1,5 @@
+cut before write: 200/200 kept old value
+torn record (1..15 of 16 bytes written): 15/15 old-or-new
+filesystem: 7104 bytes total, filled with 6 x 1 KB files
+all ok
+exit 0

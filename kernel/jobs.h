@@ -46,11 +46,14 @@
 #define JOB_TOK_MAX    64 // longest path the shell keeps elsewhere (cat >
                           // target, script name); was also the per-word slot
                           // size (24) until 2026-11-16
-#define MAX_JOBS       20 // must match jobs.cpp's JOB_SLOTS X-macro list, entry-for-entry.
+#ifndef MAX_JOBS  // the config (configs/<name>.cmake) may set it
+#define MAX_JOBS       20 // at most 32, the length of jobs.cpp's JOB_SLOTS list.
                           // Bumped from 12 -- the boot script alone is about to
                           // reach 11 jobs, and LED wiring (the next piece) will
                           // add more; given real headroom this time, same lesson
                           // as every other capacity bump this session.
+#endif
+#ifndef STAGE_BUF  // the config (configs/<name>.cmake) may set it
 #define STAGE_BUF     4096 // 2026-11-13 (cpu_rp2040): 1024 -> 4096 for hexdump,
                             // whose 79-char lines per 16 bytes fit only ~192
                             // bytes of dump in 1 KB (~800 in 4 KB). Costs 6 KB
@@ -65,6 +68,7 @@
                             // devices pushed the real listing to 538 bytes.
                             // Sized with real headroom this time instead of
                             // matching the count exactly.
+#endif
 #define JOB_POLL_MS    150
 
 // A parsed pipeline keeps the line's words once, in text[], and refers

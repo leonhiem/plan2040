@@ -31,7 +31,7 @@ static int cputemp_read(char *buf, int len)
 
 static const device_t dev_cputemp = {"/dev/cputemp", 0, 0, cputemp_read, 0};
 
-void cputemp_register(void)
+void dev_cputemp_register(void)
 {
     adc_init();
     adc_set_temp_sensor_enabled(true);

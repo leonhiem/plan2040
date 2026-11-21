@@ -1,16 +1,21 @@
-# cpu_rp2040
+# plan2040
 
-A small, general-purpose RP2040 board, and the next version of
-[picoos](https://github.com/leonhiem/picoos) running on it.
+A Plan 9-flavored little OS for small CPUs: every device a file, small
+programs, pipes, background jobs, scripts as files, a `%` shell. The
+next version of [picoos](https://github.com/leonhiem/picoos), renamed
+on 2026-11-21 (see "The name: plan2040" below). One source tree for all
+boards: each firmware is described by a config file (`configs/`), Plan 9
+kernel-config style (see "Source tree and configs").
 
-The PCB is derived from the babywarmer board: same RP2040, power
+It runs on **cpu_rp2040**, a small, general-purpose RP2040 board (the
+first board, and the only config so far). The PCB is derived from the babywarmer board: same RP2040, power
 supply, crystal, QSPI flash, CD4093/CD4013 on/off logic and USB, with
 two header rows exposing all GPIOs, plus:
 
 - **PCF8563T** real-time clock (I2C1, address `0x51`; `INT`/`CLKOUT` on pads only)
 - **FM24CL64B** 8 KB FRAM (I2C1, address `0x50`; `WP` tied to GND)
 
-Pin map: [`board.h`](board.h). Ideas and open items: [`TODO.md`](TODO.md).
+Pin map: [`boards/cpu_rp2040/board.h`](boards/cpu_rp2040/board.h). Ideas and open items: [`TODO.md`](TODO.md).
 
 ## The name: plan2040
 
@@ -46,9 +51,10 @@ as a futuristic year too. The CDP1802 version will be **plan1802** (a
 historical year, as it happens), an RP2350 build would be **plan2350**:
 the plan family, Plan 9's ideas on small CPUs.
 
-The code lives on at
+The code lives at
 [github.com/leonhiem/plan2040](https://github.com/leonhiem/plan2040),
-which carries this repo's full history.
+which carries the full history of the cpu_rp2040 repo, where this OS
+grew from 2026-11-10 to 2026-11-21 (that repo is archived now).
 
 ## Hardware notes
 
@@ -118,8 +124,8 @@ which carries this repo's full history.
 - 10× the application note's capacitance means 10× the charge time and
   roughly 10× the backup time.
 
-This repo started fresh (2026-11-10). picoos's history up to here lives
-in its own repo, at commit `89c16e5`.
+The cpu_rp2040 repo started fresh (2026-11-10). picoos's history up to
+there lives in its own repo, at commit `89c16e5`.
 
 ## Building
 
@@ -134,27 +140,93 @@ export CMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY
 export CMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY
 
 mkdir -p build && cd build
-cmake ..
+cmake ..                              # config cpu_rp2040, the default
 make -j$(nproc)
 ```
 
+Another config: `cmake -DPLAN2040_CONFIG=<name> ..` in a build directory
+of its own (e.g. `build-babywarmer_v1`); switching configs in one build
+directory needs `rm -rf build` first.
+
 Flash a `.uf2` the usual way (hold BOOTSEL, plug in USB, copy the file),
-or from a running picoos: `echo bootsel > /dev/reboot`.
+or from a running plan2040: `echo bootsel > /dev/reboot`.
 
 Two firmwares come out of one build:
 
-- `build/picoos.uf2`: the OS (below)
-- `build/bringup.uf2`: the board test (further below)
+- `build/plan2040.uf2`: the OS (below)
+- `build/bringup.uf2`: the board's test (further below)
 
-## picoos
+The PC tests: `make -C tests/host check` (see
+[`tests/host/README.md`](tests/host/README.md)).
 
-The next version of [picoos](https://github.com/leonhiem/picoos):
-a Plan 9-flavored little OS. Everything is a file, small programs,
-pipes, background jobs, a `%` shell. Same kernel, shell and generic
-programs as picoos; the babywarmer-specific parts (heater, NTC sensors,
-7-segment, TFT, PID/phase/alarm wiring) stayed behind. New: this board's
-own devices and more small Unix-style programs. Small commands, many of
-them, each doing one thing.
+## Source tree and configs
+
+One tree for every board and every firmware (TODO.md idea 3, restructured
+2026-11-21). The layers, from the same-everywhere core outwards:
+
+| Directory | What | Same on every board? |
+|---|---|---|
+| `kernel/` | scheduler (`task`), files and devices (`fs`), programs table (`prog`), `klog`, the shell (`shell.cpp`), its pipelines and jobs (`jobs`), `main.cpp` | yes |
+| `fs/` | filesystems and stores: `framfs` (the FRAM filesystem), `hours` (hour counters) | generic |
+| `dev/` | devices, one file each: `dev/<name>.cpp` | generic, picked per config |
+| `prog/` | programs, one file each: `prog/<name>.cpp` | generic, picked per config |
+| `drivers/` | chips: `pcf8563` (RTC), `fm24cl64` (FRAM), `buttons` (debounce) | generic, picked per config |
+| `boards/<board>/` | `board.h` (pin map, addresses, FRAM layout), `board.cpp` (`board_init()`), `bringup.cpp` (the board test) | one per board |
+| `configs/<name>.cmake` | one firmware: board, devices, programs, sizes | one per firmware |
+| `apps/<app>/` | (later) babywarmer, gateway | per application |
+| `tests/host/` | PC tests | |
+
+A config is a short list, Plan 9 kernel-config style. From
+[`configs/cpu_rp2040.cmake`](configs/cpu_rp2040.cmake):
+
+```cmake
+set(PLAN2040_BOARD   cpu_rp2040)
+set(PLAN2040_DEVS    led lamp buttons rtc uptime cputemp reboot fram mem hours cron cons)
+set(PLAN2040_PROGS   cat echo label thresh hyst toggle adjust follow select date uptime
+                     wc grep headtail tee hexdump remember cpmv rm fsck mkfs df ls)
+set(PLAN2040_FS      framfs hours)
+set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons)
+set(PLAN2040_SIZES   MAX_JOBS=20 STAGE_BUF=4096 PROG_MAX=48 FS_MAX_DEVICES=64 TASK_MAX=32)
+```
+
+How it's built:
+
+- The names are files: `led` in `PLAN2040_DEVS` is `dev/led.cpp`, `cat`
+  in `PLAN2040_PROGS` is `prog/cat.cpp` (a file can hold more than one
+  program: `headtail` is `head` and `tail`, `cpmv` is `cp` and `mv`). A
+  name without a file stops `cmake` with a message.
+- CMake writes `build/conf.cpp` from the lists, the way Plan 9's
+  `mkdevc` builds a kernel's device table from its conf file: one
+  `conf_register()` that calls `dev_<name>_register()` and
+  `prog_<name>_register()` in the config's order. `main.cpp` calls
+  `board_init()`, then `conf_register()`, then starts the shell; it knows
+  nothing about any board or device.
+- Order matters: it's the order `ls` lists them, and the order they
+  start in (`fram` mounts `/fram` before `hours` reads the FRAM's system
+  area, `rtc` comes before `cron`).
+- The sizes are compile definitions for every file; each header has the
+  same value as its default, so a config only needs the ones it changes.
+  `MAX_JOBS` is 1..32; every job slot is a task, so `TASK_MAX` must hold
+  the job slots plus the other tasks (on cpu_rp2040: shell, hours,
+  cron = 23 of 32).
+- The banner says which board: `plan2040 on cpu_rp2040`
+  (`PLAN2040_BOARD`).
+- Chosen at compile time, not detected at start-up: pins can't be probed
+  safely, and a Pico W's wifi needs other SDK libraries. A config may set
+  `PICO_BOARD` (it's read before the SDK).
+
+Still to come (TODO idea 3): the I2C buses and chips in the config
+(drivers taking their bus and address from it instead of `BOARD_I2C`),
+the babywarmer app on the old babywarmer board (`babywarmer_v1`), the
+gateway app.
+
+## plan2040
+
+Same kernel, shell and generic programs as picoos; the babywarmer-
+specific parts (heater, NTC sensors, 7-segment, TFT, PID/phase/alarm
+wiring) stayed behind for now (they come back as `apps/babywarmer`).
+New: the cpu_rp2040 board's own devices and more small Unix-style
+programs. Small commands, many of them, each doing one thing.
 
 Connect a USB serial terminal; type `help` for the builtins, the grammar
 and the commands most often looked up (`echo bootsel > /dev/reboot` to
@@ -175,7 +247,7 @@ the LAMP button to the lamp output, as on babywarmer
 | Device | R/W | What it does |
 |---|---|---|
 | `/dev/led` | read/write | The on-board LED (GPIO1). `on`/`off`. |
-| `/dev/lamp` | read/write | The lamp output (GPIO6, babywarmer's baby-light). `on`/`off`. Active-low for now (`PIN_LAMP_ON` in `board.h`). |
+| `/dev/lamp` | read/write | The lamp output (GPIO6, babywarmer's baby-light). `on`/`off`. Active-low for now (`PIN_LAMP_ON` in `boards/cpu_rp2040/board.h`). |
 | `/dev/buttons` | read | Names of all buttons pressed since the last read, read-and-clear. |
 | `/dev/buttons/<name>` | read | One button (`up`, `down`, `mute`, `manual`, `start`, `lamp`): `1` if pressed since the last read, else `0`. |
 | `/dev/rtc` | read/write | The RTC: `YYYY-MM-DD HH:MM:SS`. Write the same format to set it. |
@@ -386,7 +458,7 @@ Restore **first**: started the other way round, `remember` would save the
 device's power-up default over the stored value before it's restored.
 The very first time, when `/fram/lamp` doesn't exist yet, the restore
 line just prints `cat: error` and `remember` creates the file. (Why so
-generic: picoos has no separate error output, no stderr. A message
+generic: plan2040 has no separate error output, no stderr. A message
 from `cat` itself would go where its output goes, here through
 `> /dev/lamp` into the device, so errors are reported by the shell as
 `<program>: error` on the terminal instead.)
@@ -534,7 +606,7 @@ cat /fram/hello         # it's just a file
 rm /fram/hello
 ```
 
-**Your own boot script.** At power-up picoos runs `/fram/boot` if it
+**Your own boot script.** At power-up plan2040 runs `/fram/boot` if it
 exists, otherwise the built-in one (`date` + the LAMP toggle). To make
 your own, type it with `cat >`:
 
@@ -936,7 +1008,7 @@ the old ones (that's the power-cut safety), so the old bytes stay where
 they were. Really wiping a file needs a dedicated tool (an idea for
 later, see `TODO.md`: `shred`, or an `rm` that zeroes blocks).
 
-### Extending picoos
+### Extending plan2040
 
 The rule from picoos holds: **a device owns hardware, a program only
 ever touches paths** (`fs_open`/`fs_read`/`fs_write`/`fs_close`). No
@@ -962,7 +1034,7 @@ static int led_write(const char *buf, int len)   // buf is NOT nul-terminated
 
 static const device_t dev_led = {"/dev/led", 0, 0, led_read, led_write};
 
-void led_register(void) { fs_register(&dev_led); }
+void dev_led_register(void) { fs_register(&dev_led); }
 ```
 
 **A program** is a `program_t` in `prog/<name>.cpp`: piped input + argv
@@ -984,11 +1056,13 @@ static int uptime_run(const char *in, int inlen, int argc, char **argv, char *ou
 
 static const program_t prog_uptime = {"uptime", uptime_run};
 
-void uptime_prog_register(void) { prog_register(&prog_uptime); }
+void prog_uptime_register(void) { prog_register(&prog_uptime); }
 ```
 
-Then: add the file to `CMakeLists.txt`, declare and call its
-`*_register()` in `picoos.cpp`. `ls` shows it right away.
+Then: add its name to the config (`PLAN2040_DEVS` or `PLAN2040_PROGS`
+in `configs/<name>.cmake`). The register function must be called
+`dev_<name>_register()` / `prog_<name>_register()`, after the file's name;
+the build generates the call. `ls` shows it right away.
 
 **A mount** is a `mount_t` (`kernel/fs.h`): a prefix and the functions
 of a filesystem. `dev/fram.cpp` is the example: twelve lines that put
@@ -1031,7 +1105,7 @@ dropping an entry silently (a lesson picoos learned three times).
 | `cat /dev/cputemp` | ok: 19.2 °C (cool room) |
 | `ls \| grep cpu`, `ls \| grep dev` | ok: `/dev/cputemp`; all 13 `/dev` entries |
 | `ls \| grep dev \| wc -l` | ok: `13` (three stages) |
-| `ls\|grep dev` (no spaces) | **bug**: `ls\|grep: not found`. The shell, inherited from picoos, only split words on spaces. Fixed: `\|`, `<`, `>`, `&` are now words of their own (`tokenize()` in `shell.cpp`) |
+| `ls\|grep dev` (no spaces) | **bug**: `ls\|grep: not found`. The shell, inherited from picoos, only split words on spaces. Fixed: `\|`, `<`, `>`, `&` are now words of their own (`tokenize()` in `kernel/shell.cpp`) |
 | `ls\|grep dev`, `ls\|grep dev\|wc -l` retest | ok: same 14 lines as with spaces (now including `/dev/lamp`); `14` |
 | LAMP button toggles `/dev/led` (GPIO1) | ok: GPIO1 toggles on each press (multimeter) |
 | LED on GPIO6 | dimly lit, 1.5 V on the pin. Not the toggle racing: picoos didn't drive GPIO6 at all, so the pin floated on its internal pull-down (see Hardware notes). Added `/dev/lamp` on GPIO6 (as babywarmer), switched off at boot; `boot` now toggles `/dev/lamp` with the LAMP button |
@@ -1059,6 +1133,24 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | New: `#` comments (`date # hi` runs `date`) | ok: typed and inside `/fram/boot` |
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
+
+**2026-11-21, the restructure and the rename to plan2040**
+(`plan2040.uf2`, `bringup.uf2`): one tree for all boards, config
+`cpu_rp2040` (see "Source tree and configs"). Nothing should behave
+differently except the banner. On the PC: both firmwares build without
+warnings and come out exactly as big as before (`plan2040.elf` text
+102988 / bss 27404 = old `picoos.elf`; `bringup.elf` 65076 / 3544 = old),
+and the host tests give the same output as before the restructure
+except the banner line (`make -C tests/host check`: 15 ok).
+
+| Test | Result |
+|---|---|
+| Flash `plan2040.uf2` (`echo bootsel > /dev/reboot`): banner | ok: `Rebooted by watchdog` (expected after BOOTSEL), `plan2040 on cpu_rp2040`, then the built-in `boot` ran (`date`, `toggle /dev/buttons/lamp /dev/lamp &` as job 1): there's no `/fram/boot` on the board right now (`ls -l /fram`: only `crontab`, 325 bytes) |
+| `ls` | ok: 21 `/dev` entries (`/dev/led` … `/dev/cons`), `/fram/`, 25 programs (`bin/cat` … `bin/ls`), in the config's order, the same as before: the generated `conf.cpp` works |
+| `jobs` | ok: `[1] toggle /dev/buttons/lamp /dev/lamp &` (the built-in boot's one job) |
+| `date`, `cat /dev/hours/status`, `df`, `fsck /fram` | `date`: ok, `Sat Nov 21 22:29:08 2026`. `fsck /fram`: ok, `1 files, 6 blocks in use, 105 free, no lost blocks`, so the FRAM contents survived. `cat /dev/hours/status`: ok. `df`: ok, `7104 total 384 used 6720 free`. Also `cat /fram/crontab` (intact), `cat /dev/cron` (`on`), `help` (unchanged) |
+| LAMP button, cron LED on GPIO1 | pending: lamp toggles; LED follows `/fram/crontab` |
+| `bringup.uf2` | ok: banner `cpu_rp2040 bring-up`, scan `0x50 0x51`, FRAM ok (1606 ms, as before), RTC `control_1=0x00 control_2=0x00`, ticking; `all` again the same. Button presses: not tried |
 
 **2026-11-16, quotes, and the new pipeline storage** (`picoos.uf2`):
 tested on the PC (`"..."` and `'...'` with spaces, `| < > & #` inside,
@@ -1207,11 +1299,11 @@ press/release is printed (mute, up, down, manual, start, lamp).
 
 ## Resources and future hardware
 
-### What picoos uses now (measured 2026-11-12, updated 2026-11-13 with hexdump)
+### What plan2040 uses now (measured 2026-11-12, updated 2026-11-13 with hexdump)
 
 | | Used | Available | |
 |---|---|---|---|
-| Flash (W25Q16JV) | 101 KB (`picoos.bin`, 2026-11-16) | 2048 KB | 5 % |
+| Flash (W25Q16JV) | 101 KB (`picoos.bin` 2026-11-16; `plan2040.bin` the same 102988 bytes of code after the restructure, 2026-11-21) | 2048 KB | 5 % |
 | RAM | ~39 KB (2026-11-16; ~45 KB before the pipeline storage change) | 264 KB | 15 % |
 | Stack, worst path | ~1 KB | 2 KB reserved | ok |
 | FRAM | ~1 KB metadata | 8 KB | the real limit |
@@ -1230,16 +1322,17 @@ biggest win first):
 
 | What | Flash | RAM | How |
 |---|---|---|---|
-| Job slots (`MAX_JOBS` 20, `jobs.h`) | 0 | 5.2 KB | Fewer slots: ~270 bytes each (was ~650 / 13 KB until 2026-11-16). Keep the `JOB_SLOTS` list in `jobs.cpp` the same length. |
-| Pipe buffers (`STAGE_BUF` 4 KB, `jobs.h`) | 0 | 6 KB | Back to 1024. Everything keeps working; `hexdump` then shows ~192 bytes per screen instead of ~800 (`-- more:` still pages on). |
-| `hexdump` (`prog/hexdump.cpp`) | 1.5 KB | 0.3 KB | Remove it from `CMakeLists.txt` and its `hexdump_register()` call in `picoos.cpp`. Nothing depends on it. |
-| `/dev/mem` (`dev/mem.cpp`) | 0.2 KB | 0 | Same: CMake line + `mem_register()`. |
+| Job slots (`MAX_JOBS` 20, config) | 0 | 5.2 KB | Fewer slots: ~270 bytes each (was ~650 / 13 KB until 2026-11-16). `MAX_JOBS=` in the config. |
+| Pipe buffers (`STAGE_BUF` 4 KB, config) | 0 | 6 KB | Back to 1024. Everything keeps working; `hexdump` then shows ~192 bytes per screen instead of ~800 (`-- more:` still pages on). |
+| `hexdump` (`prog/hexdump.cpp`) | 1.5 KB | 0.3 KB | Remove `hexdump` from the config's `PLAN2040_PROGS`. Nothing depends on it. |
+| `/dev/mem` (`dev/mem.cpp`) | 0.2 KB | 0 | Same: remove `mem` from `PLAN2040_DEVS`. |
 | `/dev/fram` (raw, in `dev/fram.cpp`) | 0.1 KB | 0 | Its three small functions + the `fs_register(&dev_fram)` line. |
 | `fs_pread()` (`kernel/fs.cpp`) | 0.2 KB | 1 KB | Better kept: tiny, and other features may want reads at an offset. |
 
 Programs in general are a few hundred bytes of flash each, so leaving
 out small tools saves little; the buffers and tables are where the RAM
-is. A build-time list to switch such things on and off is TODO idea 3.
+is. The config's lists and sizes switch such things on and off (see
+"Source tree and configs").
 
 **A stack finding, fixed.** Measuring with `-fstack-usage` showed the
 deepest call path (shell → `dispatch` → `pipeline_run_once` → a program
@@ -1247,8 +1340,8 @@ deepest call path (shell → `dispatch` → `pipeline_run_once` → a program
 only worked because the overflow ran into the memory set aside for core
 1's stack, unused so far. That would have broken the day core 1 got
 work (the TFT was always the candidate). Inherited from picoos.
-The 2 KB of pipe buffers (`jobs.cpp`) and the parsed pipeline
-(`shell.cpp`) are `static` now; the worst path is ~1 KB.
+The 2 KB of pipe buffers (`kernel/jobs.cpp`) and the parsed pipeline
+(`kernel/shell.cpp`) are `static` now; the worst path is ~1 KB.
 
 ### With babywarmer and the ST7735 TFT back
 
@@ -1293,7 +1386,7 @@ point is nothing.
    improvement. A 32 KB part with the same 2-byte addressing (e.g.
    Infineon/Cypress FM24V02A or FM24W256, check the datasheet pinout
    against the FM24CL64B) needs no driver change: set `FRAM_SIZE` to
-   32768 in `board.h` and `mkfs /fram`. The filesystem format already
+   32768 in `boards/cpu_rp2040/board.h` and `mkfs /fram`. The filesystem format already
    scales (16-bit chain entries). Parts of 128 KB and up (FM24V10) use
    17-bit addresses, which needs a small driver change.
 2. **A flash footprint that takes bigger W25Q parts.** All W25QxxJV share
@@ -1315,7 +1408,7 @@ point is nothing.
      and internal pull-downs; later steppings fix it. Buttons here use
      pull-ups, but check the stepping you buy.
    - Software moves easily: same pico-sdk (`PICO_PLATFORM=rp2350`), and
-     picoos only uses plain SDK calls. Two things to check then: the ADC
+     plan2040 only uses plain SDK calls. Two things to check then: the ADC
      channel of the temperature sensor differs on RP2350B, and
      `bringup` gets a pin map for the new board.
 

@@ -28,7 +28,7 @@ static int wc_run(const char *in, int inlen, int argc, char **argv, char *out, i
 
 static const program_t prog_wc = {"wc", wc_run};
 
-void wc_register(void)
+void prog_wc_register(void)
 {
     prog_register(&prog_wc);
 }

@@ -1,0 +1,79 @@
+fram: no filesystem, run: mkfs /fram
+
+plan2040 on cpu_rp2040
+  ls            list /dev and bin/
+  help          builtins, grammar, often needed (reboot, bootsel, ...)
+running built-in 'boot' automatically...
+% date
+date: not found (try 'ls')
+% toggle /dev/buttons/lamp /dev/lamp &
+[1]
+% mkfs /fram
+/fram: formatted, 7104 bytes free
+% cat > /fram/crontab
+typing into /fram/crontab: end with '.' or Ctrl-D
+> * * * * *       echo tick > /dev/cons   # pipes & redirects kept
+> */2 * * * *     echo on > /dev/led
+> .
+% cat /fram/crontab
+* * * * *       echo tick > /dev/cons   # pipes & redirects kept
+*/2 * * * *     echo on > /dev/led
+% cat >> /fram/crontab
+typing onto the end of /fram/crontab: end with '.' or Ctrl-D
+> 1-59/2 * * * *  echo off > /dev/led
+> .
+% cat /fram/crontab
+* * * * *       echo tick > /dev/cons   # pipes & redirects kept
+*/2 * * * *     echo on > /dev/led
+1-59/2 * * * *  echo off > /dev/led
+% cat>/fram/t
+typing into /fram/t: end with '.' or Ctrl-D
+> one
+> two-then-ctrl-d
+% cat /fram/t
+one
+two-then-ctrl-d
+% cat >> /fram/t
+typing onto the end of /fram/t: end with '.' or Ctrl-D
+> 
+% cat /fram/t
+one
+two-then-ctrl-d
+% cat < /fram/t > /fram/copy
+% cat /fram/copy
+one
+two-then-ctrl-d
+% echo piped | cat > /fram/p
+% cat /fram/p
+piped
+% cat > /fram/r
+typing into /fram/r: end with '.' or Ctrl-D
+> echo from-script
+> cat > /fram/inner
+> echo after
+> .
+% run /fram/r
+% echo from-script
+from-script
+% cat > /fram/inner
+% echo after
+after
+% ls -l /fram
+/fram/crontab            136
+/fram/t                  20
+/fram/copy               20
+/fram/p                  6
+/fram/r                  46
+/fram/inner              0
+% script x
+script: not found (try 'ls')
+% scripts
+boot (built-in)
+files: ls /fram
+% cat > /fram/waytoolongname
+typing into /fram/waytoolongname: end with '.' or Ctrl-D
+> x
+> .
+/fram/waytoolongname: write failed (no filesystem? full? over 1 KB? name over 11 chars?)
+% 
+exit 0

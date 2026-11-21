@@ -153,7 +153,7 @@ static int hexdump_run(const char *in, int inlen, int argc, char **argv, char *o
 
 static const program_t prog_hexdump = {"hexdump", hexdump_run};
 
-void hexdump_register(void)
+void prog_hexdump_register(void)
 {
     prog_register(&prog_hexdump);
 }

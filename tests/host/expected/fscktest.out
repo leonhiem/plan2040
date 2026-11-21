@@ -1,0 +1,46 @@
+--- clean
+3 files, 7 blocks in use, 104 free, no lost blocks
+ok
+--- power cut during an overwrite (3 blocks leaked)
+3 files, 7 blocks in use, 104 free, 3 lost blocks freed
+ok
+--- power cut during rm of b (4 blocks leaked)
+2 files, 3 blocks in use, 108 free, 4 lost blocks freed
+ok
+--- cross-linked: c runs into b's blocks
+damaged: b and c share block 14 (check both with cat, rm the wrong one)
+3 files, 6 blocks in use, 104 free, 1 lost blocks NOT freed (fix the damaged files first)
+2 damaged file(s), see above: rm what's damaged, then run fsck again
+--- after rm c: b must be intact, c's leftovers freed
+2 files, 5 blocks in use, 106 free, 1 lost blocks freed
+ok
+--- b's second block marked free
+damaged: b: block 15 is marked free
+3 files, 4 blocks in use, 105 free, 2 lost blocks NOT freed (fix the damaged files first)
+1 damaged file(s), see above: rm what's damaged, then run fsck again
+--- a: size 2000
+damaged: a: size 2000 over 1 KB
+3 files, 6 blocks in use, 104 free, 1 lost blocks NOT freed (fix the damaged files first)
+1 damaged file(s), see above: rm what's damaged, then run fsck again
+--- a: first block 200
+damaged: a: block 200 is out of range
+3 files, 6 blocks in use, 104 free, 1 lost blocks NOT freed (fix the damaged files first)
+1 damaged file(s), see above: rm what's damaged, then run fsck again
+--- a: size 0 but a first block
+damaged: a: empty but has a first block 13
+3 files, 6 blocks in use, 104 free, 1 lost blocks NOT freed (fix the damaged files first)
+1 damaged file(s), see above: rm what's damaged, then run fsck again
+--- b: size says 1 block, chain has 4
+damaged: b: chain longer than the size (64 bytes)
+3 files, 4 blocks in use, 104 free, 3 lost blocks NOT freed (fix the damaged files first)
+1 damaged file(s), see above: rm what's damaged, then run fsck again
+--- two files named a
+damaged: a: the name appears twice
+3 files, 5 blocks in use, 104 free, 2 lost blocks NOT freed (fix the damaged files first)
+1 damaged file(s), see above: rm what's damaged, then run fsck again
+--- lost blocks AND a damaged file
+damaged: a: size 2000 over 1 KB
+2 files, 2 blocks in use, 104 free, 5 lost blocks NOT freed (fix the damaged files first)
+1 damaged file(s), see above: rm what's damaged, then run fsck again
+all ok
+exit 0

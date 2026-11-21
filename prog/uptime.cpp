@@ -30,7 +30,7 @@ static int uptime_run(const char *in, int inlen, int argc, char **argv, char *ou
 
 static const program_t prog_uptime = {"uptime", uptime_run};
 
-void uptime_prog_register(void)
+void prog_uptime_register(void)
 {
     prog_register(&prog_uptime);
 }

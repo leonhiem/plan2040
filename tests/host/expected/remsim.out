@@ -1,0 +1,46 @@
+fram: no filesystem, run: mkfs /fram
+
+plan2040 on cpu_rp2040
+  ls            list /dev and bin/
+  help          builtins, grammar, often needed (reboot, bootsel, ...)
+running built-in 'boot' automatically...
+% date
+date: not found (try 'ls')
+% toggle /dev/buttons/lamp /dev/lamp &
+[1]
+% mkfs /fram
+/fram: formatted, 7104 bytes free
+% remember /dev/lamp /fram/lamp
+saved /fram/lamp
+% remember /dev/lamp /fram/lamp
+unchanged
+% cat /fram/lamp
+off
+% remember /dev/lamp /fram/lamp &
+[2]
+% toggle /dev/buttons/lamp /dev/lamp &
+[3]
+% cat /dev/lamp
+on
+% cat /fram/lamp
+on
+% echo off > /dev/lamp
+% sleep 300
+% cat /fram/lamp
+off
+% remember /dev/nope /fram/x
+remember: error
+% remember /dev/lamp
+usage: remember <device> <file>
+% echo on > /dev/lamp
+% jobs
+[1] toggle /dev/buttons/lamp /dev/lamp &
+[2] remember /dev/lamp /fram/lamp &
+[3] toggle /dev/buttons/lamp /dev/lamp &
+% 
+--- reboot (lamp default off, jobs gone in reality) ---
+cat /fram/lamp > /dev/lamp
+% cat /dev/lamp
+on
+% 
+exit 0

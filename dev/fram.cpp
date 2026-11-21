@@ -62,7 +62,7 @@ static int raw_read(char *buf, int len)
 
 static const device_t dev_fram = {"/dev/fram", 0, 0, raw_read, 0, raw_pread};
 
-void fram_register(void)
+void dev_fram_register(void)
 {
     fs_register(&dev_fram);
     if (!framfs_mount()) {

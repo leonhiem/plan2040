@@ -1,6 +1,6 @@
 # TODO
 
-Ideas and open items for picoos on cpu_rp2040. Nothing here is decided
+Ideas and open items for plan2040 (was picoos), on cpu_rp2040 so far. Nothing here is decided
 until it's picked; the notes are first thoughts on how each would fit,
 not a design. Newest ideas first.
 
@@ -127,7 +127,22 @@ the same bytes as ASCII:
   entries, and a file's chain, to see the filesystem the README
   describes.
 
-### 3. Choosing what to build in — one picoos for all boards (planned 2026-11-20)
+### 3. Choosing what to build in — one plan2040 for all boards (planned 2026-11-20)
+
+**Step 1 done 2026-11-21** (board test pending, see the README's Test
+log): the tree is restructured into `kernel/` (now with the shell and
+jobs), `fs/`, `dev/`, `prog/`, `drivers/`, `boards/cpu_rp2040/`,
+`configs/cpu_rp2040.cmake`, `tests/host/`, and renamed plan2040 (banner,
+CMake target `plan2040` → `plan2040.uf2`, README). The config lists
+devices and programs by name; CMake generates `conf.cpp` with the
+`dev_<name>_register()` / `prog_<name>_register()` calls. Sizes
+(`MAX_JOBS`, `STAGE_BUF`, `PROG_MAX`, `FS_MAX_DEVICES`, `TASK_MAX`) come
+from the config. Decided 2026-11-21: the shell and jobs go in `kernel/`;
+the I2C bus/chip table waits for step 3; the PC tests are committed
+with a Makefile (`make -C tests/host check`, outputs diffed against
+`expected/`). The firmware came out byte-for-byte the same size, and the
+tests' output was the same apart from the banner. Step 2 was done
+differently: the new repo itself is the merge point. Next: step 3.
 
 **Decided 2026-11-20:** one source tree instead of three diverging copies
 (`../picoos` babywarmer, `../picogateway` on a Pico W, this repo). Layers:
@@ -151,12 +166,12 @@ address without code changes; drivers take their bus + address from it
 instead of the global `BOARD_I2C`:
 
 ```cmake
-set(PICOOS_I2C   "local  i2c1 14 15 400000"      # name controller SDA SCL speed
-                 "header i2c0 12 13 400000")
-set(PICOOS_CHIPS "fm24cl64 local  0x50"          # driver bus address [options]
-                 "pcf8563  local  0x51"
-                 "ads1115  header 0x48"
-                 "24c256   header 0x52 size=32768 page=64")
+set(PLAN2040_I2C   "local  i2c1 14 15 400000"      # name controller SDA SCL speed
+                   "header i2c0 12 13 400000")
+set(PLAN2040_CHIPS "fm24cl64 local  0x50"          # driver bus address [options]
+                   "pcf8563  local  0x51"
+                   "ads1115  header 0x48"
+                   "24c256   header 0x52 size=32768 page=64")
 ```
 
 **EEPROM with the NTC lookup table** (2026-11-21): a 24C256 (32 KB) or

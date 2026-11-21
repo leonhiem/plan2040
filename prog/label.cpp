@@ -59,7 +59,7 @@ static int label_run(const char *in, int inlen, int argc, char **argv, char *out
 
 static const program_t prog_label = {"label", label_run};
 
-void label_register(void)
+void prog_label_register(void)
 {
     prog_register(&prog_label);
 }

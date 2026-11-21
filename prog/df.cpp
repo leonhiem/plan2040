@@ -29,7 +29,7 @@ static int df_run(const char *in, int inlen, int argc, char **argv, char *out, i
 
 static const program_t prog_df = {"df", df_run};
 
-void df_register(void)
+void prog_df_register(void)
 {
     prog_register(&prog_df);
 }

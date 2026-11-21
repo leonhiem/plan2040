@@ -47,7 +47,7 @@ static const device_t dev_lamp = {
     lamp_write,
 };
 
-void lamp_register(void)
+void dev_lamp_register(void)
 {
     fs_register(&dev_lamp);
 }

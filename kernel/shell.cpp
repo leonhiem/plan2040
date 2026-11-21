@@ -116,7 +116,11 @@
  * in `ls` (only devices and programs do), so this is where to find them.
  */
 #include "kernel/fs.h"
-#include "jobs.h"
+#include "kernel/jobs.h"
+
+#ifndef PLAN2040_BOARD          // set by CMakeLists.txt from the config
+#define PLAN2040_BOARD "?"
+#endif
 #include "pico/stdlib.h"
 #include <cstdio>
 #include <cstring>
@@ -527,7 +531,7 @@ void task_shell(void)
     static bool banner_shown = false;
 
     if (!banner_shown) {
-        printf("\npicoos on cpu_rp2040\n");
+        printf("\nplan2040 on %s\n", PLAN2040_BOARD);
         printf("  ls            list /dev and bin/\n");
         printf("  help          builtins, grammar, often needed (reboot, bootsel, ...)\n");
         banner_shown = true;

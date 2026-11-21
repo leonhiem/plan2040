@@ -1,10 +1,10 @@
 /**
- * buttons.cpp — button debounce, from picoos's buttons.cpp
+ * drivers/buttons.cpp — button debounce, from picoos's buttons.cpp
  *
  * Same repeating_timer_callback() logic, minus the unused start-button
  * IRQ and timer leftovers picoos still carried from the original warmer.
  */
-#include "buttons.h"
+#include "drivers/buttons.h"
 #include "board.h"
 #include "pico/stdlib.h"
 

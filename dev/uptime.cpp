@@ -15,7 +15,7 @@ static int uptime_read(char *buf, int len)
 
 static const device_t dev_uptime = {"/dev/uptime", 0, 0, uptime_read, 0};
 
-void uptime_register(void)
+void dev_uptime_register(void)
 {
     fs_register(&dev_uptime);
 }

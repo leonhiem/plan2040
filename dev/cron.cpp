@@ -182,7 +182,7 @@ static int cron_write(const char *buf, int len)
 
 static const device_t dev_cron = {"/dev/cron", 0, 0, cron_read, cron_write};
 
-void cron_register(void)
+void dev_cron_register(void)
 {
     fs_register(&dev_cron);
     task_register("cron", cron_task, 1000);

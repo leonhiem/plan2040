@@ -29,7 +29,7 @@ static int fsck_run(const char *in, int inlen, int argc, char **argv, char *out,
 
 static const program_t prog_fsck = {"fsck", fsck_run};
 
-void fsck_register(void)
+void prog_fsck_register(void)
 {
     prog_register(&prog_fsck);
 }

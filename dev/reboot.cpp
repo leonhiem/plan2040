@@ -35,7 +35,7 @@ static int reboot_write(const char *buf, int len)
 
 static const device_t dev_reboot = {"/dev/reboot", 0, 0, 0, reboot_write};
 
-void reboot_register(void)
+void dev_reboot_register(void)
 {
     fs_register(&dev_reboot);
 }

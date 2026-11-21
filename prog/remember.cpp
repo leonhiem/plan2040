@@ -69,7 +69,7 @@ static int remember_run(const char *in, int inlen, int argc, char **argv, char *
 
 static const program_t prog_remember = {"remember", remember_run};
 
-void remember_register(void)
+void prog_remember_register(void)
 {
     prog_register(&prog_remember);
 }

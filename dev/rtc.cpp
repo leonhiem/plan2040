@@ -49,7 +49,7 @@ static int vl_read(char *buf, int len)
 static const device_t dev_rtc    = {"/dev/rtc",    0, 0, rtc_dev_read, rtc_dev_write};
 static const device_t dev_rtc_vl = {"/dev/rtc/vl", 0, 0, vl_read,      0};
 
-void rtc_register(void)
+void dev_rtc_register(void)
 {
     if (!rtc_init())
         printf("rtc: init failed (no answer at 0x51?)\n");

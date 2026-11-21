@@ -24,7 +24,7 @@ static int echo_run(const char *in, int inlen, int argc, char **argv, char *out,
 
 static const program_t prog_echo = {"echo", echo_run};
 
-void echo_register(void)
+void prog_echo_register(void)
 {
     prog_register(&prog_echo);
 }

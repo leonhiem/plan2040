@@ -86,7 +86,7 @@ static const device_t dev_hours        = {"/dev/hours",        0, 0, hours_read,
 static const device_t dev_hours_status = {"/dev/hours/status", 0, 0, status_read, 0};
 static const device_t dev_hours_ctl    = {"/dev/hours/ctl",    0, 0, 0,           ctl_write};
 
-void hours_register(void)
+void dev_hours_register(void)
 {
     hours_init();
     base = (int64_t)hours_minutes(POWER) - up_minutes();

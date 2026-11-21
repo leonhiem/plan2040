@@ -76,7 +76,7 @@ static int follow_run(const char *in, int inlen, int argc, char **argv, char *ou
 
 static const program_t prog_follow = {"follow", follow_run};
 
-void follow_register(void)
+void prog_follow_register(void)
 {
     prog_register(&prog_follow);
 }

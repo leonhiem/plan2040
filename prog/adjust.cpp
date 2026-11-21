@@ -27,7 +27,7 @@
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
-#include "buttons.h"
+#include "drivers/buttons.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -75,7 +75,7 @@ static int adjust_run(const char *in, int inlen, int argc, char **argv, char *ou
 
 static const program_t prog_adjust = {"adjust", adjust_run};
 
-void adjust_register(void)
+void prog_adjust_register(void)
 {
     prog_register(&prog_adjust);
 }

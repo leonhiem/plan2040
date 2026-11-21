@@ -1,0 +1,4 @@
+#pragma once
+#define FRAM_SIZE 8192
+#define SYSAREA_SIZE 256
+#define SYSAREA_ADDR (FRAM_SIZE - SYSAREA_SIZE)

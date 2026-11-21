@@ -1,0 +1,8 @@
+df: free 7104 total 7104
+log grew to 1000 bytes before refusing
+ls: a.txt(3) b.txt(150) 12345678901(1) log(1000)
+filled with 5 x 1KB files, free 640
+directory full after 30 new files (+ a.txt, b.txt)
+power-cut test: 20/20 consistent
+all ok
+exit 0

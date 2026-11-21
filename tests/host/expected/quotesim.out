@@ -1,0 +1,99 @@
+fram: no filesystem, run: mkfs /fram
+
+plan2040 on cpu_rp2040
+  ls            list /dev and bin/
+  help          builtins, grammar, often needed (reboot, bootsel, ...)
+running built-in 'boot' automatically...
+% date
+date: not found (try 'ls')
+% toggle /dev/buttons/lamp /dev/lamp &
+[1]
+toggle: not found (try 'ls')
+% toggle: not found (try 'ls')
+kill 1
+% mkfs /fram
+/fram: formatted, 7104 bytes free
+% echo "a > b | c & d # e"
+a > b | c & d # e
+% echo 'single "double" inside'
+single "double" inside
+% echo "it's"
+it's
+% echo a"b c"d
+ab cd
+% echo "" x
+ x
+% echo "|" '>' "&"
+| > &
+% echo "*/2 * * * *     echo on > /dev/led" >> /fram/crontab
+% echo '1-59/2 * * * *  echo off > /dev/led' >> /fram/crontab
+% cat /fram/crontab
+*/2 * * * *     echo on > /dev/led
+1-59/2 * * * *  echo off > /dev/led
+% echo one two three four five six seven eight nine ten eleven twelve
+one two three four five six seven eight nine ten eleven twelve
+% echo 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+too many args in one stage (max 15)
+% echo "unterminated
+missing closing "
+% echo 'also unterminated
+missing closing '
+% echo hello # "not a quote problem"
+hello
+% echo "# not a comment"
+# not a comment
+% cat /fram/crontab | grep "echo off"
+1-59/2 * * * *  echo off > /dev/led
+% cat /fram/crontab|grep 'on >'|wc -l
+1
+% echo "x" > "/fram/q"
+% cat /fram/q
+x
+% "echo" quoted-program-name
+quoted-program-name
+% "help"
+grammar:  stage [| stage ...] [< path] [> path | >> path] [&]   # comment
+          stage := program [arg...]      quotes: "..." or '...'
+
+write a file:  cat > <path>   (replace)    cat >> <path>   (add to end)
+               type lines, end with '.' or Ctrl-D
+
+internal commands (shell builtins, not in ls; output can't be piped):
+  help                 this text
+  jobs                 list background jobs
+  kill %<id>           stop a background job
+  sleep <ms>           pause the shell, everything else keeps running
+  run <name>           replay a script (/fram/<name>, else built-in)
+  loop <name>          replay a script forever, Ctrl-C to stop
+  scripts              list built-in scripts (files: ls /fram)
+  watch <ms> <stage..> repeat a pipeline every <ms>, Ctrl-C to stop
+everything else is a program or a file, pipes ok: ls, ls -l /fram
+
+often needed:
+  echo bootsel > /dev/reboot           USB bootloader: copy a new .uf2 now
+  echo now > /dev/reboot               plain reboot
+  echo YYYY-MM-DD HH:MM:SS > /dev/rtc  set the clock (date shows it)
+  mkfs /fram                           format: files gone, hours kept
+  df, ls -l /fram, cp, mv, rm          space, files, copy, rename, remove
+  cat /dev/hours                       power-on hours (set: /dev/hours/ctl)
+  cat > /fram/crontab                  timed jobs (on/off: /dev/cron)
+  hexdump [-s off] [-n len] <path>     raw bytes, e.g. /dev/fram, /dev/mem
+% echo "cat > /fram/inner" > /fram/s
+% cat /fram/s
+cat > /fram/inner
+% echo 'toggle /dev/buttons/lamp /dev/lamp &' >> /fram/s
+% cat /fram/s
+cat > /fram/inner
+toggle /dev/buttons/lamp /dev/lamp &
+% echo "bg job" > /fram/bg &
+[1]
+% jobs
+[1] echo "bg job" > /fram/bg &
+% echo a|
+empty pipeline stage
+% | echo a
+empty pipeline
+% > /fram/x
+empty pipeline
+% 
+exit 0

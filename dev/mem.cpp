@@ -1,7 +1,7 @@
 /**
  * dev/mem.cpp — /dev/mem: read-only, the RP2040's memory, by address
  *
- *   hexdump -s 0x10000000 -n 256 /dev/mem    start of the flash (boot2, then picoos)
+ *   hexdump -s 0x10000000 -n 256 /dev/mem    start of the flash (boot2, then plan2040)
  *   hexdump -s 0x20000000 -n 64 /dev/mem     start of RAM
  *   hexdump -n 64 /dev/mem                   the boot ROM
  *
@@ -51,7 +51,7 @@ static int mem_read(char *buf, int len)
 
 static const device_t dev_mem = {"/dev/mem", 0, 0, mem_read, 0, mem_pread};
 
-void mem_register(void)
+void dev_mem_register(void)
 {
     fs_register(&dev_mem);
 }

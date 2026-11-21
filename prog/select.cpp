@@ -69,7 +69,7 @@ static int select_run(const char *in, int inlen, int argc, char **argv, char *ou
 
 static const program_t prog_select = {"select", select_run};
 
-void select_register(void)
+void prog_select_register(void)
 {
     prog_register(&prog_select);
 }

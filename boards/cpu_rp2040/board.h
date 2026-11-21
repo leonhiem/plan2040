@@ -1,12 +1,16 @@
 /**
- * board.h — cpu_rp2040 PCB pin map and on-board peripherals
+ * boards/cpu_rp2040/board.h — cpu_rp2040 PCB pin map and on-board peripherals
+ *
+ * One directory per board under boards/; the config (configs/<name>.cmake)
+ * picks the board, and the build puts that board's directory on the include
+ * path, so every file just says #include "board.h".
  *
  * The general-purpose RP2040 board derived from the babywarmer PCB:
  * RP2040, power supply, crystal, QSPI flash (same size as babywarmer),
  * CD4093/CD4013 on/off logic (pure hardware, no GPIO involved), USB,
  * plus a PCF8563T RTC and an FM24CL64B FRAM sharing one I2C bus.
  *
- * Button and LED GPIOs match babywarmer/picoos (../picoos/warmer.h).
+ * Button and LED GPIOs match the babywarmer board (../picoos/warmer.h).
  */
 #pragma once
 
@@ -75,7 +79,8 @@
 #define BUTTON_PIN_START  28
 #define BUTTON_PIN_LAMP   29
 
-// drivers/board.cpp
+// boards/cpu_rp2040/board.cpp
+void board_init(void);       // all of the below, in order, + buttons_init()
 void board_i2c_init(void);
 void board_led_init(void);   // configured, off
 void board_lamp_init(void);  // configured, off

@@ -13,7 +13,7 @@
  * No blocking/waiting primitive needed for this -- the job system's
  * own periodic re-invocation (kernel/task.h, via jobs.cpp) already IS
  * "wait without wasting CPU," the same way task_setpoint_buttons
- * already polls UP/DOWN. See jobs.h for why background jobs don't
+ * already polls UP/DOWN. See kernel/jobs.h for why background jobs don't
  * print their per-tick "idle" result to the terminal.
  */
 #include "kernel/prog.h"
@@ -54,7 +54,7 @@ static int toggle_run(const char *in, int inlen, int argc, char **argv, char *ou
 
 static const program_t prog_toggle = {"toggle", toggle_run};
 
-void toggle_register(void)
+void prog_toggle_register(void)
 {
     prog_register(&prog_toggle);
 }
