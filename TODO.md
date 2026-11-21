@@ -144,6 +144,75 @@ with a Makefile (`make -C tests/host check`, outputs diffed against
 tests' output was the same apart from the banner. Step 2 was done
 differently: the new repo itself is the merge point. Next: step 3.
 
+**Decided 2026-11-21: the babywarmer app comes from `../picoos`, not
+from `../babywarmer`.** `../babywarmer` hasn't changed since 2026-08-15
+(6e8418c, the "stable release line" split off picoos): PID and heater
+run inside the firmware's own tasks there, not as jobs. `../picoos`
+carried on to 2026-09-08 (89c16e5): heater control copied from
+babywarmer and redone Plan 9 style as devices and programs (`dev/heater`,
+`heaterauto`, `percent`, `phase`, `pid`, `relay`, `setpoint`,
+`skintemp`, `ambient`, `current`, `alarm`, `alarmcheck`, `seg7`, `tft`;
+`prog/pid`, `phase`, `safelut`, `alarm`, `alarmcheck`, `ledwire`,
+`tftwire`, `monitor`), plus the ST7735 TFT (`tft/`) and `ntc.cpp` /
+`ntc_lut.h`. So `apps/babywarmer/` is built from picoos @ 89c16e5, and
+each commit says where its parts came from. `babywarmer_v1` stays the
+name of the *board* (the old babywarmer PCB) and its config.
+`../picogateway` (2026-09-08, d514ba0: wifi, LoRa, ThingSpeak, OLED,
+EEPROM) is the source for the gateway app, step 4. **Postponed
+(Leon, 2026-11-21): babywarmer first.** The gateway needs a Pico W
+build (`PICO_BOARD=pico_w`, the cyw43 wifi driver, lwIP, its own
+`lwipopts.h`), different SDK libraries and options from everything
+else; the config can set `PICO_BOARD` already, the rest waits.
+
+**The babywarmer_v1 hardware hack** (decided 2026-11-21, Leon): the old
+babywarmer PCB gets an FRAM, an RTC and an EEPROM added by hand, so the
+babywarmer app can use everything plan2040 has (files on `/fram`,
+`remember`, cron, the hour counter, `date`) on real hardware, long
+before the new carrier board for cpu_rp2040 exists. The PCB has none of
+the three, and GPIO14/15 (cpu_rp2040's local bus) aren't routed there,
+so all three go **on the ADS1115's bus: i2c0, SDA GPIO12, SCL GPIO13**.
+
+| Chip | What | Address | Notes |
+|---|---|---|---|
+| ADS1115 | ADC (NTCs), already on the board | 0x48 | unchanged |
+| FM24CL64B | 8 KB FRAM, same as cpu_rp2040 | 0x50 | A2 A1 A0 = 000, WP to GND |
+| PCF8563T | RTC, same as cpu_rp2040 | 0x51 | fixed address; 32.768 kHz crystal; INT/CLKOUT unconnected (CLKOUT is switched off at init) |
+| 24C512 | 64 KB EEPROM, the NTC lookup table | 0x52 | A2 A1 A0 = 010; WP to GND (or to a free GPIO, to guard it in hardware); 128-byte pages, ~5 ms per page write |
+
+No address conflicts. Same chips as on cpu_rp2040, so the same drivers;
+only the bus differs, which is that board's `board.h`
+(`boards/babywarmer_v1/`).
+
+Wiring notes, to check while soldering:
+- **3.3 V only** for all three (the RP2040 isn't 5 V tolerant, the
+  LESSON in `boards/cpu_rp2040/board.h`).
+- **Pull-ups:** check the schematic for the ADS1115 bus's own; added modules
+  often bring theirs too. All in parallel should end up around 2–5 kΩ,
+  not lower (measure, or remove extra ones).
+- **Short wires.** The bus gets longer and has four chips: start at
+  100 kHz, try 400 kHz once bringup's FRAM test passes at 100 (the
+  PCF8563's max is 400 kHz). A 100 nF decoupling capacitor at each chip.
+- **RTC backup**, as on cpu_rp2040: 10 F / 3 V supercap on the PCF8563's
+  VDD, charged from 3V3 through 220 Ω + 1N4007, so the clock runs
+  through power cuts. Without it the time is lost at every power-off
+  (`/dev/rtc/vl` says so, and cron does nothing until it's set again).
+
+Software for this board, in step 3:
+- `boards/babywarmer_v1/board.h`: babywarmer's pin map (`../picoos/warmer.h`),
+  I2C = i2c0 on GPIO12/13, FRAM layout as on cpu_rp2040 (same 8 KB chip).
+- `boards/babywarmer_v1/bringup.cpp`: scan expects 0x48 0x50 0x51 0x52;
+  the FRAM and RTC tests as on cpu_rp2040; an EEPROM test (read, and a
+  write-and-restore of one page). First thing to run after the hack.
+- The EEPROM is the first place to build `/dev/eeprom`, `/dev/lut` and
+  the calibration workflow (`cat > /fram/ntc.pts`, `cp /fram/ntc.pts
+  /dev/lut`, see below). On this board it sits on the main PCB; later it
+  moves to the ADC module with the ADS1115. Until a table is written,
+  picoos's `ntc_lut.h` in flash is the fallback.
+- One bus for ADC + FRAM + RTC + EEPROM: each transfer is short (≤ 1 ms
+  at 100 kHz for a FRAM file block or an ADC read), but a whole-table
+  EEPROM write (512 pages, ~3 s) holds the bus: bench only, not while the
+  heater runs (as noted below).
+
 **Decided 2026-11-20:** one source tree instead of three diverging copies
 (`../picoos` babywarmer, `../picogateway` on a Pico W, this repo). Layers:
 `kernel/` + shell (same for all), generic `dev/` `prog/` `fs/`, `drivers/`
