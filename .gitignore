@@ -1,0 +1,13 @@
+# Build artifacts
+build/
+
+# Editor backups/swap files
+*~
+.*.swp
+.*.un~
+
+# Claude Code local (machine-specific) settings
+.claude/settings.local.json
+
+# Local Claude Code resume note
+exitmsg
