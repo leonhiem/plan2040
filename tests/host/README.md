@@ -43,6 +43,7 @@ the shell did, line by line.
 | `fscksim` | `fsck /fram` from the shell |
 | `helpsim` | `help` output |
 | `progtest` | `wc`, `grep`, `head`, `tail` on their own, self-checking |
+| `ntctest` | babywarmer's NTC conversion (`apps/babywarmer/ntc.cpp`): degrees at the interesting ADC codes, incl. the wrap above 21742 |
 
 ## Notes
 

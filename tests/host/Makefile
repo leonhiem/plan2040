@@ -19,7 +19,7 @@ SIM = fakefram.cpp $(K) $(P)/dev/fram.cpp $(FS)
 pr  = $(foreach n,$(1),$(P)/prog/$(n).cpp)
 
 # filesystem and hour-counter tests (warnings on: these are clean)
-UNIT = fstest hourstest fscktest mvcut
+UNIT = fstest hourstest fscktest mvcut ntctest
 # whole-shell simulations (-w: the fakes are quick and dirty)
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
 ALL  = $(UNIT) $(SIMS)
@@ -30,8 +30,9 @@ fstest:    fstest.cpp    $(FS) fakefram.cpp
 hourstest: hourstest.cpp $(P)/fs/hours.cpp $(FS) fakefram2.cpp
 fscktest:  fscktest.cpp  $(FS) fakefram2.cpp
 mvcut:     mvcut.cpp     $(FS) fakefram.cpp
+ntctest:   ntctest.cpp   $(P)/apps/babywarmer/ntc.cpp
 $(UNIT):
-	$(CXX) -Wall -I fake -I $(P) -o $@ $^
+	$(CXX) -Wall -I fake -I $(P) -I $(P)/apps/babywarmer -o $@ $^
 
 sim:      sim.cpp      $(SIM) $(call pr,cat echo ls grep wc headtail tee rm mkfs df)
 quotesim: quotesim.cpp $(SIM) $(call pr,cat echo ls mkfs grep wc)

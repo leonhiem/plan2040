@@ -51,7 +51,15 @@ endif()
 # so both talk to the hardware the same way.
 set(drv_src ${PLAN2040_BOARD_DIR}/board.cpp)
 foreach(n ${PLAN2040_DRIVERS})
-    list(APPEND drv_src drivers/${n}.cpp)
+    # drivers/<name>.cpp, or a driver with files of its own (a copied-in
+    # library with its LICENSE): drivers/<name>/<name>.cpp
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/drivers/${n}.cpp)
+        list(APPEND drv_src drivers/${n}.cpp)
+    elseif(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/drivers/${n}/${n}.cpp)
+        list(APPEND drv_src drivers/${n}/${n}.cpp)
+    else()
+        message(FATAL_ERROR "config ${PLAN2040_CONFIG}: no driver drivers/${n}.cpp or drivers/${n}/${n}.cpp")
+    endif()
 endforeach()
 add_library(board_drivers ${drv_src})
 target_link_libraries(board_drivers pico_stdlib hardware_i2c hardware_gpio)

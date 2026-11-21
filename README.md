@@ -170,7 +170,7 @@ One tree for every board and every firmware (TODO.md idea 3, restructured
 | `fs/` | filesystems and stores: `framfs` (the FRAM filesystem), `hours` (hour counters) | generic |
 | `dev/` | devices, one file each: `dev/<name>.cpp` | generic, picked per config |
 | `prog/` | programs, one file each: `prog/<name>.cpp` | generic, picked per config |
-| `drivers/` | chips: `pcf8563` (RTC), `fm24cl64` (FRAM), `at24c` (24C256/512 EEPROM), `buttons` (debounce) | generic, picked per config |
+| `drivers/` | chips: `pcf8563` (RTC), `fm24cl64` (FRAM), `at24c` (24C256/512 EEPROM), `ads1115/` (ADC, a copied-in library with its LICENSE), `buttons` (debounce); a driver is `drivers/<name>.cpp` or `drivers/<name>/<name>.cpp` | generic, picked per config |
 | `boards/<board>/` | `board.h` (pin map, buses, each chip's bus and address, FRAM layout), `board.cpp` (`board_init()`, `board_pins_init()`) | one per board: `cpu_rp2040`, `babywarmer_v1` |
 | `boards/bringup.cpp` | the board test, for every board (from its `board.h`) | yes |
 | `scripts/` | built-in scripts, plain files: `boot` | generic, picked per config |
@@ -250,8 +250,24 @@ cmake -DPLAN2040_CONFIG=babywarmer_v1 ..
 make -j$(nproc)
 ```
 
-Still to come (TODO idea 3): `apps/babywarmer` (steps 3b-3f), the
-gateway app (postponed).
+**The babywarmer app** (`apps/babywarmer/`, from picoos @ 89c16e5) comes
+in step by step (TODO idea 3, steps 3c-3g). So far, step 3c, the sensors:
+
+| Device | | |
+|---|---|---|
+| `/dev/skintemp` | read | Skin temperature, °C (`36.5`): the skin NTC on ADS1115 channels 0-1, one conversion per read. `error` if the ADS1115 doesn't answer. |
+| `/dev/ambient` | read | Room temperature, °C: the room NTC on channels 2-3. Same. |
+| `/dev/current` | read | Heater current sense, raw ADC counts 0..4095 (GPIO26, 8 samples averaged). |
+
+Both NTCs go through the table in `apps/babywarmer/ntc_lut.h` (the
+2026-08-30 recalibration for a substitute NTC). Two things to know
+about it (both to be fixed by the EEPROM table, step 3g): nothing reads below 22.9 °C
+(the table's coldest entry), and ADC codes above 21742 wrap around to
+the hottest entry, 91.8 °C (`ntctest` in `tests/host` shows the whole
+mapping).
+
+Still to come: the outputs, the control, the TFT (3d-3f), the EEPROM
+table (3g); the gateway app (postponed).
 
 ## plan2040
 
@@ -1176,6 +1192,19 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | New: `#` comments (`date # hi` runs `date`) | ok: typed and inside `/fram/boot` |
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
+
+**2026-11-21, babywarmer sensors** (step 3c,
+`build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/skintemp`,
+`/dev/ambient`, `/dev/current` from picoos, on the ADS1115 driver with
+timeouts. On the PC: builds without warnings; `ntctest` records the NTC
+mapping.
+
+| Test | Result |
+|---|---|
+| `cat /dev/skintemp`, `cat /dev/ambient` | pending: plausible °C, as picoos read them on this PCB |
+| `watch 1000 cat /dev/skintemp` with a finger on the NTC | pending: rises |
+| `cat /dev/current` | pending: a low count with the heater off (it stays off in 3c) |
+| ADS1115 unplugged / header SDA pulled off (optional) | pending: `cat /dev/skintemp` says error, the shell keeps running, no watchdog reset |
 
 **2026-11-21, built-in scripts from files, apps in CMake** (step 3b,
 `plan2040.uf2` for cpu_rp2040): the built-in `boot` is `scripts/boot`

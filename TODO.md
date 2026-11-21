@@ -237,6 +237,25 @@ Order, one commit each, tested on the PC and then the board:
   scripts as files (`scripts/boot`). **Built 2026-11-21** (saves 4 KB
   RAM: the scripts stay in flash), board test pending.
 - **3c** sensors: `drivers/ads1115`, ntc, skintemp, ambient, current.
+  **Built 2026-11-21**, board test pending. The ADS1115 library is
+  copied in as it was, then changed in its own commit: I2C timeouts, a
+  limit on the conversion wait, true/false results (a missing ADS1115
+  could otherwise spin until the watchdog reset the board, every boot
+  again), and an unset `fsr` for two PGA codes. **Open questions
+  (2026-11-21), to decide with the control step (3e):**
+  - `ntc_convert()` (unchanged from picoos): codes 9744..21742 clamp to
+    the coldest entry, but codes from 21743 up wrap around (`short`
+    arithmetic) to the *hottest*, 91.8 C. What does a broken or
+    unplugged NTC give on this circuit, near full scale or near zero?
+    Out-of-table readings should probably be an error (cat fails, the
+    alarm logic sees it) rather than any temperature. `ntctest` shows
+    the mapping.
+  - The recalibrated table (2026-08-30, substitute NTC) bottoms out at
+    22.9 C: a colder room reads 22.9, and a 10 C low alarm can't fire.
+    The EEPROM table (3g) is the real fix; until then, worth knowing.
+  - **Decided 2026-11-21 (Leon):** the NTC table is messy and
+    experimental; both points get fixed with the full EEPROM lookup
+    table (3g), not in `ntc.cpp` now.
 - **3d** outputs: heater + its tpo task, relay, seg7 + `/dev/leds`, alarm.
 - **3e** control: setpoint, heaterauto, percent, pid, phase, safelut,
   alarmcheck, alarm, ledwire, monitor, and the boot script.

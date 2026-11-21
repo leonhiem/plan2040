@@ -5,13 +5,13 @@
 #   mkdir build-babywarmer_v1 && cd build-babywarmer_v1
 #   cmake -DPLAN2040_CONFIG=babywarmer_v1 .. && make -j$(nproc)
 #
-# Step 3a (2026-11-21): the generic devices and programs only, as on
-# cpu_rp2040, to test the hack (bringup, then /fram, the RTC, the
-# buttons, the lamp) before the babywarmer app comes in (steps 3b-3f).
-# Every babywarmer output not driven by a device here (heater SSR,
-# safety relay, buzzer, 7-segment, TFT backlight) stays off.
+# Built up step by step (TODO.md idea 3): 3a the generic devices, as on
+# cpu_rp2040, to test the hack; 3c the babywarmer's sensors. Every
+# babywarmer output not driven by a device here yet (heater SSR, safety
+# relay, buzzer, 7-segment, TFT backlight) stays off.
 
 set(PLAN2040_BOARD   babywarmer_v1)
+set(PLAN2040_APP     babywarmer)     # apps/babywarmer/: from picoos @ 89c16e5
 
 set(PLAN2040_DEVS
     led          # /dev/led: the alarm LED (GPIO1); /dev/alarm takes it over in 3d
@@ -26,6 +26,10 @@ set(PLAN2040_DEVS
     hours        # power-on hours, from the FRAM's system area
     cron         # runs /fram/crontab lines, on the RTC's minutes
     cons         # /dev/cons: write to the terminal
+    # babywarmer (apps/babywarmer/dev/)
+    skintemp     # /dev/skintemp: skin NTC, ADS1115 channels 0-1
+    ambient      # /dev/ambient: room NTC, ADS1115 channels 2-3
+    current      # /dev/current: heater current sense, ADC0 (raw counts)
 )
 
 set(PLAN2040_PROGS
@@ -38,7 +42,8 @@ set(PLAN2040_PROGS
 set(PLAN2040_SCRIPTS boot)
 
 set(PLAN2040_FS      framfs hours)
-set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons at24c)
+set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons at24c ads1115)
+set(PLAN2040_APP_SRC ntc.cpp)                    # apps/babywarmer/: the NTC table
 set(PLAN2040_LIBS    hardware_i2c hardware_adc hardware_gpio)
 
 set(PLAN2040_SIZES

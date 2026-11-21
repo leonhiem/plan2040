@@ -11,6 +11,10 @@
 #include "hardware/i2c.h"
 #include "registers.h"
 
+/* plan2040 (2026-11-21): init, read_adc, read_config and write_config
+ * return false when the chip doesn't answer (I2C timeouts, a limit on
+ * the conversion wait); they returned void. See README.md here. */
+
 /** \file ads1115.h
  * \brief Library for using an ADS1115 analog-to-digital converter with
  * the Raspberry Pi Pico
@@ -28,7 +32,7 @@ typedef struct ads1115_adc {
  * \param i2c_addr The i2C address of the ADS1115 device
  * \param adc Pointer to the structure that stores the ADS1115 info
  */
-void ads1115_init(i2c_inst_t *i2c_port, uint8_t i2c_addr,
+bool ads1115_init(i2c_inst_t *i2c_port, uint8_t i2c_addr,
                   ads1115_adc_t *adc);
 
 /*! \brief Read the last converted value
@@ -36,7 +40,7 @@ void ads1115_init(i2c_inst_t *i2c_port, uint8_t i2c_addr,
  * \param adc_value Pointer to a buffer to receive the data
  * \param adc Pointer to the structure that stores the ADS1115 info
  */
-void ads1115_read_adc(uint16_t *adc_value, ads1115_adc_t *adc);
+bool ads1115_read_adc(uint16_t *adc_value, ads1115_adc_t *adc);
 
 /*! \brief Read the 16-bit configuration register
  *
@@ -45,13 +49,13 @@ void ads1115_read_adc(uint16_t *adc_value, ads1115_adc_t *adc);
  * 
  * \param adc Pointer to the structure that stores the ADS1115 info
  */
-void ads1115_read_config(ads1115_adc_t *adc);
+bool ads1115_read_config(ads1115_adc_t *adc);
 
 /*! \brief Write current configuration to the configuration register
  *
  * \param adc Pointer to the structure that stores the ADS1115 info
  */
-void ads1115_write_config(ads1115_adc_t *adc);
+bool ads1115_write_config(ads1115_adc_t *adc);
 
 /*! \brief Convert a (raw) ADC value to voltage
  *
