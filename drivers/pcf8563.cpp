@@ -9,15 +9,15 @@ static uint8_t bin2bcd(int v)     { return (uint8_t)(((v / 10) << 4) | (v % 10))
 
 bool rtc_read_regs(uint8_t reg, uint8_t *buf, int len)
 {
-    if (i2c_write_timeout_us(BOARD_I2C, RTC_I2C_ADDR, &reg, 1, true, I2C_TIMEOUT_US) != 1)
+    if (i2c_write_timeout_us(RTC_I2C, RTC_I2C_ADDR, &reg, 1, true, I2C_TIMEOUT_US) != 1)
         return false;
-    return i2c_read_timeout_us(BOARD_I2C, RTC_I2C_ADDR, buf, len, false, I2C_TIMEOUT_US) == len;
+    return i2c_read_timeout_us(RTC_I2C, RTC_I2C_ADDR, buf, len, false, I2C_TIMEOUT_US) == len;
 }
 
 bool rtc_write_reg(uint8_t reg, uint8_t val)
 {
     uint8_t b[2] = { reg, val };
-    return i2c_write_timeout_us(BOARD_I2C, RTC_I2C_ADDR, b, 2, false, I2C_TIMEOUT_US) == 2;
+    return i2c_write_timeout_us(RTC_I2C, RTC_I2C_ADDR, b, 2, false, I2C_TIMEOUT_US) == 2;
 }
 
 bool rtc_init(void)
@@ -73,7 +73,7 @@ bool rtc_set(const rtc_time *t)
     // Stop the clock while writing so the new second starts cleanly.
     if (!rtc_write_reg(0x00, 0x20))
         return false;
-    bool ok = i2c_write_timeout_us(BOARD_I2C, RTC_I2C_ADDR, b, 8, false, I2C_TIMEOUT_US) == 8;
+    bool ok = i2c_write_timeout_us(RTC_I2C, RTC_I2C_ADDR, b, 8, false, I2C_TIMEOUT_US) == 8;
     return rtc_write_reg(0x00, 0x00) && ok;
 }
 

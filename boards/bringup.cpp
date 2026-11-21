@@ -1,20 +1,29 @@
 /**
- * bringup.cpp — first-power-up test for the cpu_rp2040 PCB
+ * boards/bringup.cpp — first-power-up test for a board
+ *
+ * Written for the cpu_rp2040 PCB (2026-11-10), shared by every board
+ * since 2026-11-21: what it tests comes from the board's board.h. A
+ * board with a second I2C bus (HEADER_I2C) gets that bus scanned too, a
+ * board with an EEPROM (EEPROM_I2C_ADDR) gets the EEPROM test.
  *
  * Standalone, no plan2040 kernel: proves the board itself before the OS
  * moves onto it. On boot it runs every test once and prints a summary,
  * then stays in a small command loop over USB serial:
  *
  *   all                          run every test again
- *   scan                         I2C bus scan (expect 0x50 FRAM, 0x51 RTC)
+ *   scan                         I2C bus scan (expect 0x50 FRAM, 0x51 RTC;
+ *                                header bus: 0x48 ADS1115, 0x52 EEPROM)
  *   fram                         non-destructive FRAM test (all 8 KB)
  *   rtc                          RTC test: registers sane, clock ticking
+ *   eeprom                       EEPROM test: one page written and restored,
+ *                                address lines (only with an EEPROM)
  *   time                         print RTC date/time once
  *   set YYYY-MM-DD HH:MM:SS      set the RTC
  *   help
  *
  * Meanwhile the alarm LED blinks a 1 Hz heartbeat and every button
- * press/release is printed.
+ * press/release is printed. Every other output stays off
+ * (board_pins_init()): bringup never switches a heater.
  */
 
 #include <pico/stdlib.h>
@@ -24,6 +33,13 @@
 #include "board.h"
 #include "drivers/fm24cl64.h"
 #include "drivers/pcf8563.h"
+#ifdef EEPROM_I2C_ADDR
+#include "drivers/at24c.h"
+#endif
+
+#ifndef PLAN2040_BOARD          // set by CMakeLists.txt from the config
+#define PLAN2040_BOARD "?"
+#endif
 
 #define I2C_TIMEOUT_US 10000
 
@@ -34,26 +50,56 @@ static bool i2c_reserved(uint8_t addr)
     return (addr & 0x78) == 0 || (addr & 0x78) == 0x78;
 }
 
-static bool test_scan(void)
+struct chip { i2c_inst_t *i2c; uint8_t addr; const char *name; };
+
+static const chip chips[] = {
+    { FRAM_I2C,    FRAM_I2C_ADDR,    "FRAM"    },
+    { RTC_I2C,     RTC_I2C_ADDR,     "RTC"     },
+#ifdef ADS1115_I2C_ADDR
+    { ADS1115_I2C, ADS1115_I2C_ADDR, "ADS1115" },
+#endif
+#ifdef EEPROM_I2C_ADDR
+    { EEPROM_I2C,  EEPROM_I2C_ADDR,  "EEPROM"  },
+#endif
+};
+#define NCHIPS (int)(sizeof(chips) / sizeof(chips[0]))
+
+// Scan one bus; true if every chip board.h puts on it answered.
+static bool scan_bus(i2c_inst_t *i2c, const char *name, int sda, int scl)
 {
-    bool fram = false, rtc = false;
+    bool seen[0x80] = { false };
     int found = 0;
-    printf("i2c scan (SDA=GPIO%d SCL=GPIO%d):", BOARD_I2C_SDA, BOARD_I2C_SCL);
+    printf("i2c scan%s%s (SDA=GPIO%d SCL=GPIO%d):", name[0] ? " " : "", name, sda, scl);
     for (int addr = 0; addr < 0x80; addr++) {
         if (i2c_reserved(addr))
             continue;
         uint8_t b;
-        if (i2c_read_timeout_us(BOARD_I2C, addr, &b, 1, false, I2C_TIMEOUT_US) >= 0) {
+        if (i2c_read_timeout_us(i2c, addr, &b, 1, false, I2C_TIMEOUT_US) >= 0) {
             printf(" 0x%02x", addr);
             found++;
-            if (addr == FRAM_I2C_ADDR) fram = true;
-            if (addr == RTC_I2C_ADDR) rtc = true;
+            seen[addr] = true;
         }
     }
     printf("%s\n", found ? "" : " nothing found");
-    if (!fram) printf("  FRAM not found at 0x%02x\n", FRAM_I2C_ADDR);
-    if (!rtc)  printf("  RTC not found at 0x%02x\n", RTC_I2C_ADDR);
-    return fram && rtc;
+    bool ok = true;
+    for (int i = 0; i < NCHIPS; i++) {
+        if (chips[i].i2c == i2c && !seen[chips[i].addr]) {
+            printf("  %s not found at 0x%02x\n", chips[i].name, chips[i].addr);
+            ok = false;
+        }
+    }
+    return ok;
+}
+
+static bool test_scan(void)
+{
+#ifdef HEADER_I2C
+    bool local  = scan_bus(BOARD_I2C, "local", BOARD_I2C_SDA, BOARD_I2C_SCL);
+    bool header = scan_bus(HEADER_I2C, "header", HEADER_I2C_SDA, HEADER_I2C_SCL);
+    return local && header;
+#else
+    return scan_bus(BOARD_I2C, "", BOARD_I2C_SDA, BOARD_I2C_SCL);
+#endif
 }
 
 // ---------------------------------------------------------------- FRAM
@@ -197,6 +243,90 @@ static bool test_rtc(void)
     return true;
 }
 
+// ---------------------------------------------------------------- EEPROM
+#ifdef EEPROM_I2C_ADDR
+// drivers/at24c.h does the I2C. Unlike the FRAM, an EEPROM wears
+// (~1M writes per cell), so this doesn't touch every cell: one page
+// written twice and restored, plus one marker byte per address line.
+// That's ~20 page writes per run, nothing against a million.
+
+static bool eeprom_test_page(void)
+{
+    const uint32_t base = EEPROM_SIZE - EEPROM_PAGE;    // the last page
+    uint8_t orig[EEPROM_PAGE], pat[EEPROM_PAGE], got[EEPROM_PAGE];
+    int errors = 0;
+
+    if (!eeprom_read(base, orig, EEPROM_PAGE)) {
+        printf("  i2c error reading 0x%05lx\n", (unsigned long)base);
+        return false;
+    }
+    for (int inv = 0; inv < 2; inv++) {
+        for (int i = 0; i < EEPROM_PAGE; i++)
+            pat[i] = (uint8_t)(i * 7 + 0x5a) ^ (inv ? 0xff : 0x00);
+        if (!eeprom_write(base, pat, EEPROM_PAGE) || !eeprom_read(base, got, EEPROM_PAGE)) {
+            printf("  i2c error at 0x%05lx\n", (unsigned long)base);
+            eeprom_write(base, orig, EEPROM_PAGE);
+            return false;
+        }
+        for (int i = 0; i < EEPROM_PAGE; i++)
+            if (got[i] != pat[i] && errors++ < 8)
+                printf("  0x%05lx: wrote 0x%02x read 0x%02x\n", (unsigned long)(base + i), pat[i], got[i]);
+    }
+    if (!eeprom_write(base, orig, EEPROM_PAGE) || !eeprom_read(base, got, EEPROM_PAGE)
+        || memcmp(orig, got, EEPROM_PAGE) != 0) {
+        printf("  could not restore 0x%05lx\n", (unsigned long)base);
+        return false;
+    }
+    if (errors)
+        printf("  %d bad bytes\n", errors);
+    return errors == 0;
+}
+
+// Same idea as fram_test_aliasing(): markers at 0 and every power of two.
+// A 24C256 fitted where board.h says 24C512 shows up here: 0x8000 then
+// lands on 0x0000.
+static bool eeprom_test_aliasing(void)
+{
+    uint32_t addrs[17];
+    uint8_t orig[17];
+    int n = 0;
+    bool ok = true;
+
+    addrs[n++] = 0;
+    for (uint32_t a = 1; a < EEPROM_SIZE; a <<= 1)
+        addrs[n++] = a;
+
+    for (int i = 0; i < n; i++)
+        if (!eeprom_read(addrs[i], &orig[i], 1))
+            return false;
+    for (int i = 0; i < n; i++) {
+        uint8_t m = 0xa0 + i;
+        if (!eeprom_write(addrs[i], &m, 1))
+            ok = false;
+    }
+    for (int i = 0; i < n; i++) {
+        uint8_t m;
+        if (!eeprom_read(addrs[i], &m, 1) || m != 0xa0 + i) {
+            printf("  address 0x%05lx aliased (read 0x%02x)\n", (unsigned long)addrs[i], m);
+            ok = false;
+        }
+    }
+    for (int i = 0; i < n; i++)
+        eeprom_write(addrs[i], &orig[i], 1);
+    return ok;
+}
+
+static bool test_eeprom(void)
+{
+    printf("eeprom: testing %d bytes, %d-byte pages (non-destructive)...\n", EEPROM_SIZE, EEPROM_PAGE);
+    absolute_time_t t0 = get_absolute_time();
+    bool ok = eeprom_test_page() && eeprom_test_aliasing();
+    printf("eeprom: %s (%lld ms)\n", ok ? "ok" : "FAILED",
+           absolute_time_diff_us(t0, get_absolute_time()) / 1000);
+    return ok;
+}
+#endif
+
 // ---------------------------------------------------------------- buttons
 
 static const struct { int pin; const char *name; } buttons[] = {
@@ -239,15 +369,26 @@ static void run_all(void)
     bool scan = test_scan();
     bool fram = test_fram();
     bool rtc = test_rtc();
+#ifdef EEPROM_I2C_ADDR
+    bool eeprom = test_eeprom();
+    printf("\nsummary: i2c %s, fram %s, rtc %s, eeprom %s\n\n",
+           scan ? "ok" : "FAIL", fram ? "ok" : "FAIL", rtc ? "ok" : "FAIL", eeprom ? "ok" : "FAIL");
+#else
     printf("\nsummary: i2c %s, fram %s, rtc %s\n\n",
            scan ? "ok" : "FAIL", fram ? "ok" : "FAIL", rtc ? "ok" : "FAIL");
+#endif
 }
 
 static void help(void)
 {
-    printf("commands: all scan fram rtc time help\n"
+#ifdef EEPROM_I2C_ADDR
+    const char *more = " eeprom";
+#else
+    const char *more = "";
+#endif
+    printf("commands: all scan fram rtc%s time help\n"
            "          set YYYY-MM-DD HH:MM:SS\n"
-           "press any button to see it reported\n");
+           "press any button to see it reported\n", more);
 }
 
 static void dispatch(char *line)
@@ -257,6 +398,9 @@ static void dispatch(char *line)
     else if (!strcmp(line, "scan")) test_scan();
     else if (!strcmp(line, "fram")) test_fram();
     else if (!strcmp(line, "rtc"))  test_rtc();
+#ifdef EEPROM_I2C_ADDR
+    else if (!strcmp(line, "eeprom")) test_eeprom();
+#endif
     else if (!strcmp(line, "time")) {
         if (rtc_get(&t)) print_time(&t);
         else printf("rtc: i2c error\n");
@@ -275,8 +419,7 @@ int main(void)
 {
     stdio_init_all();
 
-    board_led_init();
-    board_lamp_init(); // off, so an LED on GPIO6 doesn't glow via the pull-down
+    board_pins_init(); // every output off (LED, lamp; on babywarmer_v1 the heater too)
 
     buttons_setup();
     board_i2c_init();
@@ -287,7 +430,7 @@ int main(void)
         sleep_ms(50);
     sleep_ms(200);
 
-    printf("\ncpu_rp2040 bring-up\n\n");
+    printf("\n%s bring-up\n\n", PLAN2040_BOARD);
     run_all();
     help();
 

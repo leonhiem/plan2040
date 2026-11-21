@@ -61,14 +61,20 @@ add_library(plan2040_kernel
 target_compile_definitions(plan2040_kernel PRIVATE PLAN2040_BOARD="${PLAN2040_BOARD}")
 target_link_libraries(plan2040_kernel pico_stdlib hardware_watchdog)
 
-# bringup: the board's standalone test (no plan2040 kernel), if it has one.
+# bringup: the board's standalone test (no plan2040 kernel). One for
+# every board, boards/bringup.cpp, testing what board.h describes; a
+# board can bring its own as boards/<board>/bringup.cpp.
 if(EXISTS ${PLAN2040_BOARD_DIR}/bringup.cpp)
-    add_executable(bringup ${PLAN2040_BOARD_DIR}/bringup.cpp)
-    target_link_libraries(bringup board_drivers pico_stdlib hardware_i2c)
-    pico_enable_stdio_usb(bringup 1)
-    pico_enable_stdio_uart(bringup 0)
-    pico_add_extra_outputs(bringup)
+    set(bringup_src ${PLAN2040_BOARD_DIR}/bringup.cpp)
+else()
+    set(bringup_src boards/bringup.cpp)
 endif()
+add_executable(bringup ${bringup_src})
+target_compile_definitions(bringup PRIVATE PLAN2040_BOARD="${PLAN2040_BOARD}")
+target_link_libraries(bringup board_drivers pico_stdlib hardware_i2c)
+pico_enable_stdio_usb(bringup 1)
+pico_enable_stdio_uart(bringup 0)
+pico_add_extra_outputs(bringup)
 
 # conf.cpp: generated from the config's lists, like Plan 9's mkdevc.
 # Written only when it changes, so a re-run of cmake doesn't rebuild it.

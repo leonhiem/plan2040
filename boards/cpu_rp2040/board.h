@@ -24,7 +24,11 @@
 #define BOARD_I2C_SCL      15
 #define BOARD_I2C_HZ       400000 // PCF8563's max; bring-up first passed at 100k
 
+// Each chip: its bus and address. Drivers take them from here, so a
+// chip can sit on another bus on another board (boards/babywarmer_v1).
+#define RTC_I2C            BOARD_I2C
 #define RTC_I2C_ADDR       0x51  // PCF8563T, fixed address
+#define FRAM_I2C           BOARD_I2C
 #define FRAM_I2C_ADDR      0x50  // FM24CL64B, A2..A0 = 0
 #define FRAM_SIZE          8192  // 64 Kbit; WP hardwired to GND
 
@@ -79,8 +83,9 @@
 #define BUTTON_PIN_START  28
 #define BUTTON_PIN_LAMP   29
 
-// boards/cpu_rp2040/board.cpp
-void board_init(void);       // all of the below, in order, + buttons_init()
-void board_i2c_init(void);
+// boards/cpu_rp2040/board.cpp. Every board has these three:
+void board_init(void);       // plan2040: board_pins_init(), board_i2c_init(), buttons_init()
+void board_pins_init(void);  // every output configured and off (bringup uses this too)
+void board_i2c_init(void);   // every I2C bus of the board
 void board_led_init(void);   // configured, off
 void board_lamp_init(void);  // configured, off

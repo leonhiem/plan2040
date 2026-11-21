@@ -170,9 +170,10 @@ One tree for every board and every firmware (TODO.md idea 3, restructured
 | `fs/` | filesystems and stores: `framfs` (the FRAM filesystem), `hours` (hour counters) | generic |
 | `dev/` | devices, one file each: `dev/<name>.cpp` | generic, picked per config |
 | `prog/` | programs, one file each: `prog/<name>.cpp` | generic, picked per config |
-| `drivers/` | chips: `pcf8563` (RTC), `fm24cl64` (FRAM), `buttons` (debounce) | generic, picked per config |
-| `boards/<board>/` | `board.h` (pin map, addresses, FRAM layout), `board.cpp` (`board_init()`), `bringup.cpp` (the board test) | one per board |
-| `configs/<name>.cmake` | one firmware: board, devices, programs, sizes | one per firmware |
+| `drivers/` | chips: `pcf8563` (RTC), `fm24cl64` (FRAM), `at24c` (24C256/512 EEPROM), `buttons` (debounce) | generic, picked per config |
+| `boards/<board>/` | `board.h` (pin map, buses, each chip's bus and address, FRAM layout), `board.cpp` (`board_init()`, `board_pins_init()`) | one per board: `cpu_rp2040`, `babywarmer_v1` |
+| `boards/bringup.cpp` | the board test, for every board (from its `board.h`) | yes |
+| `configs/<name>.cmake` | one firmware: board, devices, programs, sizes: `cpu_rp2040`, `babywarmer_v1` | one per firmware |
 | `apps/<app>/` | (later) babywarmer, gateway | per application |
 | `tests/host/` | PC tests | |
 
@@ -215,10 +216,33 @@ How it's built:
   safely, and a Pico W's wifi needs other SDK libraries. A config may set
   `PICO_BOARD` (it's read before the SDK).
 
-Still to come (TODO idea 3): the I2C buses and chips in the config
-(drivers taking their bus and address from it instead of `BOARD_I2C`),
-the babywarmer app on the old babywarmer board (`babywarmer_v1`), the
-gateway app.
+**Buses and chips are a fact of the board** (decided 2026-11-21), so
+`board.h` names each I2C bus and, per chip, its bus and address:
+`FRAM_I2C` + `FRAM_I2C_ADDR`, `RTC_I2C` + `RTC_I2C_ADDR`, and on
+babywarmer_v1 also `ADS1115_I2C`, `EEPROM_I2C` (+ `EEPROM_SIZE`,
+`EEPROM_PAGE`). Drivers take them from there, so the same driver works
+whichever bus a chip sits on. `board_i2c_init()` starts every bus.
+
+| Board | Bus | Pins | Chips |
+|---|---|---|---|
+| cpu_rp2040 | local, i2c1, 400 kHz | GPIO14/15 | FRAM 0x50, RTC 0x51 |
+| babywarmer_v1 | local, i2c1, 400 kHz | GPIO14/15 | FRAM 0x50, RTC 0x51 (on the cpu_rp2040 board) |
+| babywarmer_v1 | header, i2c0, 200 kHz | GPIO12/13 | ADS1115 0x48, EEPROM 0x52 (on the babywarmer PCB) |
+
+babywarmer_v1 is the cpu_rp2040 board wired in as the CPU of the old
+babywarmer PCB (TODO idea 3, "The babywarmer_v1 hardware hack"). Its
+config has the generic devices only for now (step 3a); the babywarmer
+app comes next, from picoos (TODO idea 3).
+Build it in its own directory:
+
+```sh
+mkdir -p build-babywarmer_v1 && cd build-babywarmer_v1
+cmake -DPLAN2040_CONFIG=babywarmer_v1 ..
+make -j$(nproc)
+```
+
+Still to come (TODO idea 3): `apps/babywarmer` (steps 3b-3f), the
+gateway app (postponed).
 
 ## plan2040
 
@@ -1134,6 +1158,21 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-21, babywarmer_v1: the cpu_rp2040 board as the babywarmer
+PCB's CPU** (`build-babywarmer_v1/bringup.uf2`, then `plan2040.uf2`):
+step 3a, for after the hardware hack. Built on the PC, no hardware yet.
+cpu_rp2040's firmwares are unchanged by it (same sizes, same bringup
+output: the shared bringup prints the same as before there).
+
+| Test | Result |
+|---|---|
+| `bringup.uf2`: banner and scan | pending: `babywarmer_v1 bring-up`; `local` bus `0x50 0x51`, `header` bus `0x48 0x52` |
+| `bringup`: FRAM, RTC | pending: as on cpu_rp2040 (FRAM ~1.6 s at 400 kHz) |
+| `bringup`: EEPROM | pending: `eeprom: ok`, no aliasing (it really is a 24C512) |
+| `bringup`: buttons, alarm LED | pending: all six buttons reported; alarm LED blinks 1 Hz; buzzer, heater, relay, lamp stay off |
+| `plan2040.uf2`: banner, `ls`, `date`, `df` | pending: `plan2040 on babywarmer_v1`; the same devices and programs as cpu_rp2040 |
+| `echo on > /dev/lamp`, `echo on > /dev/led` | pending: the baby light and the alarm LED |
+
 **2026-11-21, the restructure and the rename to plan2040**
 (`plan2040.uf2`, `bringup.uf2`): one tree for all boards, config
 `cpu_rp2040` (see "Source tree and configs"). Nothing should behave
@@ -1273,24 +1312,36 @@ collapsing, `-s`/`-n`, the `-- more:` hint, edge cases). On the board:
 ## `bringup` — board test
 
 Kept as a permanent test program: flash it whenever a board needs
-checking.
+checking. One program for every board (`boards/bringup.cpp`, since
+2026-11-21): it tests what the board's `board.h` describes, and its
+banner names the board (`cpu_rp2040 bring-up`, `babywarmer_v1 bring-up`).
 
-`build/bringup.uf2` is a standalone test, no OS. On boot (it waits up
-to 5 s for a USB serial terminal to attach) it runs:
+`build/bringup.uf2` is a standalone test, no OS. Every output is
+switched off first (`board_pins_init()`; on babywarmer_v1 that includes
+the heater SSR and the safety relay, which bringup never switches on).
+On boot (it waits up to 5 s for a USB serial terminal to attach) it runs:
 
-- an I2C scan, expecting `0x50` (FRAM) and `0x51` (RTC)
+- an I2C scan, expecting `0x50` (FRAM) and `0x51` (RTC); on a board
+  with a second bus (babywarmer_v1) both buses, `local` and `header`,
+  the header bus expecting `0x48` (ADS1115) and `0x52` (EEPROM)
 - a non-destructive test of all 8 KB of FRAM: every byte is written
   with a pattern and its inverse, then restored, plus an address-line
   aliasing check
 - an RTC check: control registers, sane date/time fields, seconds
   actually ticking, and the VL (voltage-low) flag
+- on a board with an EEPROM (babywarmer_v1: 24C512): its last page
+  written with a pattern and its inverse, then restored, plus the same
+  address-line check as the FRAM's (a 24C256 fitted where `board.h`
+  says 24C512 shows up there: `0x8000` lands on `0x0000`). An EEPROM
+  wears (~1M writes per cell), so it isn't tested cell by cell: ~20 page
+  writes per run
 
 then prints a summary and drops into a `>` prompt:
 
 | Command | |
 |---|---|
 | `all` | run every test again |
-| `scan` / `fram` / `rtc` | run one test |
+| `scan` / `fram` / `rtc` / `eeprom` | run one test (`eeprom` only on a board with one) |
 | `time` | print the RTC date/time |
 | `set YYYY-MM-DD HH:MM:SS` | set the RTC (clears VL) |
 

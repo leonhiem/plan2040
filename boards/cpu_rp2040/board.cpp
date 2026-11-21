@@ -31,12 +31,17 @@ void board_lamp_init(void)
     gpio_put(PIN_LAMP, !PIN_LAMP_ON); // off
 }
 
+void board_pins_init(void)
+{
+    board_led_init();
+    board_lamp_init();
+}
+
 // Everything plan2040's main() needs before the devices register. Same
 // order as the old picoos.cpp main(): outputs off first, then the bus.
 void board_init(void)
 {
-    board_led_init();
-    board_lamp_init();
+    board_pins_init();
     board_i2c_init();
     buttons_init();
 }
