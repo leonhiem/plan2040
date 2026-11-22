@@ -10,7 +10,7 @@
 // Story: power-up in manual (10 %), MANUAL pressed at 1 min -> auto:
 // boost, coast, pid towards the 35.0 C setpoint; UP pressed twice at
 // 40 min (-> 36.0); the sensor falls off the baby at 70 min (reads the
-// room); put back at 85 min; the ADS1115 stops answering at 100 min
+// room); put back at 85 min; START (APGAR) and `run tftmon` at 50 min; the ADS1115 stops answering at 100 min
 // (both NTC devices fail: what happens then, see TODO idea 3e).
 #include <cstdio>
 #include <cstring>
@@ -24,14 +24,20 @@
 #include "board.h"
 #include "hardware/gpio.h"
 #include "hardware/pwm.h"
+#include "hardware/spi.h"
 
 uint64_t fake_now = 0;
 int fake_gpio[30];
 void (*fake_gpio_hook)(uint pin, int value);
 uint16_t fake_pwm_level[8][2];
 i2c_inst_t *fake_i2c0, *fake_i2c1;
+spi_inst_t *fake_spi0;
+unsigned long fake_spi_bytes;
 volatile bool button[BUTTON_COUNT];
-int getchar_timeout_us(uint32_t) { return -1; }
+// Typed input: type("...") queues a line for the shell.
+static char typed[256]; static int typed_pos, typed_len;
+static void type(const char *line) { typed_len = snprintf(typed, sizeof typed, "%s", line); typed_pos = 0; }
+int getchar_timeout_us(uint32_t) { return typed_pos < typed_len ? (unsigned char)typed[typed_pos++] : -1; }
 
 // ---- the world
 static const float ROOM = 24.0f, GAIN = 0.00040f, LOSS = 0.0020f; // 100 % -> room + 20 C
@@ -63,8 +69,8 @@ static const program_t p_date = {"date", date_run};
 void task_shell(void); void jobs_init(void);
 #define D(n) void dev_##n##_register(void);
 #define P(n) void prog_##n##_register(void);
-D(lamp) D(buttons) D(heater) D(relay) D(alarm) D(seg7) D(setpoint) D(heaterauto) D(percent) D(pid) D(phase) D(alarmcheck)
-P(cat) P(echo) P(follow) P(toggle) P(adjust) P(select) P(pid) P(phase) P(safelut) P(alarmcheck) P(alarm) P(ledwire) P(monitor)
+D(lamp) D(buttons) D(heater) D(relay) D(alarm) D(seg7) D(setpoint) D(heaterauto) D(percent) D(pid) D(phase) D(alarmcheck) D(tft)
+P(cat) P(echo) P(label) P(follow) P(toggle) P(adjust) P(select) P(pid) P(phase) P(safelut) P(alarmcheck) P(alarm) P(ledwire) P(monitor) P(tftwire)
 
 // The sim's own lines go to `out` (the real stdout); what the shell and
 // the jobs print goes to stdout, which is sent to a scratch file while
@@ -105,11 +111,12 @@ int main()
     fs_register(&d_skin); fs_register(&d_amb); fs_register(&d_cur);
     dev_lamp_register(); dev_buttons_register(); dev_heater_register(); dev_relay_register(); dev_alarm_register();
     dev_seg7_register(); dev_setpoint_register(); dev_heaterauto_register(); dev_percent_register();
-    dev_pid_register(); dev_phase_register(); dev_alarmcheck_register();
+    dev_pid_register(); dev_phase_register(); dev_alarmcheck_register(); dev_tft_register();
     prog_register(&p_date);
     prog_cat_register(); prog_echo_register(); prog_follow_register(); prog_toggle_register(); prog_adjust_register();
     prog_select_register(); prog_pid_register(); prog_phase_register(); prog_safelut_register();
     prog_alarmcheck_register(); prog_alarm_register(); prog_ledwire_register(); prog_monitor_register();
+    prog_label_register(); prog_tftwire_register();
     jobs_init();
     task_register("shell", task_shell, 30);
 
@@ -126,11 +133,17 @@ int main()
         if (sec == 60)       { SAY("--- %d:%02d press MANUAL (-> auto)\n", sec / 60, sec % 60); button[BUTTON_MANUAL] = true; }
         if (sec == 40 * 60)  { SAY("--- 40:00 press UP twice\n"); button[BUTTON_UP] = true; }
         if (sec == 40 * 60 + 1) button[BUTTON_UP] = true;
+        if (sec == 50 * 60)  { SAY("--- 50:00 press START (APGAR clock); type `run tftmon`\n"); button[BUTTON_START] = true; type("run tftmon\n"); }
+        if (sec == 52 * 60)  { SAY("--- 52:00 type `echo graphical > /dev/tft/mode`\n"); type("echo graphical > /dev/tft/mode\n"); }
         if (sec == 70 * 60)  { SAY("--- 70:00 sensor falls off the baby (reads the room)\n"); sensor_on_baby = false; }
         if (sec == 85 * 60)  { SAY("--- 85:00 sensor back on the baby\n"); sensor_on_baby = true; }
         if (sec == 100 * 60) { SAY("--- 100:00 the ADS1115 stops answering\n"); adc_dead = true;
                                fflush(stdout); saved_stdout = dup(1); quiet = tmpfile(); dup2(fileno(quiet), 1); }
         if (sec % 60 == 0 || (sec < 120 && sec % 10 == 0)) status(sec);
+        if (sec == 2 * 60 || sec == 51 * 60 || sec == 53 * 60) {
+            char m[16], a[8]; rd("/dev/tft/mode", m, sizeof m); rd("/dev/tft/aut", a, sizeof a);
+            SAY("        tft: mode %s, aut %s, %lu bytes sent to the display so far\n", m, a, fake_spi_bytes);
+        }
     }
     char jb[8]; (void)jb;
     if (quiet) {

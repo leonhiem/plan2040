@@ -1,0 +1,20 @@
+# apps/babywarmer/scripts/tftmon -- the TFT as a text status screen
+#
+# From picoos @ 89c16e5 (shell.cpp TFTMON_SCRIPT_TEXT), unchanged. Not
+# run at boot: `run tftmon` draws it once, `loop tftmon` redraws every
+# second until Ctrl-C. One /dev/tft/text row per value, through `label`
+# for the "name = value" format; /dev/tft/seek's cursor advances by
+# itself. `echo graphical > /dev/tft/mode` goes back to the warmer UI.
+echo text > /dev/tft/mode
+echo 0 > /dev/tft/seek
+label auto = /dev/heaterauto > /dev/tft/text
+label phase = /dev/state > /dev/tft/text
+label setp = /dev/setpoint > /dev/tft/text
+label skin = /dev/skintemp > /dev/tft/text
+label amb = /dev/ambient > /dev/tft/text
+label heat = /dev/heater > /dev/tft/text
+label curr = /dev/current > /dev/tft/text
+label pid = /dev/pidout > /dev/tft/text
+label pct = /dev/percent > /dev/tft/text
+label integ = /dev/pid/integral > /dev/tft/text
+sleep 1000

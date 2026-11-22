@@ -215,6 +215,14 @@ every GPIO**. So the nets aren't floating; each gets a weak pull-down:
 - Check after soldering, before plan2040: `bringup` with the buttons
   untouched must report no presses; a released button line measures
   close to 3.3 V.
+- **Done (Leon, 2026-11-23):** 3k3 pull-ups to 3V3 on the six button
+  lines (a released button then sits at ~3.1 V against the old chip's
+  ~50 k; 1 mA when pressed); every pull-up checked, any to +5 V moved to
+  3V3. The 24C512 is soldered: its datasheet marks A2 as NC (that chip
+  has only A1 and A0; the A2 address bit is 0 inside), so A0 and the NC
+  pin to GND, A1 to 3V3: address `1010 0 1 0` = **0x52**, as in
+  `board.h`. (A part whose A2 does work, like Microchip's 24LC512, gives
+  the same address with A2 on GND.) Hack not finished yet.
 
 Software for this combination, in step 3:
 - `boards/babywarmer_v1/`: cpu_rp2040's local bus (FRAM, RTC) plus the
@@ -324,7 +332,15 @@ Order, one commit each, tested on the PC and then the board:
     so it stayed in `safe`; that's the rough thermal model, not a
     finding, but worth watching on the real warmer.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
-  tftwire, tftmon.
+  tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
+  2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
+  in `apps/babywarmer/tft/` (from `../st7735/input` @ 4940778, identical
+  to picoos's `tft/`), so re-syncing is a plain copy; the chip driver
+  moves to `drivers/` when a second user comes (the 4" ST7796S, a
+  `/dev/cons` on the screen). `dev/tft.cpp` checks at compile time that
+  `st7735.h`'s pins are the board's. `tftwire &` back in the boot script;
+  `tftmon` is a built-in script file. With everything: ~200 KB flash,
+  ~33 KB RAM, 64 devices, 25 tasks.
 - **3g** `/dev/eeprom`, `/dev/lut` and the calibration workflow.
 
 **Later, a name for the Pico W build?** (Leon, 2026-11-21): maybe

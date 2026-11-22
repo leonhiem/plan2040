@@ -11,8 +11,9 @@ sources (kernel/, fs/, dev/, prog/) with g++ on the PC, against fakes:
   and keyboard input from a string (`getchar_timeout_us`).
 - `fake/hardware/gpio.h`, `pwm.h`, `i2c.h`: pin levels in `fake_gpio[]`
   (with a hook on every `gpio_put()`), PWM levels, just enough I2C for a
-  real `board.h`. `fake_bw/board.h` is the real babywarmer_v1 pin map
-  (for the babywarmer app's tests).
+  real `board.h`; `spi.h` counts the bytes sent. These are C-compatible:
+  the TFT code is C, built with `$(CC)`. `fake_bw/board.h` is the real
+  babywarmer_v1 pin map (for the babywarmer app's tests).
 - `fakefram.cpp`, `fakefram2.cpp`: the FRAM as an 8 KB array, with an
   optional power cut after N writes, and read failures.
 
@@ -48,7 +49,7 @@ the shell did, line by line.
 | `helpsim` | `help` output |
 | `progtest` | `wc`, `grep`, `head`, `tail` on their own, self-checking |
 | `outtest` | babywarmer's outputs on fake GPIO/PWM with the real babywarmer_v1 pin map: `/dev/heater`'s SSR ticks per 15 s window and the bargraph, `/dev/relay`, `/dev/alarm`, and the exact 56 bits `/dev/seg7big`, `/dev/seg7small`, `/dev/leds` shift into the 74HC595s |
-| `bwsim` | the whole babywarmer controller for 110 simulated minutes: the real scheduler, shell, jobs, babywarmer boot script, devices and programs; only the sensors are fakes, fed by a rough thermal model. MANUAL → auto (boost, coast, pid/safe), UP twice, the sensor off the baby and back, then a dead ADS1115. What the jobs print while the ADS1115 is dead is counted, not shown |
+| `bwsim` | the whole babywarmer controller for 110 simulated minutes: the real scheduler, shell, jobs, babywarmer boot script, devices and programs; only the sensors are fakes, fed by a rough thermal model. MANUAL → auto (boost, coast, pid/safe), UP twice, START and `run tftmon` (the TFT code runs too, on a fake SPI), the sensor off the baby and back, then a dead ADS1115. What the jobs print while the ADS1115 is dead is counted, not shown |
 | `ntctest` | babywarmer's NTC conversion (`apps/babywarmer/ntc.cpp`): degrees at the interesting ADC codes, incl. the wrap above 21742 |
 
 ## Notes

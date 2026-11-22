@@ -41,9 +41,15 @@ outtest:  outtest.cpp  $(P)/kernel/fs.cpp $(BW)/heater.cpp $(BW)/seg7.cpp $(BW)/
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 BWSRC = $(P)/kernel/task.cpp $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp conf_scripts_bw.cpp \
         $(P)/dev/lamp.cpp $(P)/dev/buttons.cpp $(call pr,cat echo follow toggle adjust select) \
-        $(BW)/heater.cpp $(BW)/seg7.cpp $(foreach n,heater relay alarm seg7 setpoint heaterauto percent pid phase alarmcheck,$(BW)/dev/$(n).cpp) \
-        $(foreach n,pid phase safelut alarmcheck alarm ledwire monitor,$(BW)/prog/$(n).cpp)
-bwsim:    bwsim.cpp $(BWSRC)
+        $(BW)/heater.cpp $(BW)/seg7.cpp $(foreach n,heater relay alarm seg7 setpoint heaterauto percent pid phase alarmcheck tft,$(BW)/dev/$(n).cpp) \
+        $(foreach n,pid phase safelut alarmcheck alarm ledwire monitor tftwire,$(BW)/prog/$(n).cpp) $(P)/prog/label.cpp
+# The TFT code is C (a blackbox copy of the st7735 repo): compiled with
+# the C compiler, against the same fakes.
+TFTC  = st7735 gfx icons baby heat_indicator apgar_timer text_console cue_icons display
+TFTO  = $(foreach n,$(TFTC),tft_$(n).o)
+tft_%.o: $(BW)/tft/%.c
+	$(CC) -w -I fake_bw -I fake -c -o $@ $<
+bwsim:    bwsim.cpp $(BWSRC) $(TFTO)
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -DPLAN2040_BOARD='"babywarmer_v1"' -o $@ $^
 sim:      sim.cpp      $(SIM) $(call pr,cat echo ls grep wc headtail tee rm mkfs df)
 quotesim: quotesim.cpp $(SIM) $(call pr,cat echo ls mkfs grep wc)
@@ -61,17 +67,18 @@ $(SIMS):
 
 # The built-in boot script, as CMakeLists.txt builds it into conf.cpp:
 # comment and empty lines left out. scripts/boot for the generic sims,
-# apps/babywarmer/scripts/boot for bwsim.
+# apps/babywarmer/scripts/{boot,tftmon} for bwsim; each named after its file.
 MKCONF = awk 'BEGIN { print "struct conf_script { const char *name; const char *text; };"; \
 	              print "extern const conf_script conf_scripts[]; extern const int conf_nscripts;"; \
-	              print "const conf_script conf_scripts[] = { { \"boot\", \"\"" } \
+	              print "const conf_script conf_scripts[] = {" } \
+	      FNR == 1 { if (n++) print "    \"\" },"; f = FILENAME; sub(/.*\//, "", f); print "  { \"" f "\", \"\"" } \
 	      /^[ \t]*\#/ || /^[ \t]*$$/ { next } \
 	      { gsub(/\\/, "\\\\"); gsub(/"/, "\\\""); print "    \"" $$0 "\\n\"" } \
-	      END { print "} }; const int conf_nscripts = 1;" }'
+	      END { print "    \"\" } }; const int conf_nscripts = " n ";" }'
 conf_scripts.cpp: $(P)/scripts/boot
 	$(MKCONF) $< > $@
-conf_scripts_bw.cpp: $(BW)/scripts/boot
-	$(MKCONF) $< > $@
+conf_scripts_bw.cpp: $(BW)/scripts/boot $(BW)/scripts/tftmon
+	$(MKCONF) $^ > $@
 
 check: $(ALL)
 	@fail=0; for t in $(ALL); do \
@@ -86,6 +93,6 @@ expected: $(ALL)
 	done
 
 clean:
-	rm -f $(ALL) *.out conf_scripts.cpp conf_scripts_bw.cpp
+	rm -f $(ALL) *.out *.o conf_scripts.cpp conf_scripts_bw.cpp
 
 .PHONY: all check expected clean

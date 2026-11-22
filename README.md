@@ -252,7 +252,7 @@ make -j$(nproc)
 
 **The babywarmer app** (`apps/babywarmer/`, from picoos @ 89c16e5) comes
 in step by step (TODO idea 3, steps 3c-3g). So far the sensors (3c),
-the outputs (3d) and the control (3e):
+the outputs (3d), the control (3e) and the TFT (3f):
 
 | Device | | |
 |---|---|---|
@@ -292,12 +292,32 @@ The control, as devices that hold values and programs that run as jobs
 | `ledwire` | the front-panel LEDs from mode, phase and alarms |
 | `monitor` | one status line, for `watch` |
 
+**The TFT** (ST7735, 128×160): the babywarmer screen, from Leon's
+`st7735` repo, kept as a blackbox copy in `apps/babywarmer/tft/` (see
+its README). Icons for FAIL, ALARM, SENSOR and the mode, the heater bar,
+a baby face (ok, cold, hot), and the APGAR clock (START starts it), or a
+21×16 text console.
+
+| Device | | |
+|---|---|---|
+| `/dev/tft/aut`, `man`, `chk`, `low`, `high`, `fail` | read/write | The screen's conditions, `on`/`off` (`tftwire` sets them from the same sources as the LEDs). |
+| `/dev/tft/heater` | read/write | The heater bar, 0-100. |
+| `/dev/tft/apgar` | read/write | `on` (re)starts the APGAR clock. |
+| `/dev/tft/mode` | read/write | `graphical` (the warmer screen) or `text` (the console). |
+| `/dev/tft/seek`, `text`, `clear` | write; read/write; write | Text mode: cursor row 0-15, a line at the cursor (then the next row), clear the screen. `echo Heater: 42 > /dev/tft/text`. |
+
+`tftwire` feeds the screen; the `tftflush` kernel task redraws it every
+20 ms (a task, not a job, so `kill` can't freeze the screen). `run tftmon`
+(`apps/babywarmer/scripts/tftmon`) shows ten values on the text console
+once, `loop tftmon` every second; `echo graphical > /dev/tft/mode` goes
+back. `scripts` lists both built-in scripts.
+
 **The boot script** (`apps/babywarmer/scripts/boot`) wires it all
-together, 14 lines: MANUAL toggles auto/manual, UP/DOWN adjust the
+together, 15 lines: MANUAL toggles auto/manual, UP/DOWN adjust the
 setpoint or the manual percent, the displays follow, `phase`, `select`
-and `follow` choose the power for `/dev/heater`, and `alarmcheck`, `alarm`
-and `ledwire` watch over it. `jobs` lists the 13 jobs it starts. Like
-any boot script, `/fram/boot` replaces it.
+and `follow` choose the power for `/dev/heater`, `alarmcheck`, `alarm`
+and `ledwire` watch over it, and `tftwire` feeds the TFT. `jobs` lists
+the 14 jobs it starts. Like any boot script, `/fram/boot` replaces it.
 
 Both NTCs go through the table in `apps/babywarmer/ntc_lut.h` (the
 2026-08-30 recalibration for a substitute NTC). Two things to know
@@ -311,8 +331,10 @@ ADS1115 leaves the heater running at its last safe-mode power (with the
 low alarm sounding); the heater-fail check can false-alarm between 50 and
 99 % power; a failing background job prints its error every 150 ms.
 
-Still to come: the TFT (3f), the EEPROM table (3g); the gateway app
-(postponed).
+Size with everything (2026-11-23): ~200 KB flash (10 % of 2 MB, ~88 KB
+of it the TFT's bitmaps), ~33 KB RAM; 64 devices, 31 programs, 25 tasks.
+
+Still to come: the EEPROM table (3g); the gateway app (postponed).
 
 ## plan2040
 
@@ -1238,6 +1260,21 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-23, babywarmer TFT** (step 3f,
+`build-babywarmer_v1/plan2040.uf2`, after the hack): the ST7735 screen
+from the `st7735` repo, `/dev/tft/<name>`, `tftwire`, `tftmon`. On the
+PC: builds without warnings; `bwsim` runs the display code too (fake
+SPI: ~640 KB to the display in the first 2 minutes, then ~6 KB/s), and
+`run tftmon` switches to text mode and back.
+
+| Test | Result |
+|---|---|
+| Boot | pending: backlight on, the warmer screen: MODE icon manual, heater bar at 10 %, baby face ok |
+| MANUAL | pending: MODE icon auto; heater bar follows `/dev/heater` (80 % in boost) |
+| START | pending: the APGAR clock starts at 00:00, flashes at 1, 5 and 10 minutes |
+| Warm the NTC above 40 °C | pending: hot face, ALARM + FAIL icons blink |
+| `run tftmon`, then `echo graphical > /dev/tft/mode` | pending: ten `name = value` rows, then the warmer screen again |
+
 **2026-11-22, babywarmer control** (step 3e,
 `build-babywarmer_v1/plan2040.uf2`, after the hack): the control devices
 and programs from picoos and the babywarmer boot script. On the PC:
@@ -1249,7 +1286,7 @@ element safe to run, or disconnected.
 
 | Test | Result |
 |---|---|
-| Boot | pending: the babywarmer boot runs, `jobs` shows 13 jobs; small display shows `10` (manual percent), big display the skin temperature |
+| Boot | pending: the babywarmer boot runs, `jobs` shows 14 jobs (13 before the TFT); small display shows `10` (manual percent), big display the skin temperature |
 | UP/DOWN in manual | pending: percent changes in steps of 0.5 (small display) |
 | MANUAL | pending: auto on: small display shows the setpoint, `cat /dev/state` = `boost`, heater 80 %, AUT LED |
 | `watch 1000 monitor` | pending: one line per second through boost, coast, pid |

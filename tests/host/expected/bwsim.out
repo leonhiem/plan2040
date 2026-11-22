@@ -31,30 +31,33 @@ Sun Nov 22 10:00:00 2026
 [12]
 % ledwire &
 [13]
-%   0:10  auto off idle  set 35.0 skin 24.04  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+% tftwire &
+[14]
+%   0:10  auto off idle  set 35.0 skin 24.03  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   0:20  auto off idle  set 35.0 skin 24.07  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   0:30  auto off idle  set 35.0 skin 24.11  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   0:40  auto off idle  set 35.0 skin 24.15  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-  0:50  auto off idle  set 35.0 skin 24.19  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  0:50  auto off idle  set 35.0 skin 24.18  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
 --- 1:00 press MANUAL (-> auto)
   1:00  auto off idle  set 35.0 skin 24.22  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-  1:10  auto on  boost set 35.0 skin 24.54  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  1:10  auto on  boost set 35.0 skin 24.53  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
   1:20  auto on  boost set 35.0 skin 24.84  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   1:30  auto on  boost set 35.0 skin 25.14  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-  1:40  auto on  boost set 35.0 skin 25.44  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-  1:50  auto on  boost set 35.0 skin 25.73  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  1:40  auto on  boost set 35.0 skin 25.43  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  1:50  auto on  boost set 35.0 skin 25.72  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   2:00  auto on  boost set 35.0 skin 26.01  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+        tft: mode graphical, aut on, 642990 bytes sent to the display so far
   3:00  auto on  boost set 35.0 skin 27.59  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
-  4:00  auto on  boost set 35.0 skin 29.00  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  4:00  auto on  boost set 35.0 skin 28.99  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   5:00  auto on  boost set 35.0 skin 30.24  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-  6:00  auto on  boost set 35.0 skin 31.35  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
-  7:00  auto on  coast set 35.0 skin 31.61  heater   0.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-  8:00  auto on  safe  set 35.0 skin 31.02  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
-  9:00  auto on  safe  set 35.0 skin 31.11  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+  6:00  auto on  boost set 35.0 skin 31.34  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
+  7:00  auto on  coast set 35.0 skin 31.60  heater   0.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
+  8:00  auto on  safe  set 35.0 skin 31.03  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+  9:00  auto on  safe  set 35.0 skin 31.12  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  10:00  auto on  safe  set 35.0 skin 31.19  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  11:00  auto on  safe  set 35.0 skin 31.26  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  12:00  auto on  safe  set 35.0 skin 31.32  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 13:00  auto on  safe  set 35.0 skin 31.37  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 13:00  auto on  safe  set 35.0 skin 31.38  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  14:00  auto on  safe  set 35.0 skin 31.42  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  15:00  auto on  safe  set 35.0 skin 31.47  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  16:00  auto on  safe  set 35.0 skin 31.50  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
@@ -71,7 +74,7 @@ Sun Nov 22 10:00:00 2026
  27:00  auto on  safe  set 35.0 skin 31.72  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  28:00  auto on  safe  set 35.0 skin 31.73  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  29:00  auto on  safe  set 35.0 skin 31.74  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 30:00  auto on  safe  set 35.0 skin 31.74  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+ 30:00  auto on  safe  set 35.0 skin 31.75  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  31:00  auto on  safe  set 35.0 skin 31.75  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  32:00  auto on  safe  set 35.0 skin 31.76  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  33:00  auto on  safe  set 35.0 skin 31.76  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
@@ -92,10 +95,29 @@ Sun Nov 22 10:00:00 2026
  47:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  48:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  49:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 50:00  auto on  safe  set 36.0 skin 31.79  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 51:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+--- 50:00 press START (APGAR clock); type `run tftmon`
+ 50:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+run tftmon
+% echo text > /dev/tft/mode
+% echo 0 > /dev/tft/seek
+% label auto = /dev/heaterauto > /dev/tft/text
+% label phase = /dev/state > /dev/tft/text
+% label setp = /dev/setpoint > /dev/tft/text
+% label skin = /dev/skintemp > /dev/tft/text
+% label amb = /dev/ambient > /dev/tft/text
+% label heat = /dev/heater > /dev/tft/text
+% label curr = /dev/current > /dev/tft/text
+% label pid = /dev/pidout > /dev/tft/text
+% label pct = /dev/percent > /dev/tft/text
+% label integ = /dev/pid/integral > /dev/tft/text
+% sleep 1000
+%  51:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+        tft: mode text, aut on, 18405718 bytes sent to the display so far
+--- 52:00 type `echo graphical > /dev/tft/mode`
  52:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 53:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+echo graphical > /dev/tft/mode
+%  53:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+        tft: mode graphical, aut on, 18946793 bytes sent to the display so far
  54:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  55:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  56:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off

@@ -2,10 +2,9 @@
 #
 # The whole controller, wired from small programs and devices. From
 # picoos @ 89c16e5 (shell.cpp BOOT_SCRIPT_TEXT, "Full heater control" in
-# picoos's README), the same lines in the same order, with two changes:
+# picoos's README), the same lines in the same order, with one change:
 #   - added: `date` and the LAMP button, as in plan2040's generic boot
-#     (the LAMP button had no job in picoos's boot);
-#   - not yet: `tftwire &`, the TFT's wiring, comes with the TFT (step 3f).
+#     (the LAMP button had no job in picoos's boot).
 # /fram/boot replaces this one when it exists.
 #
 # Read it as a block diagram:
@@ -16,7 +15,8 @@
 #   safe = the table for the room temperature); follow sends the auto or
 #   manual power to the heater. alarmcheck owns the safety relay and the
 #   three alarm conditions, alarm drives the buzzer (MUTE silences it for
-#   a minute), ledwire the front-panel LEDs.
+#   a minute), ledwire the front-panel LEDs, tftwire the TFT (START
+#   starts its APGAR clock).
 date
 toggle /dev/buttons/lamp /dev/lamp &
 follow /dev/heaterauto /dev/setpoint /dev/percent /dev/seg7small &
@@ -31,3 +31,4 @@ cat /dev/skintemp > /dev/seg7big &
 alarmcheck &
 alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow &
 ledwire &
+tftwire &
