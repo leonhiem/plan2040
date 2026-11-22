@@ -1,5 +1,5 @@
 /**
- * dev/seg7.cpp — /dev/leds, /dev/seg7big, /dev/seg7small
+ * apps/babywarmer/dev/seg7.cpp — /dev/leds, /dev/seg7big, /dev/seg7small
  *
  * /dev/leds, /dev/seg7big, /dev/seg7small are write-only; the per-LED
  * siblings further down (/dev/leds/<name>) are read/write. All of it

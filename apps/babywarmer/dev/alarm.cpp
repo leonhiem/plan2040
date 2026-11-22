@@ -1,5 +1,5 @@
 /**
- * dev/alarm.cpp — /dev/alarm: write-only, buzzer + alarm LED
+ * apps/babywarmer/dev/alarm.cpp — /dev/alarm: write-only, buzzer + alarm LED
  *
  * write /dev/alarm on     -> buzzer + alarm LED on
  * write /dev/alarm muted  -> LED on, buzzer off

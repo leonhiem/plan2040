@@ -1,5 +1,5 @@
 /**
- * dev/heater.cpp — /dev/heater: read/write, TPO heater power 0-100
+ * apps/babywarmer/dev/heater.cpp — /dev/heater: read/write, TPO heater power 0-100
  *
  * write /dev/heater 25   -> heater_set_power(25.0), clamped [0,100]
  * write /dev/heater on   -> heater_set_power(100)   (alias)
@@ -26,8 +26,9 @@
  * From picoos @ 89c16e5 (dev/heater.cpp). plan2040 (2026-11-21):
  * dev_heater_register() also sets up the bargraph PWM and registers the
  * "tpo" kernel task (100 ms) that applies the power, which picoos's
- * main() did; the rest unchanged. The heater only really heats with the
- * safety relay energized too (/dev/relay on).
+ * main() did; and /dev/heater/ssr (2026-11-23, see below); the rest
+ * unchanged. The heater only really heats with the safety relay
+ * energized too (/dev/relay on).
  */
 #include "board.h"
 #include "heater.h"
@@ -60,6 +61,17 @@ static int heater_write(const char *buf, int len)
     return len;
 }
 
+// /dev/heater/ssr (plan2040, 2026-11-23): read-only, the SSR right now and
+// how long it has been so, in ms: "on 1300" / "off 200". What the
+// heater-current check needs to judge a settled state (prog/alarmcheck).
+static int ssr_read(char *buf, int len)
+{
+    uint32_t ms;
+    bool on = heater_ssr(&ms);
+    return snprintf(buf, len, "%s %lu\n", on ? "on" : "off", (unsigned long)ms);
+}
+static const device_t dev_heater_ssr = { "/dev/heater/ssr", 0, 0, ssr_read, 0 };
+
 static const device_t dev_heater = {
     "/dev/heater",
     0,
@@ -74,4 +86,5 @@ void dev_heater_register(void)
     heater_pwm_init();
     task_register("tpo", tpo_apply, TPO_INTERVAL_TIME); // applies /dev/heater's value
     fs_register(&dev_heater);
+    fs_register(&dev_heater_ssr);
 }

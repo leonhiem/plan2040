@@ -27,12 +27,10 @@
  *      the TFT's BABY_HOT face and prog/alarm.cpp's buzzer for exactly
  *      the case that most needs them.
  *   2. heaterpower > 0 -> /dev/relay on.
- *   3. heaterpower > HIGH_POWER_THRESHOLD but current-sense is still
- *      low -> /dev/alarm/heater on (heating hard, current-sense
- *      disagrees).
- *   4. heaterpower == 0 but current-sense is still high ->
- *      /dev/alarm/heater on, and force /dev/relay off (the SSR may be
- *      stuck on, latched conducting despite being told off).
+ *   3./4. the heater current: since 2026-11-23 its own check every
+ *      second, against the SSR's real state, see current_check() below
+ *      (picoos: here, every 15 s, against the commanded power:
+ *      "> HIGH_POWER_THRESHOLD but no current", "0 but current").
  *   5. skin > TEMPHIGH_C or skin < TEMPLOW_C -> the matching
  *      /dev/alarm/temphigh or /dev/alarm/templow.
  *
@@ -57,13 +55,9 @@
  * via the device layer, same discipline as everywhere else in this
  * namespace, rather than reaching around it.
  *
- * first_check suppresses the heater-fail bit exactly once, on this
- * job's first real check after boot -- matches the original's
- * first_time flag (avoids a false failure before there's been a real
- * reading to judge against). temphigh/templow aren't suppressed --
- * there's no equivalent warm-up concern for a plain temperature read.
- * The relay on/off logic itself is never suppressed, same as the
- * original -- only the heater-fail *bit* is.
+ * (picoos's first_check, which suppressed the heater-fail bit on the very
+ * first check after boot, is gone with the 2026-11-23 current check: it
+ * needs CONFIRM_S settled seconds in a row anyway.)
  *
  * Ungated on purpose, unlike pid/phase -- this is a hardware safety
  * check, not part of the auto/manual control split; the original ran
@@ -73,8 +67,9 @@
  * separate, later concern -- see prog/alarm.cpp, which runs at a much
  * faster cadence than this 15s check needs, on purpose.
  *
- * From picoos @ 89c16e5 (prog/alarmcheck.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * From picoos @ 89c16e5 (prog/alarmcheck.cpp): unchanged apart from the
+ * includes and the register function's name (2026-11-22), and the
+ * heater-current check (2026-11-23, current_check() below).
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
@@ -85,7 +80,6 @@
 
 #define CHECK_INTERVAL_MS      15000
 #define OVERTEMP_MARGIN         3.0f  // skin > setpoint + this -> force relay off
-#define HIGH_POWER_THRESHOLD   50.0f  // heaterpower above this counts as "heating hard"
 #define CURRENT_FAIL_THRESHOLD 50     // raw ADC counts, matches babywarmer's own literal "50"
 #define TEMPHIGH_C             40.0f  // Leon's fixed testing threshold, "for now"
 #define TEMPLOW_C              23.0f  // Leon's fixed testing threshold, "for now" -- just
@@ -95,7 +89,6 @@
 
 static bool have_next_step = false;
 static absolute_time_t next_step;
-static bool first_check = true;
 static bool have_last_mode = false;
 static bool last_mode = false;
 
@@ -131,20 +124,86 @@ static void write_dev(const char *path, const char *v)
     fs_close(fd);
 }
 
+// ---- the heater current, every second (plan2040, 2026-11-23) -------------
+// picoos judged it in the 15 s check, from one instant /dev/current reading
+// against the commanded power. Two problems (TODO idea 3, step 3e): the
+// TPO switches the SSR on and off within its own 15 s window, so a check
+// landing in an "off" part saw "heating hard, no current" (a false alarm
+// between 50 and 99 %); and with a 15 s check against a 15 s window it
+// landed at nearly the same point of the cycle every time, so at low
+// power a dead heater could go unnoticed for minutes. Now: judge only
+// what must be true at that moment, every second, from the SSR's real
+// state (/dev/heater/ssr: "on 1300", ms in that state):
+//   SSR on >= SETTLE_MS, relay on, no current  -> no current while on
+//   SSR off >= SETTLE_MS, relay on, current    -> current while off: the
+//                                                 SSR conducts, stuck on
+// each only after CONFIRM_S such seconds in a row (one noisy sample
+// never alarms). A stuck SSR means the heater can't be switched off any
+// more: the relay is opened and held open (latched) until a reboot or
+// `echo off > /dev/alarm/heater`.
+#define CURRENT_CHECK_MS 1000
+#define SETTLE_MS        500
+#define CONFIRM_S        3
+
+static absolute_time_t next_current_check;
+static int  nocurrent_s, stuck_s;
+static bool nocurrent, stuck;
+static bool overtemp_now;          // the last 15 s check found overtemp: relay forced off
+
+static void heater_alarm(void)
+{
+    static int last = -1;          // write /dev/alarm/heater only when it changes
+    int now = stuck ? 2 : nocurrent ? 1 : 0;
+    if (now == last) return;
+    last = now;
+    if (now == 2)      write_dev("/dev/alarm/heater", "on: current while switched off (SSR stuck on?), relay held off");
+    else if (now == 1) write_dev("/dev/alarm/heater", "on: no current while switched on (element, fuse or SSR?)");
+    else               write_dev("/dev/alarm/heater", "off");
+}
+
+static void current_check(void)
+{
+    if (stuck) {
+        // Latched; `echo off > /dev/alarm/heater` releases it (to try again).
+        if (!read_dev_bool("/dev/alarm/heater", true)) { stuck = false; stuck_s = 0; }
+        else { write_dev("/dev/relay", "off"); return; }
+    }
+    char ssr[16] = "";
+    int fd = fs_open("/dev/heater/ssr");
+    if (fd >= 0) { int n = fs_read(fd, ssr, sizeof(ssr) - 1); fs_close(fd); ssr[n < 0 ? 0 : n] = '\0'; }
+    bool on = strncmp(ssr, "on ", 3) == 0;
+    long ms = strtol(ssr + (on ? 3 : 4), 0, 10);
+    bool relay = read_dev_bool("/dev/relay", false);
+    float curr = read_dev("/dev/current", 0.0f);
+
+    if (!ssr[0] || !relay || overtemp_now || ms < SETTLE_MS) {
+        // nothing to judge right now
+    } else if (on) {
+        if (curr < CURRENT_FAIL_THRESHOLD) { if (++nocurrent_s >= CONFIRM_S) nocurrent = true; }
+        else { nocurrent_s = 0; nocurrent = false; }
+        stuck_s = 0;
+    } else {
+        if (curr > CURRENT_FAIL_THRESHOLD) {
+            if (++stuck_s >= CONFIRM_S) { stuck = true; write_dev("/dev/relay", "off"); }
+        } else stuck_s = 0;
+    }
+    heater_alarm();
+}
+
 static int alarmcheck_run(const char *in, int inlen, int argc, char **argv, char *out, int outlen)
 {
     (void)in; (void)inlen; (void)argc; (void)argv;
 
+    if (time_reached(next_current_check)) {
+        next_current_check = make_timeout_time_ms(CURRENT_CHECK_MS);
+        current_check();
+    }
+
     // Cheap every-tick check (like the timestamp compare below): a
-    // manual<->auto flip via /dev/heaterauto can instantly change what
-    // heaterpower *should* be, which can resolve (or cause) a heater-fail
-    // condition -- but that condition only gets re-evaluated below on this
-    // job's own 15s cadence. Without this, /dev/alarm/heater (and the
     // buzzer reading it in prog/alarm.cpp) can sit on a stale verdict for
     // up to 15s after a mode switch. Detecting the flip and forcing the
     // real check to run right now, same tick, fixes that -- have_last_mode
-    // suppresses a false "changed" on the very first tick, same reason
-    // first_check exists below.
+    // suppresses a false "changed" on the very first tick.
     bool mode = read_dev_bool("/dev/heaterauto", last_mode);
     bool mode_changed = have_last_mode && (mode != last_mode);
     last_mode = mode;
@@ -159,46 +218,29 @@ static int alarmcheck_run(const char *in, int inlen, int argc, char **argv, char
     float skin        = read_dev("/dev/skintemp", 0.0f);
     float setpoint     = read_dev("/dev/setpoint", 35.0f);
     float heaterpower  = read_dev("/dev/heater", 0.0f);
-    float curr         = read_dev("/dev/current", 0.0f);
 
     bool overtemp = skin > (setpoint + OVERTEMP_MARGIN);
-    bool fail = false;
+    overtemp_now = overtemp;
 
     if (overtemp) {
-        // Current-sense heater-fail check doesn't apply here -- relay's
-        // being forced off regardless of what current-sense says, so
-        // skip straight past it (matches the original's own early
-        // return for this one check). temphigh/templow do NOT depend on
-        // relay state though, so -- unlike the original -- they still
-        // get evaluated below: skipping them here meant an overtemp
-        // condition (which by construction is *also* usually above
-        // TEMPHIGH_C) could permanently starve /dev/alarm/temphigh of
-        // ever going "on", silencing both the TFT's BABY_HOT face and
-        // prog/alarm.cpp's buzzer for exactly the most dangerous case.
+        // Relay off regardless of anything else (the original's early
+        // return for the heater check; the current check above skips
+        // while this holds). temphigh/templow are still evaluated below:
+        // skipping them here meant an overtemp condition (which by
+        // construction is *also* usually above TEMPHIGH_C) could
+        // permanently starve /dev/alarm/temphigh of ever going "on",
+        // silencing both the TFT's BABY_HOT face and prog/alarm.cpp's
+        // buzzer for exactly the most dangerous case.
         write_dev("/dev/relay", "off");
-        write_dev("/dev/alarm/heater", "off"); // fail starts false every check, same as the original
-    } else {
-        if (heaterpower > 0.0f) {
-            write_dev("/dev/relay", "on");
-        }
-
-        if (heaterpower > HIGH_POWER_THRESHOLD) {
-            if (curr < CURRENT_FAIL_THRESHOLD && !first_check) fail = true;
-        } else if (heaterpower == 0.0f) {
-            if (curr > CURRENT_FAIL_THRESHOLD && !first_check) {
-                fail = true;
-                write_dev("/dev/relay", "off"); // current not zero while heater's told to be off
-            }
-        }
-        write_dev("/dev/alarm/heater", fail ? "on" : "off");
+    } else if (heaterpower > 0.0f && !stuck) {
+        write_dev("/dev/relay", "on");
     }
-    first_check = false;
 
     write_dev("/dev/alarm/temphigh", skin > TEMPHIGH_C ? "on" : "off");
     write_dev("/dev/alarm/templow",  skin < TEMPLOW_C  ? "on" : "off");
 
     if (overtemp) return snprintf(out, outlen, "overtemp: relay off\n");
-    return snprintf(out, outlen, fail ? "fail\n" : "ok\n");
+    return snprintf(out, outlen, (stuck || nocurrent) ? "fail\n" : "ok\n");
 }
 
 static const program_t prog_alarmcheck = {"alarmcheck", alarmcheck_run};

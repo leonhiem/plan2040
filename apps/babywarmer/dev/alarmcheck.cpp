@@ -21,7 +21,8 @@
  * prog/alarmcheck.cpp's header comment for why.
  *
  * From picoos @ 89c16e5 (dev/alarmcheck.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * and the register function's name (2026-11-22), and /dev/alarm/heater
+ * keeping its reason (2026-11-23, see heater_write()).
  */
 #include "kernel/fs.h"
 #include <cstdio>
@@ -40,8 +41,31 @@ static int write_bool(const char *buf, int len, bool *dst)
     return -1;
 }
 
-static int heater_read(char *buf, int len)          { return read_bool(buf, len, heater_fail); }
-static int heater_write(const char *buf, int len)   { return write_bool(buf, len, &heater_fail); }
+// /dev/alarm/heater keeps the reason too (plan2040, 2026-11-23): write
+// "on: no current while switched on (...)", read gives it back; "off"
+// clears it. Readers that only look for "on" at the start (alarm,
+// ledwire, tftwire) are unchanged.
+static char heater_why[80];
+
+static int heater_read(char *buf, int len)
+{
+    if (!heater_fail) return snprintf(buf, len, "off\n");
+    return snprintf(buf, len, heater_why[0] ? "on: %s\n" : "on\n", heater_why);
+}
+
+static int heater_write(const char *buf, int len)
+{
+    if (write_bool(buf, len, &heater_fail) < 0) return -1;
+    heater_why[0] = '\0';
+    if (heater_fail && len > 4 && buf[2] == ':') {        // "on: <why>"
+        int n = len - 4 < (int)sizeof(heater_why) - 1 ? len - 4 : (int)sizeof(heater_why) - 1;
+        memcpy(heater_why, buf + 4, n);
+        heater_why[n] = '\0';
+        char *nl = strchr(heater_why, '\n');
+        if (nl) *nl = '\0';
+    }
+    return len;
+}
 
 static int temphigh_read(char *buf, int len)        { return read_bool(buf, len, temphigh_fail); }
 static int temphigh_write(const char *buf, int len) { return write_bool(buf, len, &temphigh_fail); }

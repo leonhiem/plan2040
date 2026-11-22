@@ -419,6 +419,26 @@ Order, one commit each, tested on the PC and then the board:
     CPU normally, ~1 % with a stuck bus, a failure shows after 1.5 s with
     its reason, recovery within a second, one glitch never shows.
     `bringup` reads all ADS1115 inputs (`adc`).
+  - **(3) built 2026-11-23**, board test pending. While building it, a
+    second problem with picoos's check showed: it ran every 15 s
+    against a 15 s TPO window, so it landed at nearly the same point of
+    the cycle every time, and at low power a dead heater could go
+    unnoticed for minutes. Now `alarmcheck` judges the current **every
+    second** against the SSR's real state (new `/dev/heater/ssr`: `on
+    1300`, ms in that state; `/dev/relay` readable): no current after
+    the SSR and relay have been on for 0.5 s, or current after the SSR
+    has been off for 0.5 s (stuck SSR), each after 3 such seconds in a
+    row. `/dev/alarm/heater` keeps its reason (`on: no current while
+    switched on (element, fuse or SSR?)`). A stuck SSR opens the relay
+    and keeps it open (latched) until `echo off > /dev/alarm/heater` or
+    a reboot. bwsim: no false alarms in boost; broken element found in
+    ~6 s, stuck SSR in ~9 s.
+    **Decided 2026-11-23 (Leon): a stuck SSR is the exception to "keep
+    doing something for the baby".** An SSR that's always on means the
+    heater is out of control; letting the mechanical relay click away as
+    a stand-in switch is too dangerous. So: relay off and held off,
+    heater-failure alarm, until the repair (`echo off >
+    /dev/alarm/heater`) or a reboot. (That's what step 3 does.)
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

@@ -10,7 +10,8 @@
 // Story: power-up in manual (10 %), MANUAL pressed at 1 min -> auto:
 // boost, coast, pid towards the 35.0 C setpoint; UP pressed twice at
 // 40 min (-> 36.0); the sensor falls off the baby at 70 min (reads the
-// room); put back at 85 min; START (APGAR) and `run tftmon` at 50 min; the ADS1115 stops answering at 100 min
+// room); put back at 85 min; START (APGAR) and `run tftmon` at 50 min;
+// the heater element broken 55-57 min, the SSR stuck on 60-62 min; the ADS1115 stops answering at 100 min
 // (both NTC devices fail: what happens then, see TODO idea 3e), and is
 // back at 105 min.
 #include <cstdio>
@@ -45,6 +46,7 @@ int getchar_timeout_us(uint32_t) { return typed_pos < typed_len ? (unsigned char
 static const float ROOM = 24.0f, GAIN = 0.00040f, LOSS = 0.0020f; // 100 % -> room + 20 C
 static float skin = 24.0f;       // what's under the sensor
 static bool sensor_on_baby = true, adc_dead = false;
+static bool element_broken = false, ssr_stuck = false;   // heater faults
 static float heater_now(void)
 {
     int fd = fs_open("/dev/heater"); char b[16]; int n = fs_read(fd, b, 15); fs_close(fd);
@@ -63,8 +65,10 @@ static int amb_read(char *buf, int len)
     return snprintf(buf, len, "%.1f\n", ROOM);
 }
 static int cur_read(char *buf, int len)
-{   // current flows while the SSR conducts and the relay is energized
-    return snprintf(buf, len, "%d\n", (fake_gpio[PIN_SSR] && fake_gpio[PIN_HEATERSAFE]) ? 800 : 5);
+{   // current flows while the SSR conducts (or is stuck on) and the relay is
+    // energized, unless the element is broken
+    bool flows = fake_gpio[PIN_HEATERSAFE] && (fake_gpio[PIN_SSR] || ssr_stuck) && !element_broken;
+    return snprintf(buf, len, "%d\n", flows ? 800 : 5);
 }
 static const device_t d_skin = {"/dev/skintemp", 0, 0, skin_read, 0};
 static const device_t d_amb  = {"/dev/ambient",  0, 0, amb_read,  0};
@@ -104,6 +108,8 @@ static void status(int sec)
     rd("/dev/state", st, sizeof st); rd("/dev/setpoint", sp, sizeof sp); rd("/dev/heaterauto", ha, sizeof ha);
     rd("/dev/percent", pc, sizeof pc); rd("/dev/pidout", po, sizeof po);
     rd("/dev/alarm/heater", ah, sizeof ah); rd("/dev/alarm/temphigh", th, sizeof th); rd("/dev/alarm/templow", tl, sizeof tl);
+    char *al[] = { ah, th, tl };
+    for (char *a : al) if (!strncmp(a, "on", 2)) a[2] = 0;   // the reason is logged separately
     SAY("%3d:%02d  auto %-3s %-5s set %-4s skin %5.2f%s heater %5.1f pidout %-6s relay %d buzzer %d  alarms heater %-3s high %-3s low %-3s\n",
            sec / 60, sec % 60, ha, st, sp, skin, sensor_on_baby ? " " : "*", heater_now(), po,
            fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], ah, th, tl);
@@ -152,6 +158,16 @@ int main()
         if (sec == 40 * 60 + 1) button[BUTTON_UP] = true;
         if (sec == 50 * 60)  { SAY("--- 50:00 press START (APGAR clock); type `run tftmon`\n"); button[BUTTON_START] = true; type("run tftmon\n"); }
         if (sec == 52 * 60)  { SAY("--- 52:00 type `echo graphical > /dev/tft/mode`\n"); type("echo graphical > /dev/tft/mode\n"); }
+        if (sec == 55 * 60)  { SAY("--- 55:00 the heater element breaks (no current)\n"); element_broken = true; }
+        if (sec == 57 * 60)  { SAY("--- 57:00 the heater element works again\n"); element_broken = false; }
+        if (sec == 60 * 60)  { SAY("--- 60:00 the SSR sticks on (conducts while switched off)\n"); ssr_stuck = true; }
+        if (sec == 62 * 60)  { SAY("--- 62:00 the SSR is replaced\n"); ssr_stuck = false; }
+        if (sec == 63 * 60)  { SAY("--- 63:00 type `echo off > /dev/alarm/heater` (release the latch)\n"); type("echo off > /dev/alarm/heater\n"); }
+        {   // log every change of the heater alarm, to the second
+            static char last[120] = "off";
+            char now[120]; rd("/dev/alarm/heater", now, sizeof now);
+            if (strcmp(now, last)) { SAY("%7d:%02d  /dev/alarm/heater: %s (relay %d)\n", sec / 60, sec % 60, now, fake_gpio[PIN_HEATERSAFE]); strcpy(last, now); }
+        }
         if (sec == 70 * 60)  { SAY("--- 70:00 sensor falls off the baby (reads the room)\n"); sensor_on_baby = false; }
         if (sec == 85 * 60)  { SAY("--- 85:00 sensor back on the baby\n"); sensor_on_baby = true; }
         if (sec == 100 * 60) { SAY("--- 100:00 the ADS1115 stops answering\n"); adc_dead = true;

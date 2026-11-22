@@ -8,6 +8,7 @@
  * it into SSR on/off over a 15 s window and sets the bargraph.
  */
 #pragma once
+#include <stdint.h>
 
 #define TPO_PERIOD_MS     15000  // 15-second window
 #define TICK_MS           100    // tick used by TPO_TICKS
@@ -21,3 +22,6 @@ void  heater_pwm_init(void);     // GPIO16 to PWM, level 0 (picoos: in setup_gpi
 void  tpo_apply(void);
 void  heater_set_power(float pct); // clamped to [0,100]
 float heater_get_power(void);      // last commanded value
+// The SSR right now (on/off) and how long it has been so, in ms: the
+// heater-current check judges only a settled state (prog/alarmcheck).
+bool  heater_ssr(uint32_t *ms_in_state);

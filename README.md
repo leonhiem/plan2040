@@ -271,7 +271,8 @@ picoos converted on every read and waited ~8 ms for it, ~16 % of the CPU
 with the boot script's readers.
 | `/dev/current` | read | Heater current sense, raw ADC counts 0..4095 (GPIO26, 8 samples averaged). |
 | `/dev/heater` | read/write | Heater power 0-100 % (`25`, `50.5`; `on` = 100, `off` = 0; clamped). Time-proportional: the SSR (GPIO11) is on for that share of every 15 s window, switched by the `tpo` kernel task every 100 ms; the bargraph (GPIO16, PWM ~3 kHz) shows it. Reading gives what's applied. Heats only with the safety relay energized. |
-| `/dev/relay` | write | The mechanical safety relay (GPIO17): `on` = energized, the heater may run; `off` = released. |
+| `/dev/heater/ssr` | read | The SSR right now and how long it has been so, in ms: `on 1300`, `off 200`. What the heater-current check judges. |
+| `/dev/relay` | read/write | The mechanical safety relay (GPIO17): `on` = energized, the heater may run; `off` = released. |
 | `/dev/alarm` | write | Buzzer (GPIO0) + alarm LED (GPIO1): `on` both, `muted` LED only, `off` neither. |
 | `/dev/seg7big`, `/dev/seg7small` | write | The two 3-digit displays: a number, up to 3 digits right-aligned, `.` lights the dot after the middle digit (`36.5`). More digits: the first three show. |
 | `/dev/leds`, `/dev/leds/<name>` | write; read/write | The 7 front-panel LEDs (`aut warm low high fail chk man`): `echo "man on" > /dev/leds`, or `echo on > /dev/leds/man`. |
@@ -291,14 +292,14 @@ The control, as devices that hold values and programs that run as jobs
 | `/dev/pid/kp`, `ti`, `td`, `dt`, `integral`, `prevmeas`; `/dev/pidout` | read/write | The PID's tuning, its state, and its output. |
 | `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `phase`). |
 | `/dev/autopower`, `/dev/safepower` | read/write | Auto mode's power; safe mode's power (from `safelut`). |
-| `/dev/alarm/heater`, `temphigh`, `templow` | read/write | The three alarm conditions (written by `alarmcheck`). |
+| `/dev/alarm/heater`, `temphigh`, `templow` | read/write | The three alarm conditions (written by `alarmcheck`): `on`/`off`. `/dev/alarm/heater` gives its reason too: `on: no current while switched on (element, fuse or SSR?)`, or `on: current while switched off (SSR stuck on?), relay held off`. |
 
 | Program | What it does |
 |---|---|
 | `phase` | once a second: idle (manual) → boost (80 %) → coast (0 %) → pid, with watchdogs into `safe` (no rise in boost, a fast or sustained drop in pid) and back |
 | `pid <gate> <state> <setpoint>` | the PID on the skin temperature, while `/dev/state` is `pid` |
 | `safelut` | room temperature → a fixed heater power, for safe mode |
-| `alarmcheck` | every 15 s: the safety relay (off on overtemp or a stuck SSR, on when heating) and the three alarm conditions |
+| `alarmcheck` | every 15 s: the safety relay (off on overtemp, on when heating) and the temperature alarms; **every second the heater current**, against the SSR's real state (`/dev/heater/ssr`): no current while it has been on for 0.5 s, or current while it has been off for 0.5 s (a stuck SSR: relay held off until `echo off > /dev/alarm/heater` or a reboot), each after 3 such seconds in a row |
 | `alarm <cond...>` | buzzer + alarm LED from the conditions; MUTE silences the buzzer for a minute |
 | `ledwire` | the front-panel LEDs from mode, phase and alarms |
 | `monitor` | one status line, for `watch` |
@@ -337,10 +338,11 @@ about it (both to be fixed by the EEPROM table, step 3g): nothing reads below 22
 the hottest entry, 91.8 °C (`ntctest` in `tests/host` shows the whole
 mapping).
 
-**Known open points** (TODO idea 3, step 3e): a dead or unplugged
+**Known open point** (TODO idea 3, step 3e): a dead or unplugged
 ADS1115 leaves the heater running at its last safe-mode power (with the
-low alarm sounding); the heater-fail check can false-alarm between 50 and
-99 % power; a failing background job prints its error every 150 ms.
+low alarm sounding); the fallback ladder (step 4 there) is next. (Fixed
+2026-11-23: the heater-current check's false alarms, and a failing job's
+error every 150 ms.)
 
 Size with everything (2026-11-23): ~200 KB flash (10 % of 2 MB, ~88 KB
 of it the TFT's bitmaps), ~33 KB RAM; 64 devices, 31 programs, 25 tasks.
@@ -1311,6 +1313,21 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-23, the heater check against the SSR's real state**
+(`build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/heater/ssr`,
+a readable `/dev/relay`, `/dev/alarm/heater` with its reason,
+`alarmcheck`'s 1 s current check. On the PC (`bwsim`): no false alarms
+in boost any more; a broken element is reported within ~6 s at 39 %
+power and clears a second after the repair; a stuck SSR within ~9 s,
+relay held off until released.
+
+| Test | Result |
+|---|---|
+| `cat /dev/heater/ssr` a few times at 25 % | pending: `on <ms>` ~3.8 s of every 15 s, `off <ms>` the rest |
+| `cat /dev/relay` | pending: `on` while heating, `off` with the heater at 0 after boot |
+| Boost (80 %) for a few minutes | pending: no heater alarm |
+| Heater element disconnected, heating | pending: within seconds `cat /dev/alarm/heater` = `on: no current while switched on (element, fuse or SSR?)`, buzzer, FAIL; reconnected: `off` again |
+
 **2026-11-23, our own ADS1115 driver, background sampling**
 (`build-babywarmer_v1/bringup.uf2` and `plan2040.uf2`, after the hack):
 `drivers/ads1115.cpp` from the datasheet, the "adc" task, the driver
@@ -1371,7 +1388,7 @@ element safe to run, or disconnected.
 | MANUAL | pending: auto on: small display shows the setpoint, `cat /dev/state` = `boost`, heater 80 %, AUT LED |
 | `watch 1000 monitor` | pending: one line per second through boost, coast, pid |
 | Warm the NTC by hand above 40 °C | pending: `/dev/alarm/temphigh` on, buzzer; MUTE silences it for a minute |
-| Heater 50-99 % for a few minutes | pending: does `/dev/alarm/heater` false-alarm? (depends on the current-sense circuit's filtering) |
+| Heater 50-99 % for a few minutes | pending: no `/dev/alarm/heater` (since 2026-11-23 the check judges only while the SSR is on; see the heater check rows above) |
 
 **2026-11-21, babywarmer outputs** (step 3d,
 `build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/heater` + the

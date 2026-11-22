@@ -19,6 +19,16 @@
 #include "board.h"
 #include "hardware/pwm.h"
 #include "hardware/gpio.h"
+#include "pico/stdlib.h"
+
+static bool ssr_on = false;                 // what tpo_apply() last drove
+static absolute_time_t ssr_since;           // ... since when
+
+bool heater_ssr(uint32_t *ms_in_state)
+{
+    if (ms_in_state) *ms_in_state = (uint32_t)(absolute_time_diff_us(ssr_since, get_absolute_time()) / 1000);
+    return ssr_on;
+}
 
 void heater_pwm_init(void)
 {
@@ -60,7 +70,9 @@ void tpo_apply(void)
     static int tick = 0;
 
     int on_ticks = (int)((heaterpower / 100.0f) * TPO_TICKS + 0.5f);
-    gpio_put(PIN_SSR, (tick < on_ticks) ? 1 : 0);
+    bool on = tick < on_ticks;
+    if (on != ssr_on) { ssr_on = on; ssr_since = get_absolute_time(); }  // plan2040 (2026-11-23)
+    gpio_put(PIN_SSR, on ? 1 : 0);
     if (++tick >= TPO_TICKS) tick = 0;
 
     // update PWM bargraph display

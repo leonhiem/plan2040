@@ -40,17 +40,17 @@ Sun Nov 22 10:00:00 2026
   0:50  auto off idle  set 35.0 skin 24.18  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
 --- 1:00 press MANUAL (-> auto)
   1:00  auto off idle  set 35.0 skin 24.22  heater  10.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-  1:10  auto on  boost set 35.0 skin 24.53  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
+  1:10  auto on  boost set 35.0 skin 24.53  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   1:20  auto on  boost set 35.0 skin 24.84  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   1:30  auto on  boost set 35.0 skin 25.14  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   1:40  auto on  boost set 35.0 skin 25.43  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   1:50  auto on  boost set 35.0 skin 25.72  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   2:00  auto on  boost set 35.0 skin 26.01  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-        tft: mode graphical, aut on, 642990 bytes sent to the display so far
-  3:00  auto on  boost set 35.0 skin 27.59  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
+        tft: mode graphical, aut on, 149235 bytes sent to the display so far
+  3:00  auto on  boost set 35.0 skin 27.59  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   4:00  auto on  boost set 35.0 skin 28.99  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   5:00  auto on  boost set 35.0 skin 30.24  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
-  6:00  auto on  boost set 35.0 skin 31.34  heater  80.0 pidout 0.0    relay 1 buzzer 1  alarms heater on  high off low off
+  6:00  auto on  boost set 35.0 skin 31.34  heater  80.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   7:00  auto on  coast set 35.0 skin 31.60  heater   0.0 pidout 0.0    relay 1 buzzer 0  alarms heater off high off low off
   8:00  auto on  safe  set 35.0 skin 31.03  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
   9:00  auto on  safe  set 35.0 skin 31.12  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
@@ -112,22 +112,32 @@ run tftmon
 % label integ = /dev/pid/integral > /dev/tft/text
 % sleep 1000
 %  51:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
-        tft: mode text, aut on, 18405718 bytes sent to the display so far
+        tft: mode text, aut on, 15980952 bytes sent to the display so far
 --- 52:00 type `echo graphical > /dev/tft/mode`
  52:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
 echo graphical > /dev/tft/mode
 %  53:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
-        tft: mode graphical, aut on, 18946793 bytes sent to the display so far
+        tft: mode graphical, aut on, 16522027 bytes sent to the display so far
  54:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+--- 55:00 the heater element breaks (no current)
  55:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 56:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 57:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+     55:06  /dev/alarm/heater: on: no current while switched on (element, fuse or SSR?) (relay 1)
+ 56:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater on  high off low off
+--- 57:00 the heater element works again
+ 57:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater on  high off low off
+     57:01  /dev/alarm/heater: off (relay 1)
  58:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  59:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+--- 60:00 the SSR sticks on (conducts while switched off)
  60:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 61:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 62:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
- 63:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+     60:09  /dev/alarm/heater: on: current while switched off (SSR stuck on?), relay held off (relay 0)
+ 61:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 0 buzzer 1  alarms heater on  high off low off
+--- 62:00 the SSR is replaced
+ 62:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 0 buzzer 1  alarms heater on  high off low off
+--- 63:00 type `echo off > /dev/alarm/heater` (release the latch)
+ 63:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 0 buzzer 1  alarms heater on  high off low off
+echo off > /dev/alarm/heater
+%      63:01  /dev/alarm/heater: off (relay 0)
  64:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  65:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
  66:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
