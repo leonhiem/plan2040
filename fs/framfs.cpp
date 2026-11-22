@@ -1,4 +1,5 @@
 #include "framfs.h"
+#include "kernel/errstr.h"
 #include "board.h"
 #include "drivers/fm24cl64.h"
 #include <cstdio>
@@ -122,17 +123,27 @@ static void free_chain(uint16_t b)
     }
 }
 
+// Why a call failed, in words (kernel/errstr.h); every failure below
+// says so, then returns -1 as before.
+static int fail(const char *why)
+{
+    werrstr("%s", why);
+    return -1;
+}
+#define NOT_MOUNTED  "not formatted (mkfs /fram) or FRAM not answering"
+#define FRAM_IO      "FRAM not answering (I2C)"
+
 int framfs_read(const char *name, char *buf, int len)
 {
-    if (!mounted) return -1;
+    if (!mounted) return fail(NOT_MOUNTED);
     int i = find(name);
-    if (i < 0) return -1;
+    if (i < 0) return fail("no such file");
     int n = dir[i].size < len ? dir[i].size : len;
     uint16_t b = dir[i].first;
     for (int pos = 0; pos < n; pos += BLOCK) {
-        if (b == END || b < DATA_START || b >= NBLOCKS) return -1; // corrupt chain
+        if (b == END || b < DATA_START || b >= NBLOCKS) return fail("damaged file (run fsck /fram)"); // corrupt chain
         int chunk = n - pos < BLOCK ? n - pos : BLOCK;
-        if (!fram_read(b * BLOCK, (uint8_t *)buf + pos, chunk)) return -1;
+        if (!fram_read(b * BLOCK, (uint8_t *)buf + pos, chunk)) return fail(FRAM_IO);
         b = chain[b];
     }
     return n;
@@ -143,7 +154,7 @@ static int write_whole(const char *name, const char *buf, int len)
     int i = find(name);
     if (i < 0) {
         for (i = 0; i < NDIR && dir[i].name[0]; i++) {}
-        if (i == NDIR) return -1;                       // directory full
+        if (i == NDIR) return fail("directory full (32 files)");
     }
 
     // Pick free blocks for the new copy. The old copy stays intact until
@@ -153,14 +164,14 @@ static int write_whole(const char *name, const char *buf, int len)
     int got = 0;
     for (int b = DATA_START; b < NBLOCKS && got < need; b++)
         if (chain[b] == FREE) blocks[got++] = b;
-    if (got < need) return -1;                          // no space
+    if (got < need) return fail("no space left (df /fram)");
 
     for (int k = 0; k < need; k++) {
         int chunk = len - k * BLOCK < BLOCK ? len - k * BLOCK : BLOCK;
-        if (!fram_write(blocks[k] * BLOCK, (const uint8_t *)buf + k * BLOCK, chunk)) return -1;
+        if (!fram_write(blocks[k] * BLOCK, (const uint8_t *)buf + k * BLOCK, chunk)) return fail(FRAM_IO);
     }
     for (int k = 0; k < need; k++)
-        if (!set_chain(blocks[k], k + 1 < need ? blocks[k + 1] : END)) return -1;
+        if (!set_chain(blocks[k], k + 1 < need ? blocks[k + 1] : END)) return fail(FRAM_IO);
 
     uint16_t old = dir[i].name[0] ? dir[i].first : END;
     dirent e;
@@ -168,7 +179,7 @@ static int write_whole(const char *name, const char *buf, int len)
     strcpy(e.name, name);
     e.size = len;
     e.first = need ? blocks[0] : END;
-    if (!fram_write(dir_addr(i), (const uint8_t *)&e, sizeof(e))) return -1;
+    if (!fram_write(dir_addr(i), (const uint8_t *)&e, sizeof(e))) return fail(FRAM_IO);
     dir[i] = e;
 
     free_chain(old);
@@ -177,28 +188,30 @@ static int write_whole(const char *name, const char *buf, int len)
 
 int framfs_write(const char *name, const char *buf, int len, bool append)
 {
-    if (!mounted || !valid_name(name) || len < 0) return -1;
-    if (!append) return len <= FRAMFS_MAX_FILE ? write_whole(name, buf, len) : -1;
+    if (!mounted) return fail(NOT_MOUNTED);
+    if (!valid_name(name)) return fail("bad name (1-11 characters, no spaces or /)");
+    if (len < 0) return fail("bad length");
+    if (!append) return len <= FRAMFS_MAX_FILE ? write_whole(name, buf, len) : fail("too big (files are at most 1 KB)");
 
     // Append = read the old contents, add, write the whole file again.
     // Files are at most 1 KB, so this costs ~25 ms and keeps one write path.
     static char whole[FRAMFS_MAX_FILE];
     int old = framfs_read(name, whole, sizeof(whole));
     if (old < 0) old = 0;                               // new file
-    if (old + len > FRAMFS_MAX_FILE) return -1;         // file full
+    if (old + len > FRAMFS_MAX_FILE) return fail("file full (files are at most 1 KB)");
     memcpy(whole + old, buf, len);
     return write_whole(name, whole, old + len) < 0 ? -1 : len;
 }
 
 int framfs_remove(const char *name)
 {
-    if (!mounted) return -1;
+    if (!mounted) return fail(NOT_MOUNTED);
     int i = find(name);
-    if (i < 0) return -1;
+    if (i < 0) return fail("no such file");
     uint16_t first = dir[i].first;
     dirent e;
     memset(&e, 0, sizeof(e));
-    if (!fram_write(dir_addr(i), (const uint8_t *)&e, sizeof(e))) return -1;
+    if (!fram_write(dir_addr(i), (const uint8_t *)&e, sizeof(e))) return fail(FRAM_IO);
     dir[i] = e;
     free_chain(first);
     return 0;
@@ -206,9 +219,10 @@ int framfs_remove(const char *name)
 
 int framfs_rename(const char *from, const char *to)
 {
-    if (!mounted || !valid_name(to)) return -1;
+    if (!mounted) return fail(NOT_MOUNTED);
+    if (!valid_name(to)) return fail("bad name (1-11 characters, no spaces or /)");
     int i = find(from);
-    if (i < 0) return -1;
+    if (i < 0) return fail("no such file");
     if (strcmp(from, to) == 0) return 0;
     // Replace an existing target first: a power cut between the two steps
     // loses the old target, never the file being renamed.
@@ -218,7 +232,7 @@ int framfs_rename(const char *from, const char *to)
     strcpy(e.name, to);
     // Only the name changes: size and first block are written back as they
     // were, in the same single 16-byte write as any directory update.
-    if (!fram_write(dir_addr(i), (const uint8_t *)&e, sizeof(e))) return -1;
+    if (!fram_write(dir_addr(i), (const uint8_t *)&e, sizeof(e))) return fail(FRAM_IO);
     dir[i] = e;
     return 0;
 }
@@ -240,7 +254,7 @@ int framfs_list(int index, char *name, int namelen, int *size)
 int framfs_fsck(framfs_check *r, char *out, int outlen)
 {
     *r = framfs_check{};
-    if (!mounted) return -1;
+    if (!mounted) return fail(NOT_MOUNTED);
     int pos = 0;
     auto say = [&](const char *fmt, const char *name, int a, int b) {
         if (!out || pos >= outlen) return;
@@ -327,7 +341,7 @@ int framfs_fsck(framfs_check *r, char *out, int outlen)
 
 int framfs_df(int *free_bytes, int *total_bytes)
 {
-    if (!mounted) return -1;
+    if (!mounted) return fail(NOT_MOUNTED);
     int nfree = 0;
     for (int b = DATA_START; b < NBLOCKS; b++)
         if (chain[b] == FREE) nfree++;

@@ -664,6 +664,8 @@ bool shell_run_cron_line(const char *text)
     bool background;
     if (!parse_pipeline(tok, op, ntok, &p, &background) || p.stages[0].argc == 0) return false;
     if (background) return job_start(&p) > 0;
-    pipeline_run_once(&p, false);
+    // Output is discarded (cron), but a failure is said: at most once a
+    // minute per crontab line.
+    if (!pipeline_run_once(&p, false)) printf("cron: %s\n", pipeline_error());
     return true;
 }

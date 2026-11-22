@@ -73,6 +73,7 @@ add_library(plan2040_kernel
     kernel/prog.cpp
     kernel/shell.cpp
     kernel/jobs.cpp
+    kernel/errstr.cpp
 )
 target_compile_definitions(plan2040_kernel PRIVATE PLAN2040_BOARD="${PLAN2040_BOARD}")
 target_link_libraries(plan2040_kernel pico_stdlib hardware_watchdog)

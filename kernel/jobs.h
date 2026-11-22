@@ -70,6 +70,7 @@
                             // matching the count exactly.
 #endif
 #define JOB_POLL_MS    150
+#define JOB_ERR_MAX    120 // a failing job's reason, kept for `jobs`: "<prog>: " + errstr (ERRMAX 96)
 
 // A parsed pipeline keeps the line's words once, in text[], and refers
 // to them by position (offset into text[]). Until 2026-11-16 every word
@@ -97,7 +98,11 @@ typedef struct {
 static inline const char *pipeline_word(const pipeline_t *p, uint8_t off) { return p->text + off; }
 static inline const char *pipeline_arg(const pipeline_t *p, int stage, int i) { return p->text + p->stages[stage].argv[i]; }
 
-void pipeline_run_once(pipeline_t *p, bool print_if_no_redirect);
+// Runs a pipeline once. False if it failed; then pipeline_error() says
+// why, in words ("cat: /dev/skintemp: ..."), and in the foreground it has
+// been printed already.
+bool pipeline_run_once(pipeline_t *p, bool print_if_no_redirect);
+const char *pipeline_error(void);
 
 void jobs_init(void);
 int  job_start(const pipeline_t *p);  // returns job id (1..MAX_JOBS), or -1 if all slots busy

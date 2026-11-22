@@ -8,9 +8,8 @@ running built-in 'boot' automatically...
 date: not found (try 'ls')
 % toggle /dev/buttons/lamp /dev/lamp &
 [1]
-toggle: not found (try 'ls')
-% toggle: not found (try 'ls')
-kill 1
+[1] toggle: not found (try 'ls')
+% kill 1
 % mkfs /fram
 /fram: formatted, 7104 bytes free
 % echo "a > b | c & d # e"
@@ -90,7 +89,7 @@ toggle /dev/buttons/lamp /dev/lamp &
 % jobs
 [1] echo "bg job" > /fram/bg &
 % echo a|
-empty pipeline stage
+pipeline: empty stage
 % | echo a
 empty pipeline
 % > /fram/x

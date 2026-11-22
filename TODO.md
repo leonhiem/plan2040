@@ -331,6 +331,82 @@ Order, one commit each, tested on the PC and then the board:
   - In bwsim, safe mode at 39 % never reached the recovery temperature,
     so it stayed in `safe`; that's the rough thermal model, not a
     finding, but worth watching on the real warmer.
+  - **Decided 2026-11-23, the principle (Leon):** "machines work for us,
+    we not for them, so try to do at least something for - in this case
+    the baby". Never (1) a sluggish, delayed user interface, (2) a machine
+    giving up its work because one subsystem fails, (3) a cryptic error
+    message followed by giving up. So: **degrade, keep retrying, explain**;
+    switch off only where carrying on would harm (overtemp, a stuck SSR),
+    and say so.
+  - **Decided 2026-11-23, the design for the three points:**
+    1. **A fallback ladder for the sensors**, instead of a stale value:
+       | What works | What the warmer does | What it says |
+       |---|---|---|
+       | skin + room NTC | PID, as now | - |
+       | room NTC only | safe mode, power from `safelut` (as now) | SENSOR alarm: skin sensor failed, heating from room temperature |
+       | neither (ADS1115 dead) | **manual mode** (MAN), power = `safelut` for the last room temperature it saw, capped; `/dev/percent`'s 10 % if it never saw one; UP/DOWN adjust it, as in normal manual mode | SENSOR alarm: no temperature sensors, heating at N % |
+       | any | keeps retrying; back up the ladder by itself when sensors answer (auto again) | sensor OK again |
+       The relay still goes off on overtemp or a stuck SSR. To check:
+       what IEC 60601-2-21 (radiant warmers) requires on a sensor fault.
+    2. **Heater check only while the SSR is on**: no current while it's
+       switched on = heater alarm ("no current while switched on:
+       element, fuse or SSR?"); current while it's off = stuck SSR (relay
+       off, as now). No more false alarms between 50 and 99 %.
+    3. **Errors in plain words, once, without slowing anything down**
+       (a kernel change, for every board):
+       - `errstr`, as in Plan 9: a device or program that fails sets a
+         short reason text; `cat` prints `cat: /dev/skintemp: ADS1115
+         (0x48, header bus) not answering` instead of `cat: error`.
+       - A background job prints its error once when it starts failing
+         and once when it works again (`job 7: ok again`); `jobs` shows
+         each job's last error.
+       - Backoff: after a failed transfer a device answers "still
+         failing" at once for ~1 s before trying the chip again, so a
+         stuck bus (10 ms per timed-out transfer) can't make the buttons,
+         displays or console sluggish.
+    Order: 3 first (kernel, all boards, the others use it), then 2,
+    then 1; each with PC tests (bwsim) before the board.
+  - **Decided 2026-11-23: our own ADS1115 driver, and a driver standard.**
+    The copied pico-ads1115 (BSD-3: legally fine to keep) goes, for
+    technical reasons: four of its functions needed fixing already
+    (timeouts, results, the conversion wait, the PGA bug), it takes bus
+    and address as arguments instead of from `board.h`, keeps a shadow
+    of the config register, can't say why it failed, and above all it
+    **busy-waits ~8 ms per reading** (start, poll until done): with the
+    boot script's three ADC pipelines plus `phase` and `alarmcheck`
+    that's ~25 ms of a blocked CPU per 150 ms, buttons/displays/console
+    waiting (Leon's principle 1). Instead:
+    - `drivers/ads1115.cpp`, ~80 lines from the datasheet, plan2040
+      style; the library credited in a comment (picoos started with it;
+      git history keeps both).
+    - **Background sampling**: a small kernel task starts a conversion,
+      reads it on a later tick, next channel (skin, room, ...), never
+      waiting. `/dev/skintemp`, `/dev/ambient` answer at once with the
+      latest value, or fail with an errstr when it's too old or the chip
+      stopped answering. Retry/backoff in one place; the fallback ladder
+      gets a reliable "sensor dead"; the EEPROM table (3g) plugs in there.
+    - **`drivers/README.md`, the contract every driver follows:** bus and
+      address from `board.h`; a timeout on every transfer; true/false
+      results with an errstr text; no call blocks longer than ~1 ms
+      (conversions, EEPROM page writes split across ticks); the plain
+      C++ subset (no heap, exceptions, STL, templates); a header comment
+      with the chip's facts. `pcf8563`, `fm24cl64`, `at24c` mostly meet
+      it already (`at24c`'s ~5 ms page wait is the next to split).
+    **New order:** (1) errstr in the kernel, (2) the driver standard and
+    our own ADS1115 with background sampling, (3) the heater check, (4)
+    the sensor ladder.
+  - **(1) built 2026-11-23**, board test pending: `kernel/errstr.{h,cpp}`
+    (`werrstr()`, `errstr()`), `kernel/fs.cpp` puts the path in front and
+    a general reason when a device gives none, `fs/framfs.cpp` says why
+    at every failure, `kernel/jobs.cpp`: `pipeline_run_once()` returns
+    ok/failed with `pipeline_error()`; a background job prints its reason
+    once (again if it changes) and "ok again"; `jobs` shows `failing:`;
+    cron prints a failing line's reason. `/dev/skintemp`, `/dev/ambient`
+    say "ADS1115 (0x48) not answering" (until the new driver). Not yet:
+    the 1 s backoff (comes with the new ADS1115 driver, step 2), and
+    more reasons in other devices and programs (gradually). A job's
+    message can still land right after the `% ` prompt (the prompt
+    redraw item below).
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

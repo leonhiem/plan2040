@@ -29,7 +29,7 @@ on
 % cat /fram/lamp
 off
 % remember /dev/nope /fram/x
-remember: error
+remember: /dev/nope: no such device or file
 % remember /dev/lamp
 usage: remember <device> <file>
 % echo on > /dev/lamp

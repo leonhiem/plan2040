@@ -11,7 +11,8 @@
 // boost, coast, pid towards the 35.0 C setpoint; UP pressed twice at
 // 40 min (-> 36.0); the sensor falls off the baby at 70 min (reads the
 // room); put back at 85 min; START (APGAR) and `run tftmon` at 50 min; the ADS1115 stops answering at 100 min
-// (both NTC devices fail: what happens then, see TODO idea 3e).
+// (both NTC devices fail: what happens then, see TODO idea 3e), and is
+// back at 105 min.
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -20,6 +21,7 @@
 #include "kernel/task.h"
 #include "kernel/fs.h"
 #include "kernel/prog.h"
+#include "kernel/errstr.h"
 #include "drivers/buttons.h"
 #include "board.h"
 #include "hardware/gpio.h"
@@ -52,10 +54,14 @@ static float heater_now(void)
 // ---- fake sensor devices (in place of apps/babywarmer/dev/skintemp, ambient, current)
 static int skin_read(char *buf, int len)
 {
-    if (adc_dead) return -1;
+    if (adc_dead) { werrstr("ADS1115 (0x%02x) not answering", ADS1115_I2C_ADDR); return -1; }
     return snprintf(buf, len, "%.1f\n", sensor_on_baby ? skin : ROOM);
 }
-static int amb_read(char *buf, int len) { return adc_dead ? -1 : snprintf(buf, len, "%.1f\n", ROOM); }
+static int amb_read(char *buf, int len)
+{
+    if (adc_dead) { werrstr("ADS1115 (0x%02x) not answering", ADS1115_I2C_ADDR); return -1; }
+    return snprintf(buf, len, "%.1f\n", ROOM);
+}
 static int cur_read(char *buf, int len)
 {   // current flows while the SSR conducts and the relay is energized
     return snprintf(buf, len, "%d\n", (fake_gpio[PIN_SSR] && fake_gpio[PIN_HEATERSAFE]) ? 800 : 5);
@@ -103,6 +109,17 @@ static void status(int sec)
            fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], ah, th, tl);
 }
 
+// End of the quiet window: stdout back, and what the jobs printed meanwhile.
+static void unquiet(void)
+{
+    fflush(stdout); dup2(saved_stdout, 1);
+    rewind(quiet); char line[128]; int n = 0, errs = 0;
+    while (fgets(line, sizeof line, quiet)) { n++; if (!strcmp(line, "cat: error\n")) errs++; }
+    SAY("while the ADS1115 was dead: %d lines printed by the jobs, %d of them \"cat: error\"%s\n", n, errs, n <= 20 ? ":" : "");
+    if (n <= 20) { rewind(quiet); while (fgets(line, sizeof line, quiet)) SAY("    | %s", line); }
+    fclose(quiet); quiet = 0;
+}
+
 int main()
 {
     fake_gpio_hook = hook;
@@ -139,6 +156,8 @@ int main()
         if (sec == 85 * 60)  { SAY("--- 85:00 sensor back on the baby\n"); sensor_on_baby = true; }
         if (sec == 100 * 60) { SAY("--- 100:00 the ADS1115 stops answering\n"); adc_dead = true;
                                fflush(stdout); saved_stdout = dup(1); quiet = tmpfile(); dup2(fileno(quiet), 1); }
+        if (sec == 104 * 60) { SAY("--- 104:00 type `jobs`\n"); unquiet(); type("jobs\n"); }
+        if (sec == 105 * 60) { SAY("--- 105:00 the ADS1115 answers again\n"); adc_dead = false; }
         if (sec % 60 == 0 || (sec < 120 && sec % 10 == 0)) status(sec);
         if (sec == 2 * 60 || sec == 51 * 60 || sec == 53 * 60) {
             char m[16], a[8]; rd("/dev/tft/mode", m, sizeof m); rd("/dev/tft/aut", a, sizeof a);
@@ -146,12 +165,6 @@ int main()
         }
     }
     char jb[8]; (void)jb;
-    if (quiet) {
-        fflush(stdout); dup2(saved_stdout, 1);
-        rewind(quiet); char line[128]; int n = 0, errs = 0;
-        while (fgets(line, sizeof line, quiet)) { n++; if (!strcmp(line, "cat: error\n")) errs++; }
-        SAY("while the ADS1115 was dead: %d lines printed by the jobs, %d of them \"cat: error\"\n", n, errs);
-    }
     SAY("big display bytes at the end: %06x\n", seg_big);
     return 0;
 }

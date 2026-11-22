@@ -17,6 +17,7 @@
 #include "kernel/fs.h"
 #include "ntc.h"
 #include "drivers/ads1115/ads1115.h"
+#include "kernel/errstr.h"
 #include <cstdio>
 
 static struct ads1115_adc adc;
@@ -25,8 +26,10 @@ static bool ready = false;
 static int skintemp_open(void)
 {
     if (!ready) {
-        if (!ads1115_init(ADS1115_I2C, ADS1115_I2C_ADDR, &adc))
+        if (!ads1115_init(ADS1115_I2C, ADS1115_I2C_ADDR, &adc)) {
+            werrstr("ADS1115 (0x%02x) not answering", ADS1115_I2C_ADDR);
             return -1;
+        }
         ads1115_set_pga(ADS1115_PGA_1_024, &adc); // +/- 1V
         ads1115_set_data_rate(ADS1115_RATE_128_SPS, &adc);
         ready = true;
@@ -38,8 +41,10 @@ static int skintemp_read(char *buf, int len)
 {
     ads1115_set_input_mux(ADS1115_MUX_DIFF_0_1, &adc);
     uint16_t adc_value;
-    if (!ads1115_write_config(&adc) || !ads1115_read_adc(&adc_value, &adc))
+    if (!ads1115_write_config(&adc) || !ads1115_read_adc(&adc_value, &adc)) {
+        werrstr("ADS1115 (0x%02x) not answering", ADS1115_I2C_ADDR);
         return -1;
+    }
 
     float t_skin = ntc_convert(adc_value);
     return snprintf(buf, len, "%.1f\n", t_skin);

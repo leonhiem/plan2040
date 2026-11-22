@@ -15,7 +15,7 @@ ls: /fram: not a mount, or no filesystem yet (mkfs /fram)
 % df
 /fram    no filesystem (mkfs /fram)
 % echo hi > /fram/a
-/fram/a: write failed
+/fram/a: not formatted (mkfs /fram) or FRAM not answering
 % mkfs /fram
 /fram: formatted, 7104 bytes free
 % df
@@ -46,7 +46,7 @@ bin/mkfs
 bin/df
 bin/ls
 % cat /fram/nope
-cat: error
+cat: /fram/nope: no such file
 % cat < /fram/a.txt
 hello world
 % rm /fram/a.txt /fram/nope
@@ -54,7 +54,7 @@ rm: /fram/nope: no such file
 % ls /fram
 /fram/log
 % echo x > /fram/waytoolongname
-/fram/waytoolongname: write failed
+/fram/waytoolongname: bad name (1-11 characters, no spaces or /)
 % script blink
 script: not found (try 'ls')
 % echo one
@@ -66,7 +66,7 @@ two
 % run blink
 run: no such script 'blink'
 % cat /fram/blink
-cat: error
+cat: /fram/blink: no such file
 % echo echo from-fram-boot > /fram/boot
 % echo cat /fram/log >> /fram/boot
 % scripts

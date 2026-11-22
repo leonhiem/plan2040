@@ -446,6 +446,46 @@ typing is `cat > <path>` / `cat >> <path>`, see [Writing a file:
   waits its turn.
 - Background jobs (`&`) all run every 150 ms. Up to 20 at once.
 
+### Errors, in words
+
+Since 2026-11-23 a failure says what failed, where, and why, in the
+style of Plan 9's `errstr`, instead of `cat: error`:
+
+```
+% cat /fram/nope
+cat: /fram/nope: no such file
+% echo hello > /fram/waytoolongname
+/fram/waytoolongname: bad name (1-11 characters, no spaces or /)
+% cat /dev/skintemp                      (babywarmer, ADS1115 unplugged)
+cat: /dev/skintemp: ADS1115 (0x48) not answering
+```
+
+- The part that knows sets the reason (`werrstr()`, `kernel/errstr.h`):
+  a device ("ADS1115 (0x48) not answering"), the FRAM filesystem
+  ("directory full (32 files)", "no space left (df /fram)", "file full
+  (files are at most 1 KB)", "not formatted (mkfs /fram) or FRAM not
+  answering", "damaged file (run fsck /fram)"), or the kernel's file
+  layer, which puts the path in front and fills in a general reason
+  ("value not accepted", "can't be read (write-only)") when a device
+  didn't say why.
+- **A background job says it once.** A failing job prints its reason
+  when it starts failing (and again only if the reason changes), and
+  once when it works again; meanwhile `jobs` shows it:
+  ```
+  [7] cat: /dev/skintemp: ADS1115 (0x48) not answering
+  % jobs
+  [7] cat /dev/skintemp | pid /dev/state pid /dev/setpoint > /dev/pidout &
+      failing: cat: /dev/skintemp: ADS1115 (0x48) not answering
+  ...
+  [7] ok again
+  ```
+  Before, a failing job retried every 150 ms and either printed its
+  error every time (11,250 lines in 10 minutes in the babywarmer
+  simulation) or nothing at all.
+- A cron line that fails says so, `cron: <reason>`, at most once a minute.
+- Why (Leon, 2026-11-23): no cryptic errors, and a console that stays
+  usable exactly when something is wrong.
+
 ### Examples
 
 **Look around**
@@ -1259,6 +1299,21 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | New: `#` comments (`date # hi` runs `date`) | ok: typed and inside `/fram/boot` |
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
+
+**2026-11-23, errors in words** (`plan2040.uf2` on cpu_rp2040 is
+enough): `errstr` in the kernel, FRAM filesystem reasons, a failing job
+reports once and "ok again". On the PC: both configs build without
+warnings; host tests 18 ok (the changed messages checked line by line;
+bwsim: 3 lines instead of 11,250 while the ADS1115 is dead, and "ok
+again" when it's back). Cost: ~2.6 KB RAM (a reason per job slot), ~4 KB
+flash.
+
+| Test | Result |
+|---|---|
+| `cat /fram/nope` | pending: `cat: /fram/nope: no such file` |
+| `echo x > /fram/waytoolongname` | pending: `/fram/waytoolongname: bad name (1-11 characters, no spaces or /)` |
+| `echo abc > /dev/lamp` | pending: `/dev/lamp: value not accepted` |
+| `cat /dev/nope &`, then `jobs` | pending: `[n] cat: /dev/nope: no such device or file` once; `jobs` shows `failing: ...` |
 
 **2026-11-23, babywarmer TFT** (step 3f,
 `build-babywarmer_v1/plan2040.uf2`, after the hack): the ST7735 screen

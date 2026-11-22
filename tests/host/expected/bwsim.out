@@ -171,13 +171,39 @@ echo graphical > /dev/tft/mode
 101:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
 102:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
 103:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+--- 104:00 type `jobs`
+while the ADS1115 was dead: 3 lines printed by the jobs, 0 of them "cat: error":
+    | [7] cat: /dev/skintemp: ADS1115 (0x48) not answering
+    | [8] cat: /dev/ambient: ADS1115 (0x48) not answering
+    | [10] cat: /dev/skintemp: ADS1115 (0x48) not answering
 104:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
+jobs
+[1] toggle /dev/buttons/lamp /dev/lamp &
+[2] follow /dev/heaterauto /dev/setpoint /dev/percent /dev/seg7small &
+[3] toggle /dev/buttons/manual /dev/heaterauto &
+[4] adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 &
+[5] phase &
+[6] select /dev/state boost=80 coast=0 pid=/dev/pidout safe=/dev/safepower > /dev/autopower &
+[7] cat /dev/skintemp | pid /dev/state pid /dev/setpoint > /dev/pidout &
+    failing: cat: /dev/skintemp: ADS1115 (0x48) not answering
+[8] cat /dev/ambient | safelut > /dev/safepower &
+    failing: cat: /dev/ambient: ADS1115 (0x48) not answering
+[9] follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
+[10] cat /dev/skintemp > /dev/seg7big &
+    failing: cat: /dev/skintemp: ADS1115 (0x48) not answering
+[11] alarmcheck &
+[12] alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow &
+[13] ledwire &
+[14] tftwire &
+% --- 105:00 the ADS1115 answers again
 105:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
-106:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
-107:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
-108:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
-109:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
-110:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 1  alarms heater off high off low on 
-while the ADS1115 was dead: 11250 lines printed by the jobs, 11250 of them "cat: error"
+[7] ok again
+[8] ok again
+[10] ok again
+106:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+107:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+108:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+109:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
+110:00  auto on  safe  set 36.0 skin 31.80  heater  39.0 pidout 16.1   relay 1 buzzer 0  alarms heater off high off low off
 big display bytes at the end: fe61f2
 exit 0

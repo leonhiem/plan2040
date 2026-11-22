@@ -13,7 +13,7 @@
 
 P   ?= ../..
 CXX ?= g++
-FS  = $(P)/fs/framfs.cpp
+FS  = $(P)/fs/framfs.cpp $(P)/kernel/errstr.cpp
 K   = $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp conf_scripts.cpp
 SIM = fakefram.cpp $(K) $(P)/dev/fram.cpp $(FS)
 pr  = $(foreach n,$(1),$(P)/prog/$(n).cpp)
@@ -37,9 +37,9 @@ $(UNIT):
 	$(CXX) -Wall -I fake -I $(P) -I $(P)/apps/babywarmer -o $@ $^
 
 BW  = $(P)/apps/babywarmer
-outtest:  outtest.cpp  $(P)/kernel/fs.cpp $(BW)/heater.cpp $(BW)/seg7.cpp $(BW)/dev/heater.cpp $(BW)/dev/relay.cpp $(BW)/dev/alarm.cpp $(BW)/dev/seg7.cpp
+outtest:  outtest.cpp  $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp $(BW)/heater.cpp $(BW)/seg7.cpp $(BW)/dev/heater.cpp $(BW)/dev/relay.cpp $(BW)/dev/alarm.cpp $(BW)/dev/seg7.cpp
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
-BWSRC = $(P)/kernel/task.cpp $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp conf_scripts_bw.cpp \
+BWSRC = $(P)/kernel/task.cpp $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp $(P)/kernel/errstr.cpp conf_scripts_bw.cpp \
         $(P)/dev/lamp.cpp $(P)/dev/buttons.cpp $(call pr,cat echo follow toggle adjust select) \
         $(BW)/heater.cpp $(BW)/seg7.cpp $(foreach n,heater relay alarm seg7 setpoint heaterauto percent pid phase alarmcheck tft,$(BW)/dev/$(n).cpp) \
         $(foreach n,pid phase safelut alarmcheck alarm ledwire monitor tftwire,$(BW)/prog/$(n).cpp) $(P)/prog/label.cpp
@@ -60,7 +60,7 @@ remsim:   remsim.cpp   $(SIM) $(call pr,cat echo ls mkfs remember toggle)
 hexsim:   hexsim.cpp   $(SIM) $(call pr,cat echo ls hexdump mkfs wc)
 rmsim:    rmsim.cpp    $(SIM) $(call pr,cat echo ls hexdump mkfs rm df)
 fscksim:  fscksim.cpp  $(SIM) $(call pr,cat echo ls mkfs fsck df)
-helpsim:  helpsim.cpp  $(K)
+helpsim:  helpsim.cpp  $(K) $(P)/kernel/errstr.cpp
 progtest: progtest.cpp $(call pr,wc grep headtail)
 $(SIMS):
 	$(CXX) -w -I fake -I $(P) -DPLAN2040_BOARD='"cpu_rp2040"' -o $@ $^

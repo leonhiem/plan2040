@@ -2,11 +2,33 @@
 #include "kernel/task.h"
 #include "kernel/fs.h"
 #include "kernel/prog.h"
+#include "kernel/errstr.h"
 #include <cstdio>
 #include <cstring>
 
-void pipeline_run_once(pipeline_t *p, bool print_if_no_redirect)
+// Why the last pipeline_run_once() failed, in words: "<who>: <why>",
+// e.g. "cat: /dev/skintemp: ADS1115 (0x48, header bus) not answering".
+static char pipe_err[JOB_ERR_MAX];
+
+const char *pipeline_error(void)
 {
+    return pipe_err;
+}
+
+// Records the failure (and prints it in the foreground). Always false.
+// who = 0: why already says what failed (fs errors start with the path).
+static bool fail(bool foreground, const char *who, const char *why)
+{
+    if (!why || !why[0]) why = "failed";
+    if (who) snprintf(pipe_err, sizeof(pipe_err), "%s: %s", who, why);
+    else     snprintf(pipe_err, sizeof(pipe_err), "%s", why);
+    if (foreground) printf("%s\n", pipe_err);
+    return false;
+}
+
+bool pipeline_run_once(pipeline_t *p, bool print_if_no_redirect)
+{
+    bool fg = print_if_no_redirect;   // foreground: the shell, watch
     // static, not on the stack: 2 KB here made the deepest call path
     // (shell -> dispatch -> this -> a program -> printf) ~4 KB, double the
     // 2 KB stack the SDK reserves; it only worked by spilling into core 1's
@@ -20,27 +42,29 @@ void pipeline_run_once(pipeline_t *p, bool print_if_no_redirect)
     if (p->has_redirect_in) {
         const char *in_path = pipeline_word(p, p->redirect_in);
         int fd = fs_open(in_path);
-        if (fd < 0) { printf("%s: not found\n", in_path); return; }
+        if (fd < 0) return fail(fg, 0, errstr());
         int n = fs_read(fd, cur, STAGE_BUF);
         fs_close(fd);
-        cur_len = n < 0 ? 0 : n;
+        if (n < 0) return fail(fg, 0, errstr());
+        cur_len = n;
     }
 
     for (int i = 0; i < p->nstages; i++) {
         pipeline_stage_t *st = &p->stages[i];
-        if (st->argc == 0) { printf("empty pipeline stage\n"); return; }
+        if (st->argc == 0) return fail(fg, "pipeline", "empty stage");
 
         const char *name = pipeline_arg(p, i, 0);
         const program_t *prog = prog_find(name);
-        if (!prog) { printf("%s: not found (try 'ls')\n", name); return; }
+        if (!prog) return fail(fg, name, "not found (try 'ls')");
 
         char *argv_rest[JOB_MAX_ARGS];
         // Programs only read their arguments (none writes into them), so
         // they can point straight into the pipeline's text.
         for (int a = 1; a < st->argc; a++) argv_rest[a - 1] = (char *)pipeline_arg(p, i, a);
 
+        errstr_clear();
         int n = prog->run(cur, cur_len, st->argc - 1, argv_rest, other, STAGE_BUF);
-        if (n < 0) { printf("%s: error\n", name); return; }
+        if (n < 0) return fail(fg, name, errstr());
 
         char *tmp = cur; cur = other; other = tmp;
         cur_len = n;
@@ -49,13 +73,13 @@ void pipeline_run_once(pipeline_t *p, bool print_if_no_redirect)
     if (p->has_redirect_out) {
         const char *out_path = pipeline_word(p, p->redirect_out);
         int fd = fs_open(out_path, p->redirect_append ? FS_APPEND : FS_CREATE);
-        if (fd < 0) { printf("%s: not found\n", out_path); return; }
+        if (fd < 0) return fail(fg, 0, errstr());
         int n = fs_write(fd, cur, cur_len);
         fs_close(fd);
-        // Say so in the foreground (e.g. a full file, a bad value for a
-        // device); background jobs stay quiet, as they always have, so a
-        // job retrying every JOB_POLL_MS can't flood the terminal.
-        if (n < 0 && print_if_no_redirect) printf("%s: write failed\n", out_path);
+        // E.g. a full file, a bad value for a device. A background job
+        // gets it back and reports it once (run_slot()), so a job retrying
+        // every JOB_POLL_MS can't flood the terminal.
+        if (n < 0) return fail(fg, 0, errstr());
     } else if (print_if_no_redirect) {
         for (int i = 0; i < cur_len; i++) putchar(cur[i]);
         // No output, no line: `rm`, a `grep` without matches, `cat` of an
@@ -63,19 +87,38 @@ void pipeline_run_once(pipeline_t *p, bool print_if_no_redirect)
         // line for those.) Output without a final '\n' still gets one.
         if (cur_len > 0 && cur[cur_len - 1] != '\n') putchar('\n');
     }
+    return true;
 }
 
 typedef struct {
     bool active;
     pipeline_t p;
+    bool failing;               // the last run failed ...
+    char err[JOB_ERR_MAX];      // ... and why (pipeline_error()), for `jobs`
 } job_slot_t;
 
 static job_slot_t slots[MAX_JOBS];
 
+// A background job runs every JOB_POLL_MS. When it starts failing, it
+// says why once ("[7] cat: /dev/skintemp: ..."), again only if the reason
+// changes, and once when it works again ("[7] ok again"); `jobs` shows
+// the reason meanwhile. Leon's rule (2026-11-23): clear errors, and no
+// flood that makes the console unusable exactly when something's wrong.
 static void run_slot(int i)
 {
-    if (!slots[i].active) return;
-    pipeline_run_once(&slots[i].p, false); // background: no spam without a > redirect
+    job_slot_t *j = &slots[i];
+    if (!j->active) return;
+    bool ok = pipeline_run_once(&j->p, false); // background: no output without a > redirect
+    if (!ok) {
+        if (!j->failing || strcmp(j->err, pipeline_error()) != 0) {
+            snprintf(j->err, sizeof(j->err), "%s", pipeline_error());
+            printf("[%d] %s\n", i + 1, j->err);
+        }
+        j->failing = true;
+    } else if (j->failing) {
+        j->failing = false;
+        printf("[%d] ok again\n", i + 1);
+    }
 }
 
 // One trampoline per job slot, generated mechanically -- see jobs.h's
@@ -109,6 +152,7 @@ int job_start(const pipeline_t *p)
         if (!slots[i].active) {
             slots[i].p = *p;
             slots[i].active = true;
+            slots[i].failing = false;
             return i + 1;
         }
     }
@@ -135,6 +179,7 @@ void job_list(void)
         if (slots[i].p.has_redirect_out)
             printf("%s %s ", slots[i].p.redirect_append ? ">>" : ">", pipeline_word(&slots[i].p, slots[i].p.redirect_out));
         printf("&\n");
+        if (slots[i].failing) printf("    failing: %s\n", slots[i].err);
     }
     if (!any) printf("no background jobs\n");
 }

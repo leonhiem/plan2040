@@ -1,4 +1,5 @@
 #include "fs.h"
+#include "errstr.h"
 #include <cstdio>
 #include <cstring>
 
@@ -70,11 +71,30 @@ static int file_slot(int fd)
     return (s >= 0 && s < FS_MAX_OPEN && files[s].used) ? s : -1;
 }
 
+// Every call that can fail clears errstr first; on a failure the reason
+// gets the path in front ("/dev/skintemp: ADS1115 ... not answering"), and
+// a device that failed without saying why (no werrstr) gets a general
+// text, so errstr() is never empty after a -1 from here. Plan 9's errors
+// name the file the same way. See kernel/errstr.h.
+static int failed(const char *path, const char *general)
+{
+    if (!errstr()[0]) werrstr("%s", general);
+    werrstr("%s: %s", path, errstr());
+    return -1;
+}
+static int failed(const char *prefix, const char *name, const char *general)
+{
+    if (!errstr()[0]) werrstr("%s", general);
+    werrstr("%s/%s: %s", prefix, name, errstr());
+    return -1;
+}
+
 int fs_open(const char *path, int mode)
 {
+    errstr_clear();
     int i = find(path);
     if (i >= 0) {
-        if (devices[i]->open && devices[i]->open() != 0) return -1;
+        if (devices[i]->open && devices[i]->open() != 0) return failed(path, "device not ready");
         return i; // the fd is just the device's table index -- no per-open
                   // state needed for these devices, and nothing here opens
                   // the same device concurrently from two places at once.
@@ -82,10 +102,11 @@ int fs_open(const char *path, int mode)
 
     const char *name;
     const mount_t *m = find_mount(path, &name);
-    if (!m || !*name || strlen(name) >= FS_NAME_MAX) return -1;
+    if (!m || !*name) return failed(path, "no such device or file");
+    if (strlen(name) >= FS_NAME_MAX) return failed(path, "name too long");
     if (mode == FS_RDWR) {
         char probe;
-        if (m->read(name, &probe, 0) < 0) return -1;   // must exist
+        if (m->read(name, &probe, 0) < 0) return failed(path, "no such file");   // must exist
     }
     for (int s = 0; s < FS_MAX_OPEN; s++) {
         if (files[s].used) continue;
@@ -96,6 +117,7 @@ int fs_open(const char *path, int mode)
         return FILE_FD + s;
     }
     printf("fs_open: too many open files (%d)\n", FS_MAX_OPEN);
+    werrstr("%s: too many open files (%d)", path, FS_MAX_OPEN);
     return -1;
 }
 
@@ -109,10 +131,16 @@ void fs_close(int fd)
 
 int fs_read(int fd, char *buf, int len)
 {
+    errstr_clear();
     int s = file_slot(fd);
-    if (s >= 0) return files[s].m->read(files[s].name, buf, len);
-    if (fd < 0 || fd >= device_count || !devices[fd]->read) return -1;
-    return devices[fd]->read(buf, len);
+    if (s >= 0) {
+        int n = files[s].m->read(files[s].name, buf, len);
+        return n < 0 ? failed(files[s].m->prefix, files[s].name, "read failed") : n;
+    }
+    if (fd < 0 || fd >= device_count) { werrstr("not open"); return -1; }
+    if (!devices[fd]->read) return failed(devices[fd]->name, "can't be read (write-only)");
+    int n = devices[fd]->read(buf, len);
+    return n < 0 ? failed(devices[fd]->name, "read failed") : n;
 }
 
 int fs_write(int fd, const char *buf, int len)
@@ -121,12 +149,16 @@ int fs_write(int fd, const char *buf, int len)
     if (s >= 0) {
         // FS_RDWR and FS_CREATE replace the file on the first write; later
         // writes on the same fd append, like successive write()s in Unix.
+        errstr_clear();
         int n = files[s].m->write(files[s].name, buf, len, files[s].mode == FS_APPEND);
         if (n >= 0) files[s].mode = FS_APPEND;
-        return n;
+        return n < 0 ? failed(files[s].m->prefix, files[s].name, "write failed") : n;
     }
-    if (fd < 0 || fd >= device_count || !devices[fd]->write) return -1;
-    return devices[fd]->write(buf, len);
+    errstr_clear();
+    if (fd < 0 || fd >= device_count) { werrstr("not open"); return -1; }
+    if (!devices[fd]->write) return failed(devices[fd]->name, "can't be written (read-only)");
+    int n = devices[fd]->write(buf, len);
+    return n < 0 ? failed(devices[fd]->name, "value not accepted") : n;
 }
 
 int fs_pread(int fd, char *buf, int len, uint32_t offset)
@@ -147,8 +179,9 @@ int fs_rename(const char *from, const char *to)
 {
     const char *a, *b;
     const mount_t *m = find_mount(from, &a);
-    if (!m || !*a || find_mount(to, &b) != m || !*b || !m->rename) return -1;
-    return m->rename(a, b);
+    errstr_clear();
+    if (!m || !*a || find_mount(to, &b) != m || !*b || !m->rename) return failed(from, "can only rename within one mount");
+    return m->rename(a, b) < 0 ? failed(from, "rename failed") : 0;
 }
 
 int fs_fsck(const char *path, char *report, int len)
@@ -162,7 +195,9 @@ int fs_remove(const char *path)
 {
     const char *name;
     const mount_t *m = find_mount(path, &name);
-    return (m && *name) ? m->remove(name) : -1;
+    errstr_clear();
+    if (!m || !*name) return failed(path, "no such file");
+    return m->remove(name) < 0 ? failed(path, "remove failed") : 0;
 }
 
 int fs_format(const char *path)
