@@ -253,6 +253,7 @@ a 13-line boot script that wires the whole controller):
   stays possible later.
 - `../pico-ads1115` (BSD-3, Antonio González) copied into
   `drivers/ads1115/` with its LICENSE and where it came from.
+  (Replaced 2026-11-23 by our own driver, see step 3e below.)
 - The built-in boot script is a plain file in the app
   (`apps/babywarmer/boot`, and `tftmon`), embedded by CMake; `/fram/boot`
   still overrides it.
@@ -403,10 +404,21 @@ Order, one commit each, tested on the PC and then the board:
     once (again if it changes) and "ok again"; `jobs` shows `failing:`;
     cron prints a failing line's reason. `/dev/skintemp`, `/dev/ambient`
     say "ADS1115 (0x48) not answering" (until the new driver). Not yet:
-    the 1 s backoff (comes with the new ADS1115 driver, step 2), and
+    the 1 s backoff (came with the new ADS1115 driver, step 2), and
     more reasons in other devices and programs (gradually). A job's
     message can still land right after the `% ` prompt (the prompt
     redraw item below).
+  - **(2) built 2026-11-23**, board test pending: `drivers/ads1115.cpp`
+    from the datasheet (start / ready / result, never waiting;
+    `ads1115_convert()` for bringup and boot), `drivers/README.md` (the
+    contract, and where each driver stands: `fm24cl64`, `pcf8563` lack
+    errstr reasons; `at24c` waits ~5 ms per page, to split with 3g),
+    `apps/babywarmer/ntcadc.cpp`: the "adc" task, each channel every
+    ~100 ms, 1 s backoff, fresh for 1.5 s. `/dev/skintemp`, `/dev/ambient`
+    answer at once. `tests/host/adctest` against a fake ADS1115: ~1.3 %
+    CPU normally, ~1 % with a stuck bus, a failure shows after 1.5 s with
+    its reason, recovery within a second, one glitch never shows.
+    `bringup` reads all ADS1115 inputs (`adc`).
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

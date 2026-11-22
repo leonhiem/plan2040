@@ -86,7 +86,9 @@ if(EXISTS ${PLAN2040_BOARD_DIR}/bringup.cpp)
 else()
     set(bringup_src boards/bringup.cpp)
 endif()
-add_executable(bringup ${bringup_src})
+# kernel/errstr.cpp: drivers say why they failed (drivers/README.md), and
+# bringup uses them without the rest of the kernel.
+add_executable(bringup ${bringup_src} kernel/errstr.cpp)
 target_compile_definitions(bringup PRIVATE PLAN2040_BOARD="${PLAN2040_BOARD}")
 target_link_libraries(bringup board_drivers pico_stdlib hardware_i2c)
 pico_enable_stdio_usb(bringup 1)

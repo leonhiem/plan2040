@@ -44,6 +44,7 @@
 #define FRAM_I2C_ADDR      0x50  // FM24CL64B, A2..A0 = 0
 #define ADS1115_I2C        HEADER_I2C
 #define ADS1115_I2C_ADDR   0x48  // ADDR pin to GND
+#define ADS1115_I2C_NAME   "header bus"   // for error texts
 #define EEPROM_I2C         HEADER_I2C
 #define EEPROM_I2C_ADDR    0x52  // 24C512, A2 A1 A0 = 010
 #define EEPROM_SIZE        65536

@@ -1,0 +1,27 @@
+boot: first readings took 17.5 ms (blocking, at boot only)
+  skintemp 45.2, ambient 32.9
+normal running:
+  2 channels, each every ~100 ms:     97.2 I2C transfers/s,  12.74 ms/s of bus time (1.27 % of the CPU)
+a change on the skin NTC (code 0 -> 5000):
+  /dev/skintemp shows it after 66 ms
+one glitch (a single NACK):
+  /dev/skintemp never failed (as it should)
+ADS1115 not answering (NACK):
+  /dev/skintemp fails after 1495 ms: /dev/skintemp: ADS1115 (0x48, header bus) not answering
+  /dev/ambient:  /dev/ambient: ADS1115 (0x48, header bus) not answering
+  a read meanwhile takes 0 us
+  while failing:                       1.0 I2C transfers/s,   0.05 ms/s of bus time (0.01 % of the CPU)
+  fixed: /dev/skintemp ok again after 786 ms: 32.9
+stuck bus (every transfer times out):
+  /dev/skintemp fails after 1497 ms: /dev/skintemp: ADS1115 (0x48, header bus) not answering
+  /dev/ambient:  /dev/ambient: ADS1115 (0x48, header bus) not answering
+  a read meanwhile takes 0 us
+  while failing:                       1.0 I2C transfers/s,  10.00 ms/s of bus time (1.00 % of the CPU)
+  fixed: /dev/skintemp ok again after 791 ms: 32.9
+conversion never finishes:
+  /dev/skintemp fails after 1501 ms: /dev/skintemp: ADS1115 (0x48, header bus): conversion never finished
+  /dev/ambient:  /dev/ambient: ADS1115 (0x48, header bus): conversion never finished
+  a read meanwhile takes 0 us
+  while failing:                       4.0 I2C transfers/s,   0.52 ms/s of bus time (0.05 % of the CPU)
+  fixed: /dev/skintemp ok again after 321 ms: 32.9
+exit 0

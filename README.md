@@ -170,7 +170,7 @@ One tree for every board and every firmware (TODO.md idea 3, restructured
 | `fs/` | filesystems and stores: `framfs` (the FRAM filesystem), `hours` (hour counters) | generic |
 | `dev/` | devices, one file each: `dev/<name>.cpp` | generic, picked per config |
 | `prog/` | programs, one file each: `prog/<name>.cpp` | generic, picked per config |
-| `drivers/` | chips: `pcf8563` (RTC), `fm24cl64` (FRAM), `at24c` (24C256/512 EEPROM), `ads1115/` (ADC, a copied-in library with its LICENSE), `buttons` (debounce); a driver is `drivers/<name>.cpp` or `drivers/<name>/<name>.cpp` | generic, picked per config |
+| `drivers/` | chips: `pcf8563` (RTC), `fm24cl64` (FRAM), `at24c` (24C256/512 EEPROM), `ads1115` (ADC), `buttons` (debounce); a driver is `drivers/<name>.cpp` (or `drivers/<name>/<name>.cpp` for one with files of its own). Every driver follows [`drivers/README.md`](drivers/README.md): bus and address from `board.h`, timeouts, a reason on failure, never waiting for the chip | generic, picked per config |
 | `boards/<board>/` | `board.h` (pin map, buses, each chip's bus and address, FRAM layout), `board.cpp` (`board_init()`, `board_pins_init()`) | one per board: `cpu_rp2040`, `babywarmer_v1` |
 | `boards/bringup.cpp` | the board test, for every board (from its `board.h`) | yes |
 | `scripts/` | built-in scripts, plain files: `boot` | generic, picked per config |
@@ -256,8 +256,19 @@ the outputs (3d), the control (3e) and the TFT (3f):
 
 | Device | | |
 |---|---|---|
-| `/dev/skintemp` | read | Skin temperature, °C (`36.5`): the skin NTC on ADS1115 channels 0-1, one conversion per read. `error` if the ADS1115 doesn't answer. |
+| `/dev/skintemp` | read | Skin temperature, °C (`36.5`): the skin NTC on ADS1115 channels 0-1. Answered at once from the background sampling (below). When there's no fresh reading: `/dev/skintemp: ADS1115 (0x48, header bus) not answering`. |
 | `/dev/ambient` | read | Room temperature, °C: the room NTC on channels 2-3. Same. |
+
+**Background sampling** (`apps/babywarmer/ntcadc.cpp`, since 2026-11-23):
+the "adc" kernel task keeps the ADS1115 converting, skin and room in
+turn, each about every 100 ms, and never waits for a conversion (our own
+driver, `drivers/ads1115.cpp`). Measured on the PC (`adctest`): ~1.3 % of
+the CPU; a change shows within ~70 ms. When the chip stops answering it
+tries again once a second (a stuck bus then costs ~1 % of the CPU, the
+panel stays quick), the devices fail after 1.5 s with the reason (one
+glitch never shows), and they're back within a second of the fix.
+picoos converted on every read and waited ~8 ms for it, ~16 % of the CPU
+with the boot script's readers.
 | `/dev/current` | read | Heater current sense, raw ADC counts 0..4095 (GPIO26, 8 samples averaged). |
 | `/dev/heater` | read/write | Heater power 0-100 % (`25`, `50.5`; `on` = 100, `off` = 0; clamped). Time-proportional: the SSR (GPIO11) is on for that share of every 15 s window, switched by the `tpo` kernel task every 100 ms; the bargraph (GPIO16, PWM ~3 kHz) shows it. Reading gives what's applied. Heats only with the safety relay energized. |
 | `/dev/relay` | write | The mechanical safety relay (GPIO17): `on` = energized, the heater may run; `off` = released. |
@@ -1299,6 +1310,20 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | New: `#` comments (`date # hi` runs `date`) | ok: typed and inside `/fram/boot` |
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
+
+**2026-11-23, our own ADS1115 driver, background sampling**
+(`build-babywarmer_v1/bringup.uf2` and `plan2040.uf2`, after the hack):
+`drivers/ads1115.cpp` from the datasheet, the "adc" task, the driver
+contract (`drivers/README.md`). On the PC: builds without warnings;
+`adctest` against a fake ADS1115 (numbers above). `bringup` got an `adc`
+test.
+
+| Test | Result |
+|---|---|
+| `bringup`: `adc` | pending: four single-ended inputs and the two NTC pairs, plausible volts; no "full scale" |
+| `cat /dev/skintemp`, `cat /dev/ambient` | pending: the same values as before (same conversion) |
+| `watch 100 cat /dev/skintemp`, a finger on the NTC | pending: follows within a fraction of a second |
+| Header SDA off (optional) | pending: after ~1.5 s `[n] cat: /dev/skintemp: ADS1115 (0x48, header bus) not answering`, once; buttons and displays stay quick; SDA back: `[n] ok again` |
 
 **2026-11-23, errors in words** (`plan2040.uf2` on cpu_rp2040 is
 enough): `errstr` in the kernel, FRAM filesystem reasons, a failing job

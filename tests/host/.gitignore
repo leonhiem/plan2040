@@ -22,3 +22,4 @@ outtest
 bwsim
 conf_scripts_bw.cpp
 *.o
+adctest

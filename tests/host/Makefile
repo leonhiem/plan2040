@@ -23,7 +23,7 @@ UNIT = fstest hourstest fscktest mvcut ntctest
 # whole-shell simulations (-w: the fakes are quick and dirty)
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
 # babywarmer app tests (the real babywarmer_v1 pin map, fake GPIO/PWM)
-APP  = outtest bwsim
+APP  = outtest bwsim adctest
 ALL  = $(UNIT) $(SIMS) $(APP)
 
 all: $(ALL)
@@ -38,6 +38,9 @@ $(UNIT):
 
 BW  = $(P)/apps/babywarmer
 outtest:  outtest.cpp  $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp $(BW)/heater.cpp $(BW)/seg7.cpp $(BW)/dev/heater.cpp $(BW)/dev/relay.cpp $(BW)/dev/alarm.cpp $(BW)/dev/seg7.cpp
+	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
+adctest:  adctest.cpp $(P)/drivers/ads1115.cpp $(BW)/ntcadc.cpp $(BW)/ntc.cpp $(BW)/dev/skintemp.cpp $(BW)/dev/ambient.cpp \
+          $(P)/kernel/task.cpp $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 BWSRC = $(P)/kernel/task.cpp $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp $(P)/kernel/errstr.cpp conf_scripts_bw.cpp \
         $(P)/dev/lamp.cpp $(P)/dev/buttons.cpp $(call pr,cat echo follow toggle adjust select) \

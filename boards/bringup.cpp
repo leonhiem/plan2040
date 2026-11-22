@@ -17,6 +17,8 @@
  *   rtc                          RTC test: registers sane, clock ticking
  *   eeprom                       EEPROM test: one page written and restored,
  *                                address lines (only with an EEPROM)
+ *   adc                          ADS1115: all four inputs once, code and volts
+ *                                (only with an ADS1115)
  *   time                         print RTC date/time once
  *   set YYYY-MM-DD HH:MM:SS      set the RTC
  *   help
@@ -33,8 +35,12 @@
 #include "board.h"
 #include "drivers/fm24cl64.h"
 #include "drivers/pcf8563.h"
+#include "kernel/errstr.h"
 #ifdef EEPROM_I2C_ADDR
 #include "drivers/at24c.h"
+#endif
+#ifdef ADS1115_I2C_ADDR
+#include "drivers/ads1115.h"
 #endif
 
 #ifndef PLAN2040_BOARD          // set by CMakeLists.txt from the config
@@ -327,6 +333,35 @@ static bool test_eeprom(void)
 }
 #endif
 
+// ---------------------------------------------------------------- ADS1115
+#ifdef ADS1115_I2C_ADDR
+// One conversion per input, single-ended, +-4.096 V (the inputs can't go
+// above 3V3, so this range shows every input without clipping), plus the
+// two differential pairs the babywarmer's NTCs use, at their +-1.024 V.
+static bool test_adc(void)
+{
+    static const struct { int mux, pga; float fs; const char *name; } in[] = {
+        { ADS1115_MUX_SINGLE_0, ADS1115_PGA_4_096, 4.096f, "in0     " },
+        { ADS1115_MUX_SINGLE_1, ADS1115_PGA_4_096, 4.096f, "in1     " },
+        { ADS1115_MUX_SINGLE_2, ADS1115_PGA_4_096, 4.096f, "in2     " },
+        { ADS1115_MUX_SINGLE_3, ADS1115_PGA_4_096, 4.096f, "in3     " },
+        { ADS1115_MUX_DIFF_0_1, ADS1115_PGA_1_024, 1.024f, "in0-in1 (skin NTC)" },
+        { ADS1115_MUX_DIFF_2_3, ADS1115_PGA_1_024, 1.024f, "in2-in3 (room NTC)" },
+    };
+    for (unsigned i = 0; i < sizeof(in) / sizeof(in[0]); i++) {
+        int16_t code;
+        if (!ads1115_convert(in[i].mux, in[i].pga, ADS1115_RATE_128, &code)) {
+            printf("adc: %s\nadc: FAILED\n", errstr());
+            return false;
+        }
+        printf("adc: %s code %6d = %+.4f V%s\n", in[i].name, code, code * in[i].fs / 32768.0f,
+               (code == 32767 || code == -32768) ? "  (full scale: open or shorted?)" : "");
+    }
+    printf("adc: ok\n");
+    return true;
+}
+#endif
+
 // ---------------------------------------------------------------- buttons
 
 static const struct { int pin; const char *name; } buttons[] = {
@@ -371,8 +406,14 @@ static void run_all(void)
     bool rtc = test_rtc();
 #ifdef EEPROM_I2C_ADDR
     bool eeprom = test_eeprom();
+#ifdef ADS1115_I2C_ADDR
+    bool adc = test_adc();
+    printf("\nsummary: i2c %s, fram %s, rtc %s, eeprom %s, adc %s\n\n",
+           scan ? "ok" : "FAIL", fram ? "ok" : "FAIL", rtc ? "ok" : "FAIL", eeprom ? "ok" : "FAIL", adc ? "ok" : "FAIL");
+#else
     printf("\nsummary: i2c %s, fram %s, rtc %s, eeprom %s\n\n",
            scan ? "ok" : "FAIL", fram ? "ok" : "FAIL", rtc ? "ok" : "FAIL", eeprom ? "ok" : "FAIL");
+#endif
 #else
     printf("\nsummary: i2c %s, fram %s, rtc %s\n\n",
            scan ? "ok" : "FAIL", fram ? "ok" : "FAIL", rtc ? "ok" : "FAIL");
@@ -381,7 +422,9 @@ static void run_all(void)
 
 static void help(void)
 {
-#ifdef EEPROM_I2C_ADDR
+#if defined(EEPROM_I2C_ADDR) && defined(ADS1115_I2C_ADDR)
+    const char *more = " eeprom adc";
+#elif defined(EEPROM_I2C_ADDR)
     const char *more = " eeprom";
 #else
     const char *more = "";
@@ -400,6 +443,9 @@ static void dispatch(char *line)
     else if (!strcmp(line, "rtc"))  test_rtc();
 #ifdef EEPROM_I2C_ADDR
     else if (!strcmp(line, "eeprom")) test_eeprom();
+#endif
+#ifdef ADS1115_I2C_ADDR
+    else if (!strcmp(line, "adc")) test_adc();
 #endif
     else if (!strcmp(line, "time")) {
         if (rtc_get(&t)) print_time(&t);
