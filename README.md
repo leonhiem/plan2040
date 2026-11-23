@@ -424,13 +424,27 @@ fully agnostic, but it needs more points (7 points left ±0.24 °C in a
 10 °C gap). The calibration, step by step:
 
 ```
-cat /dev/ntc/skin                      # the code, NTC in the bath next to the thermometer
-cat > /fram/ntc.pts                    # the bridge line and the points
-cp /fram/ntc.pts /dev/ntc/lut          # make, write, verify (or the reason it's refused)
-cat /dev/ntc/status                    # writing ... / in use: the EEPROM table
-cat /dev/ntc/lut                       # the text with the fit's results (#= lines)
-cp /dev/ntc/lut /fram/ntc.pts          # back out, to add a point and write again
+cat /dev/ntc/skin              # read the raw ADC code, NTC in the water bath next to your thermometer
+                               # (repeat at e.g. 0, 25, 35, 37, 45 C and note code + temperature)
+cat > /fram/ntc.pts            # type or paste the calibration text, end with ctrl-D:
+  bridge 3.3 47000 47000 10000
+  25118 0.0
+  0 25.0
+  -6521 37.0
+  -9497 45.0
+cp /fram/ntc.pts /dev/ntc/lut  # makes the table now; refused with a reason if the text is wrong
+cat /dev/ntc/status            # "writing ..." then "the EEPROM table"
+cat /dev/ntc/lut               # your text back, plus the #= lines: method, coefficients, error per point
+cp /dev/ntc/lut /fram/ntc.pts  # back out, to add a point and write again
 ```
+
+When it's written, it's the board's calibration: nothing writes the
+EEPROM by itself, so an empty EEPROM means "not calibrated" (the
+built-in table) and a valid table means someone calibrated this board.
+The write takes ~1.6 s in the background, the warmer running on; it's
+read back, then put in use, no reboot. No points yet? Write the datasheet
+curve to the EEPROM the same way: `bridge 3.3 47000 47000 10000`, `ntc
+10000 25 3950`, `range -5 60`.
 
 Check a calibration text on the PC first: `tools/ntclut` runs the same
 generator as the board, so what it prints is what the board will make.
