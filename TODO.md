@@ -439,6 +439,61 @@ Order, one commit each, tested on the PC and then the board:
     a stand-in switch is too dangerous. So: relay off and held off,
     heater-failure alarm, until the repair (`echo off >
     /dev/alarm/heater`) or a reboot. (That's what step 3 does.)
+  - **Step 4, discussed 2026-11-24: the guard.** Leon: the fallback
+    ladder is the most important ruling task, and it isn't only about
+    hardware: a skin sensor that falls out of the bed still *works* but
+    measures the wrong thing, and the PID then drives the heater up.
+    Three scenarios with a working sensor: (1) it falls out while the
+    baby is warm, (2) it's out of the bed from the start, during
+    warm-up, (3) it's wrongly placed. What picoos's `phase` watchdogs
+    catch today: (1) yes (fast drop, or > 3 C below setpoint for 20 s),
+    but the PID ramps up until then; (2) yes ("no rise" in 5 min at
+    80 %), **but not when the sensor lies on the mattress under the
+    heater** and warms up; (3) "too low" partly, "too high" (under the
+    baby, in direct radiation: the baby gets cold) not at all. And
+    `phase` is a job: `kill` stops it, a `/fram/boot` without it has no
+    watchdogs at all.
+    **Decided 2026-11-24, the guard as a kernel task:**
+    - `apps/babywarmer/guard.cpp`, a kernel task, once a second,
+      registered by the app itself: can't be killed, doesn't depend on a
+      boot script.
+    - It reads only **hardware facts and the user's intent** (skin, room,
+      current, the SSR, setpoint, auto/manual), never what a job computed
+      (`/dev/state`, `/dev/pidout`): those are what it guards. In auto
+      mode a `/dev/pidout` not updated for ~10 s means the control jobs
+      are gone: fall back.
+    - **Scope: trust + power limit + all of alarmcheck's safety**:
+      overtemp -> relay off, the heater-current check, stuck SSR, writing
+      `/dev/alarm/*`. `alarmcheck` (the job) goes. `alarm`, `ledwire`,
+      `tftwire` stay jobs: they only show what the guard decided.
+    - **Three levels of trust** in the skin reading, in `/dev/guard`
+      with the reason: `ok`, `suspect: <why>`, `none: <why>`.
+    - **In suspect and none the guard provides the power itself**
+      (suspect: safelut from the room temperature; none: the
+      conservative manual %, adjustable with UP/DOWN), whatever the jobs
+      do: the ladder works with every control job dead, and also when the
+      sensor reads too high (a cap alone would let the baby get cold).
+      In ok it caps (a sane maximum).
+    - **Enforced where the hardware is:** `tpo_apply()` drives the SSR
+      with the guard's decision (cap, or the fallback power), so it acts
+      within 100 ms even if no job writes `/dev/heater` again.
+      `/dev/heater/limit` shows it.
+    - **Manual mode: hardware safety only** (overtemp, heater current,
+      stuck SSR, the skin temperature alarms); no plausibility power
+      limit: in manual the nurse decides the power.
+    - **phase's watchdogs move into the guard** (one owner of "can the
+      skin reading be trusted"). `phase` keeps only the warm-up sequence
+      (idle, boost, coast, pid), follows `/dev/guard` (shows safe,
+      reseeds the PID on recovery).
+    - Test: bwsim kills the control jobs and takes the sensor off; the
+      heater stays within the guard's limits.
+    **Still to discuss:** the plausibility checks and their numbers
+    (power plausibility: PID asking clearly more than safelut for
+    minutes outside boost; physiological range ~34-37.5 C after
+    warm-up; recovery after ~2 min plausible again; or wait for a
+    button?), what IEC 60601-2-21 (radiant warmers) requires (sensor
+    fault alarm, temperature deviation alarm, output limits in baby
+    control mode), and what a nurse should see and do.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
