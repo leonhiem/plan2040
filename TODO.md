@@ -467,9 +467,10 @@ Order, one commit each, tested on the PC and then the board:
       `/dev/alarm/*`. `alarmcheck` (the job) goes. `alarm`, `ledwire`,
       `tftwire` stay jobs: they only show what the guard decided.
     - **Three levels of trust** in the skin reading, in `/dev/guard`
-      with the reason: `ok`, `suspect: <why>`, `none: <why>`.
-    - **In suspect and none the guard provides the power itself**
-      (suspect: safelut from the room temperature; none: the
+      with the reason: `ok`, `safe: <why>`, `none: <why>` (`suspect` in
+      the first draft, see the decision below).
+    - **In safe and none the guard provides the power itself**
+      (safe: safelut from the room temperature; none: the
       conservative manual %, adjustable with UP/DOWN), whatever the jobs
       do: the ladder works with every control job dead, and also when the
       sensor reads too high (a cap alone would let the baby get cold).
@@ -487,13 +488,31 @@ Order, one commit each, tested on the PC and then the board:
       reseeds the PID on recovery).
     - Test: bwsim kills the control jobs and takes the sensor off; the
       heater stays within the guard's limits.
-    **Still to discuss:** the plausibility checks and their numbers
-    (power plausibility: PID asking clearly more than safelut for
-    minutes outside boost; physiological range ~34-37.5 C after
-    warm-up; recovery after ~2 min plausible again; or wait for a
-    button?), what IEC 60601-2-21 (radiant warmers) requires (sensor
-    fault alarm, temperature deviation alarm, output limits in baby
-    control mode), and what a nurse should see and do.
+    **Decided 2026-11-24 (Leon): no "suspect" plausibility detection.**
+    Proposed were extra checks (heating effort much above safelut for
+    minutes, skin rising faster than a baby can, skin high on ~0 %
+    power, a 15 s TPO ripple test). Leon: too hard to detect reliably,
+    too many false alarms; e.g. a ceiling fan also makes the heater work
+    harder than normal. A warmer that alarms for nothing gets ignored.
+    So the guard keeps **only picoos's proven checks, for two
+    scenarios**:
+    - (1) the sensor falls out while warm: **fast drop** (> 0.08 C/s for
+      3 s, more than 2 C below setpoint) or **sustained low** (more than
+      3 C below setpoint for 20 s) -> safe;
+    - (2) the sensor is out during warm-up: **no rise** (< 0.3 C in 5 min
+      of boost) -> safe;
+    - plus the hardware cases (no skin reading -> safe; no sensors at all
+      -> none).
+    **Recovery: by itself** (Leon), when the skin is within 2 C of the
+    setpoint (picoos's rule) for 2 minutes, so it doesn't flip back and
+    forth.
+    **Known limit, accepted:** a sensor lying on the mattress under the
+    heater warms up, passes "no rise", and the PID then controls the
+    mattress spot (scenario 3, wrongly placed, isn't detected).
+    **Still to look at:** what IEC 60601-2-21 (radiant warmers) requires
+    (sensor fault alarm, temperature deviation alarm, output limits in
+    baby control mode), and what a nurse should see and do (TFT, LEDs,
+    messages) in safe and none.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
