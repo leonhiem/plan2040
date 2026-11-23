@@ -4,7 +4,9 @@
  * write /dev/heater 25   -> heater_set_power(25.0), clamped [0,100]
  * write /dev/heater on   -> heater_set_power(100)   (alias)
  * write /dev/heater off  -> heater_set_power(0)      (alias)
- * cat /dev/heater        -> the last commanded value, e.g. "25.0\n"
+ * cat /dev/heater        -> the power applied, e.g. "25.0\n" (since
+ *                           2026-11-24 within the guard's say, see
+ *                           /dev/heater/limit; before: the last write)
  *
  * on/off are just two more accepted spellings of the same 0-100 power
  * value (100 and 0), not a second mode -- still one write(), no side
@@ -72,6 +74,17 @@ static int ssr_read(char *buf, int len)
 }
 static const device_t dev_heater_ssr = { "/dev/heater/ssr", 0, 0, ssr_read, 0 };
 
+// /dev/heater/limit (plan2040, 2026-11-24): read-only, the guard's say
+// (dev/guard.cpp): "cap 100.0" (the jobs' power, at most that), or
+// "set 39.0" (the guard's own power, whatever the jobs ask).
+static int limit_read(char *buf, int len)
+{
+    float v;
+    bool set = heater_guard_get(&v);
+    return snprintf(buf, len, "%s %.1f\n", set ? "set" : "cap", v);
+}
+static const device_t dev_heater_limit = { "/dev/heater/limit", 0, 0, limit_read, 0 };
+
 static const device_t dev_heater = {
     "/dev/heater",
     0,
@@ -87,4 +100,5 @@ void dev_heater_register(void)
     task_register("tpo", tpo_apply, TPO_INTERVAL_TIME); // applies /dev/heater's value
     fs_register(&dev_heater);
     fs_register(&dev_heater_ssr);
+    fs_register(&dev_heater_limit);
 }

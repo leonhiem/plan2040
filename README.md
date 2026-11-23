@@ -292,14 +292,15 @@ The control, as devices that hold values and programs that run as jobs
 | `/dev/pid/kp`, `ti`, `td`, `dt`, `integral`, `prevmeas`; `/dev/pidout` | read/write | The PID's tuning, its state, and its output. |
 | `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `phase`). |
 | `/dev/autopower`, `/dev/safepower` | read/write | Auto mode's power; safe mode's power (from `safelut`). |
-| `/dev/alarm/heater`, `temphigh`, `templow` | read/write | The three alarm conditions (written by `alarmcheck`): `on`/`off`. `/dev/alarm/heater` gives its reason too: `on: no current while switched on (element, fuse or SSR?)`, or `on: current while switched off (SSR stuck on?), relay held off`. |
+| `/dev/alarm/heater`, `temphigh`, `templow`, `sensor` | read/write | The alarm conditions (written by the guard): `on`/`off`. `heater` and `sensor` give their reason too: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
+| `/dev/guard` | read | The guard's verdict on the skin reading, with the reason: `ok`, `safe: <why>`, `none: <why>` (see "The guard" below). |
+| `/dev/heater/limit` | read | The guard's say over the heater: `cap 100.0` (the jobs' power, at most that) or `set 39.0` (the guard's own power, whatever the jobs ask). |
 
 | Program | What it does |
 |---|---|
-| `phase` | once a second: idle (manual) → boost (80 %) → coast (0 %) → pid, with watchdogs into `safe` (no rise in boost, a fast or sustained drop in pid) and back |
+| `phase` | once a second: idle (manual) → boost (80 %) → coast (0 %) → pid; shows `safe` while the guard says so, and hands back to the PID bumpless (the PID starts from the power in use) |
 | `pid <gate> <state> <setpoint>` | the PID on the skin temperature, while `/dev/state` is `pid` |
 | `safelut` | room temperature → a fixed heater power, for safe mode |
-| `alarmcheck` | every 15 s: the safety relay (off on overtemp, on when heating) and the temperature alarms; **every second the heater current**, against the SSR's real state (`/dev/heater/ssr`): no current while it has been on for 0.5 s, or current while it has been off for 0.5 s (a stuck SSR: relay held off until `echo off > /dev/alarm/heater` or a reboot), each after 3 such seconds in a row |
 | `alarm <cond...>` | buzzer + alarm LED from the conditions; MUTE silences the buzzer for a minute |
 | `ledwire` | the front-panel LEDs from mode, phase and alarms |
 | `monitor` | one status line, for `watch` |
@@ -324,12 +325,39 @@ a baby face (ok, cold, hot), and the APGAR clock (START starts it), or a
 once, `loop tftmon` every second; `echo graphical > /dev/tft/mode` goes
 back. `scripts` lists both built-in scripts.
 
-**The boot script** (`apps/babywarmer/scripts/boot`) wires it all
-together, 15 lines: MANUAL toggles auto/manual, UP/DOWN adjust the
+**The guard** (`apps/babywarmer/dev/guard.cpp`, since 2026-11-24): all
+of the heater's safety in one kernel task, once a second. `kill` can't
+stop it and no boot script can leave it out: the control (phases, PID,
+which power goes to the heater) is jobs, the safety isn't. It trusts
+only hardware facts (skin, room, current, the SSR, the relay) and the
+user's intent (setpoint, auto/manual), never what a job computed.
+
+| `/dev/guard` | When (auto mode) | The heater |
+|---|---|---|
+| `ok` | the skin reading is used | the PID's power, as the jobs ask |
+| `safe: <why>` | the sensor fell off the baby (the skin fell > 0.08 °C/s for 3 s, or stays > 3 °C below the setpoint for 20 s); it was off from the start (< 0.3 °C rise in 5 min of warm-up); the skin reading fails; or the control jobs are gone (nothing wrote `/dev/heater` for 10 s) | **the guard's own power**: the room table (`safelut`) for the room temperature, whatever the jobs ask |
+| `none: <why>` | no temperature at all (skin and room unreadable) | the guard switches to **manual** at the room table's power for the last room temperature seen (else 10 %); UP/DOWN adjust it |
+
+Back to `ok` by itself: 2 minutes after the skin is within 2 °C of the
+setpoint again (sensor causes), 5 s after a reading or the control is
+back (hardware causes); from `none`, back to auto. Manual mode (the
+nurse's choice): hardware safety only. The guard also owns what
+`alarmcheck` did (that job is gone): the relay (off on overtemp, on when
+heating), the temperature alarms, the heater-current check, the stuck
+SSR; and it writes `/dev/alarm/sensor`. Each change is said once on the
+console: `guard: safe: skin 24.0 C, more than 3 C below the setpoint for
+20 s (sensor off the baby?), heating 39 % from the room (24.0 C)`.
+Deliberately no cleverer plausibility checks (Leon: too many false
+alarms, a ceiling fan already makes the heater work harder). Known
+limit: a sensor lying on the mattress under the heater warms up and
+isn't caught. The guard's decision acts in `tpo_apply()`, within 100 ms.
+
+**The boot script** (`apps/babywarmer/scripts/boot`) wires the control
+together, 14 lines: MANUAL toggles auto/manual, UP/DOWN adjust the
 setpoint or the manual percent, the displays follow, `phase`, `select`
-and `follow` choose the power for `/dev/heater`, `alarmcheck`, `alarm`
-and `ledwire` watch over it, and `tftwire` feeds the TFT. `jobs` lists
-the 14 jobs it starts. Like any boot script, `/fram/boot` replaces it.
+and `follow` choose the power for `/dev/heater`, `alarm` and `ledwire`
+show the alarms, and `tftwire` feeds the TFT. `jobs` lists the 13 jobs
+it starts. Like any boot script, `/fram/boot` replaces it.
 
 Both NTCs go through the table in `apps/babywarmer/ntc_lut.h` (the
 2026-08-30 recalibration for a substitute NTC). Two things to know
@@ -338,11 +366,13 @@ about it (both to be fixed by the EEPROM table, step 3g): nothing reads below 22
 the hottest entry, 91.8 °C (`ntctest` in `tests/host` shows the whole
 mapping).
 
-**Known open point** (TODO idea 3, step 3e): a dead or unplugged
-ADS1115 leaves the heater running at its last safe-mode power (with the
-low alarm sounding); the fallback ladder (step 4 there) is next. (Fixed
-2026-11-23: the heater-current check's false alarms, and a failing job's
-error every 150 ms.)
+**Open points** (TODO idea 3, step 4): the room table (`safelut`, 39 %
+at 24 °C) is a guess, to check on the bench; it conflicts with picoos's
+note that the PID integrator settled at ~6.6 %, and that decides the
+coast seed too. What the nurse sees in safe/none (CHK, blinking/blank
+displays) is the next step. (Fixed 2026-11-23/24: the heater-current
+check's false alarms, a failing job's error every 150 ms, and a dead
+ADS1115 leaving the heater at a stale power.)
 
 Size with everything (2026-11-23): ~200 KB flash (10 % of 2 MB, ~88 KB
 of it the TFT's bitmaps), ~33 KB RAM; 64 devices, 31 programs, 25 tasks.
@@ -1313,6 +1343,21 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-24, the guard** (`build-babywarmer_v1/plan2040.uf2`, after
+the hack): all heater safety in a kernel task, `/dev/guard`,
+`/dev/heater/limit`, `/dev/alarm/sensor`, the bumpless handover. On the
+PC (`bwsim`): the sensor out from the start → safe after 5 min; falls off
+while warm → safe in 21 s, ok 2 min after it's back, the PID continuing
+from 39 %; `kill` of the control job → safe in 11 s; the ADS1115 dead →
+none, manual at 39 %, UP adjusts, back to auto by itself.
+
+| Test | Result |
+|---|---|
+| `cat /dev/guard`, `cat /dev/heater/limit` in auto | pending: `ok`, `cap 100.0` |
+| Skin NTC off the baby (in the air), auto | pending: within ~20 s `guard: safe: ...` once on the console, buzzer; `cat /dev/heater/limit` = `set <room table %>`; back on: `ok` 2 min later |
+| `jobs`, then `kill` the `follow ... /dev/heater` job | pending: ~10 s later `guard: safe: control jobs not running ...`; start it again: `ok` |
+| Header SDA off (ADS1115 gone) | pending: `guard: none: ...`, MAN, the manual % on the small display; SDA back: auto again |
+
 **2026-11-23, the heater check against the SSR's real state**
 (`build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/heater/ssr`,
 a readable `/dev/relay`, `/dev/alarm/heater` with its reason,
@@ -1378,7 +1423,7 @@ and programs from picoos and the babywarmer boot script. On the PC:
 builds without warnings; `bwsim` runs the whole controller for 110
 simulated minutes (see the open points above). On the board, **the
 safety relay engages as soon as the heater power is above 0**
-(`alarmcheck`), and manual mode starts at 10 %: test with the heater
+(the guard, since 2026-11-24), and manual mode starts at 10 %: test with the heater
 element safe to run, or disconnected.
 
 | Test | Result |

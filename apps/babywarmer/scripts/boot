@@ -13,10 +13,13 @@
 #   phase decides idle/boost/coast/pid/safe once a second; select turns
 #   that state into a power (boost 80 %, coast 0, pid = the PID's output,
 #   safe = the table for the room temperature); follow sends the auto or
-#   manual power to the heater. alarmcheck owns the safety relay and the
-#   three alarm conditions, alarm drives the buzzer (MUTE silences it for
-#   a minute), ledwire the front-panel LEDs, tftwire the TFT (START
-#   starts its APGAR clock).
+#   manual power to the heater. alarm drives the buzzer from the alarm
+#   conditions (MUTE silences it for a minute), ledwire the front-panel
+#   LEDs, tftwire the TFT (START starts its APGAR clock).
+#   Not here on purpose: the safety. The guard (apps/babywarmer/dev/
+#   guard.cpp) is a kernel task: the safety relay, the alarm conditions,
+#   and the fallback power when the skin sensor can't be trusted, whether
+#   or not these jobs run (picoos's `alarmcheck &` was a job, 2026-11-24).
 date
 toggle /dev/buttons/lamp /dev/lamp &
 follow /dev/heaterauto /dev/setpoint /dev/percent /dev/seg7small &
@@ -28,7 +31,6 @@ cat /dev/skintemp | pid /dev/state pid /dev/setpoint > /dev/pidout &
 cat /dev/ambient | safelut > /dev/safepower &
 follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
 cat /dev/skintemp > /dev/seg7big &
-alarmcheck &
-alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow &
+alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow /dev/alarm/sensor &
 ledwire &
 tftwire &

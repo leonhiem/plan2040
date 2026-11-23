@@ -45,18 +45,52 @@ void heater_pwm_init(void)
     pwm_set_enabled(PWM_SLICE_NUM, true);
 }
 
-static float heaterpower = 0.0f; // 0-100; set via heater_set_power()
+static float heaterpower = 0.0f; // 0-100; set via heater_set_power(): what the jobs ask
+static absolute_time_t asked_at; // when it was last set
+
+// The guard's say (plan2040, 2026-11-24; dev/guard.cpp): a cap on what the
+// jobs ask, or a power of its own. Starts as "no cap".
+static int   guard_how   = HEATER_GUARD_CAP;
+static float guard_value = 100.0f;
 
 void heater_set_power(float pct)
 {
     if (pct < 0.0f)   pct = 0.0f;
     if (pct > 100.0f) pct = 100.0f;
     heaterpower = pct;
+    asked_at = get_absolute_time();
 }
 
-float heater_get_power(void)
+void heater_guard(int how, float value)
+{
+    if (value < 0.0f)   value = 0.0f;
+    if (value > 100.0f) value = 100.0f;
+    guard_how = how;
+    guard_value = value;
+}
+
+bool heater_guard_get(float *value)
+{
+    if (value) *value = guard_value;
+    return guard_how == HEATER_GUARD_SET;
+}
+
+float heater_asked(void)
 {
     return heaterpower;
+}
+
+uint32_t heater_ms_since_asked(void)
+{
+    return (uint32_t)(absolute_time_diff_us(asked_at, get_absolute_time()) / 1000);
+}
+
+// What reaches the SSR: the jobs' power within the guard's cap, or the
+// guard's own power.
+float heater_get_power(void)
+{
+    if (guard_how == HEATER_GUARD_SET) return guard_value;
+    return heaterpower < guard_value ? heaterpower : guard_value;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -69,13 +103,14 @@ void tpo_apply(void)
 {
     static int tick = 0;
 
-    int on_ticks = (int)((heaterpower / 100.0f) * TPO_TICKS + 0.5f);
+    float power = heater_get_power();     // plan2040: the guard's decision applied
+    int on_ticks = (int)((power / 100.0f) * TPO_TICKS + 0.5f);
     bool on = tick < on_ticks;
     if (on != ssr_on) { ssr_on = on; ssr_since = get_absolute_time(); }  // plan2040 (2026-11-23)
     gpio_put(PIN_SSR, on ? 1 : 0);
     if (++tick >= TPO_TICKS) tick = 0;
 
     // update PWM bargraph display
-    float hp = heaterpower * (float)PWM_WRAP_VAL / 100.0;
+    float hp = power * (float)PWM_WRAP_VAL / 100.0;
     pwm_set_chan_level(PWM_SLICE_NUM, PWM_CHAN_A, (uint16_t)(hp));
 }

@@ -20,8 +20,17 @@
 
 void  heater_pwm_init(void);     // GPIO16 to PWM, level 0 (picoos: in setup_gpios())
 void  tpo_apply(void);
-void  heater_set_power(float pct); // clamped to [0,100]
-float heater_get_power(void);      // last commanded value
+void  heater_set_power(float pct); // what the jobs ask (/dev/heater), clamped to [0,100]
+float heater_get_power(void);      // what's applied: within the guard's cap, or the guard's own
+
+// The guard's say over the heater (dev/guard.cpp, 2026-11-24), applied by
+// tpo_apply() at its next 100 ms tick, whatever any job writes:
+#define HEATER_GUARD_CAP 0         // apply min(asked, value)
+#define HEATER_GUARD_SET 1         // apply value itself (safe and none)
+void  heater_guard(int how, float value);
+bool  heater_guard_get(float *value);    // true = SET, false = CAP
+float heater_asked(void);                // what the jobs last asked
+uint32_t heater_ms_since_asked(void);    // ... how long ago (dead control: nobody asks)
 // The SSR right now (on/off) and how long it has been so, in ms: the
 // heater-current check judges only a settled state (prog/alarmcheck).
 bool  heater_ssr(uint32_t *ms_in_state);

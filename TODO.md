@@ -526,6 +526,29 @@ Order, one commit each, tested on the PC and then the board:
     **Still to look at:** what IEC 60601-2-21 (radiant warmers) requires
     (sensor fault alarm, temperature deviation alarm, output limits in
     baby control mode).
+  - **4a built 2026-11-24** (the safety core), board test pending:
+    `apps/babywarmer/dev/guard.cpp` (the task, `/dev/guard`), the
+    guard's say in `heater.cpp` (`heater_guard()`: cap, or its own
+    power; applied in `tpo_apply()`; `/dev/heater/limit`), the room
+    table shared (`safelut.cpp`), `/dev/alarm/sensor`, `prog/alarmcheck`
+    gone (into the guard), `phase` slimmed to the warm-up sequence.
+    **Bumpless handover (Leon, 2026-11-24):** back from safe, `phase`
+    seeds the PID integral so its first output is the power in use
+    (picoos seeded 0.0: bwsim showed the power dropping from 39 % to
+    ~3 %, the baby cooling, and a false "sensor off the baby" every ~10
+    minutes). bwsim covers every case (see its story).
+    **Open, the 39 % bench check (Leon):** the room table is a guess
+    ("helps the baby a bit better than nothing"). It conflicts with
+    picoos's note that the real PID integrator settled at ~6.6 %. Which
+    is right decides two things: (a) if ~7-10 % is the real steady
+    power, safe mode's 39 % is 3-4x too much, and safe mode is open
+    loop (with the sensor off the baby nothing sees the baby getting
+    too warm): **too low is safer than too high there**; (b) if ~39 % is
+    right, picoos's coast seed (3 %) is far too low (bwsim: after `none`
+    the fresh start-up coasts, the PID starts from 3 %, the baby cools,
+    a false "safe" at 108:58).
+  - **4b next:** what the nurse sees (CHK LED, blinking/blank big
+    display, the power on the small display) from `/dev/guard`.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

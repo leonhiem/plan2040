@@ -1,71 +1,28 @@
 /**
- * apps/babywarmer/prog/phase.cpp — phase: the temperature-phase transition engine
+ * apps/babywarmer/prog/phase.cpp — phase: the warm-up sequence
  *
- * Recovered from babywarmer's task_pidctrl() (the ControlState switch
- * statement), adapted onto /dev/state instead of a C enum global.
- * States: idle -> boost -> coast -> pid, with "pid" able to drop into
- * "safe" on a watchdog trip and recover back to "pid". Owns /dev/state
- * as its only writer, plus the tick-counting bookkeeping the original
- * kept in wsafecheck_t (no_rise_ticks, coast_ticks, below_sp_ticks,
- * drop_ticks, skin_at_window_start) -- private C statics here, same as
- * prog/pid.cpp's own timer state: not meaningful to a user the way
- * /dev/pid/integral is, just internal watchdog bookkeeping.
+ * Recovered in picoos from babywarmer's task_pidctrl() (the ControlState
+ * switch statement), onto /dev/state instead of a C enum global. Once a
+ * second (self-paced, like prog/pid.cpp):
  *
- * Self-paced ~1Hz, same resumable-timer idea as prog/pid.cpp -- the
- * thresholds below (NO_RISE_TIMEOUT_TICKS et al) all assume roughly
- * one call per second, matching babywarmer's own PID_CTRL_INTERVAL_TIME,
- * not this job's JOB_POLL_MS (150ms) poll cadence.
+ *   idle   manual mode (/dev/heaterauto off); the moment auto is on: boost
+ *   boost  80 % (the number lives in the boot script's `select`), until the
+ *          skin reaches setpoint - BOOST_EXIT_MARGIN
+ *   coast  0 % for COAST_TICKS seconds (lets the current settle after the
+ *          big power step), then pid, seeding /dev/pid/integral at
+ *          COAST_INTEGRAL_SEED (babywarmer's documented head-start)
+ *   pid    prog/pid.cpp controls the skin temperature
+ *   safe   shown while the guard (dev/guard.cpp) says the skin reading
+ *          can't be trusted (safe or none); the guard heats by itself then.
+ *          When it says ok again: pid, bumpless (the integral seeded so the
+ *          PID starts from the power in use; 2026-11-24, see below).
  *
- * idle: forced whenever /dev/heaterauto isn't "on" (manual mode, or
- * auto just switched off) -- the moment it reads "on" again, idle's
- * own tick moves straight to boost.
- *
- * boost: 80% power -- babywarmer's own STATE_PHASE1A code, despite its
- * enum comment claiming "100%"; the actual clamped value it always
- * used was 80, so that's what this recovers. The 80% literal itself
- * lives in the `select` invocation (see the recipe below), not here --
- * phase.cpp only decides *which* state is active, prog/select.cpp
- * decides what number a state means. No-rise watchdog: if skin hasn't
- * risen NO_RISE_MIN_DELTA within NO_RISE_TIMEOUT_TICKS, -> safe (NTC
- * likely not on the baby). Exits to coast once skin reaches
- * setpoint - BOOST_EXIT_MARGIN.
- *
- * coast: 0% power for COAST_TICKS seconds (lets the current-sense
- * average settle after the big power step), then -> pid, seeding
- * /dev/pid/integral at COAST_INTEGRAL_SEED -- babywarmer's own
- * documented head-start (logged steady-state integrator was landing
- * around +6.6%; seeding +3 closes most of that gap immediately without
- * overdoing initial injection, since skin is still rising at coast
- * exit and the P-term already contributes heat).
- *
- * pid: prog/pid.cpp is doing the actual control math (gated on
- * `/dev/state pid`, see the recipe). This state's own job is just the
- * two watchdogs babywarmer ran alongside it: a fast sustained drop
- * (SENSOR_DROP_RATE for SENSOR_DROP_TICKS straight, well below
- * setpoint) or a slow sustained low reading (SENSOR_SUSTAIN_TICKS) --
- * either one means the sensor probably isn't on the baby anymore, so
- * -> safe. Reads /dev/pid/prevmeas for the drop-rate comparison, the
- * same cross-reference the original made into tempctl.pid.prev_meas.
- *
- * safe: prog/safelut.cpp is producing /dev/safepower from ambient temp
- * (again, via `select`, not read here). Recovers to pid once skin
- * reaches setpoint - SAFE_RECOVER_MARGIN (a full °C looser than boost's
- * own exit margin, on purpose -- babywarmer's own hysteresis against
- * oscillating right at the watchdog trip point), seeding a plain 0.0
- * integral (not the +3 coast seed -- this is a recovery, not a cold
- * start with a known-cold thermal mass).
- *
- * Deliberately not brought back (flagged, not silently dropped):
- * babywarmer's skin_ok/amb_ok were hardcoded true unconditionally in
- * its own sensors.cpp -- vestigial, not real fault detection -- so
- * there's nothing meaningful to port. Also not here: the setpoint-jump
- * reboost path (a debounced "big setpoint step forces back to boost"),
- * and heater_check_task's current-sense/SSR-stuck-on safety relay --
- * both real, both separate concerns from this temperature-phase
- * machine, left for their own later pass.
- *
- * From picoos @ 89c16e5 (prog/phase.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * Changed 2026-11-24 (plan2040, TODO.md idea 3 step 4): the watchdogs that
+ * decided "safe" (no rise in boost, a fast or sustained drop in pid, the
+ * recovery margin) moved into the guard, a kernel task that can't be
+ * killed; picoos had them here, in a job. This program now only sequences
+ * the warm-up. From picoos @ 89c16e5 (prog/phase.cpp); the includes and
+ * the register function's name changed 2026-11-22.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
@@ -74,26 +31,14 @@
 #include <cstdlib>
 #include <cstring>
 
-#define NO_RISE_TIMEOUT_TICKS 300   // 5 min at ~1Hz, matches babywarmer's NO_RISE_TIMEOUT_MS
-#define NO_RISE_MIN_DELTA     0.3f
 #define BOOST_EXIT_MARGIN     3.0f  // skin >= setpoint - this -> coast
 #define COAST_TICKS           45
 #define COAST_INTEGRAL_SEED   3.0f
-#define SENSOR_DROP_RATE      0.08f
-#define SENSOR_DROP_DELTA     2.0f
-#define SENSOR_DROP_TICKS     3
-#define SENSOR_SUSTAIN_MARGIN 3.0f
-#define SENSOR_SUSTAIN_TICKS  20
-#define SAFE_RECOVER_MARGIN   2.0f
 
 static bool have_next_step = false;
 static absolute_time_t next_step;
 
-static int   no_rise_ticks = 0;
-static float skin_at_window_start = 0.0f;
 static int   coast_ticks = 0;
-static int   below_sp_ticks = 0;
-static int   drop_ticks = 0;
 
 static float read_dev(const char *path, float fallback)
 {
@@ -115,6 +60,16 @@ static bool gate_on(const char *path)
     int n = fs_read(fd, buf, sizeof(buf) - 1);
     fs_close(fd);
     return n >= 2 && strncmp(buf, "on", 2) == 0;
+}
+
+static bool guard_ok(void)
+{
+    int fd = fs_open("/dev/guard");
+    if (fd < 0) return true;           // no guard in this firmware
+    char buf[4];
+    int n = fs_read(fd, buf, sizeof(buf) - 1);
+    fs_close(fd);
+    return n >= 2 && strncmp(buf, "ok", 2) == 0;
 }
 
 static bool state_is(const char *want)
@@ -162,28 +117,24 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
 
     if (!auto_mode) {
         set_state("idle");
-        no_rise_ticks = 0; coast_ticks = 0; below_sp_ticks = 0; drop_ticks = 0;
+        coast_ticks = 0;
         return snprintf(out, outlen, "idle\n");
     }
 
+    // The guard (dev/guard.cpp) decides whether the skin reading can be
+    // trusted; while it says safe or none, /dev/state shows "safe" (the
+    // guard heats by itself meanwhile, whatever select/follow send).
+    if (!guard_ok()) {
+        set_state("safe");
+        return snprintf(out, outlen, "safe (guard)\n");
+    }
+
     if (state_is("idle")) {
-        no_rise_ticks = 0;
-        skin_at_window_start = skin;
         set_state("boost");
         return snprintf(out, outlen, "-> boost\n");
     }
 
     if (state_is("boost")) {
-        no_rise_ticks++;
-        if (no_rise_ticks >= NO_RISE_TIMEOUT_TICKS) {
-            float rise = skin - skin_at_window_start;
-            if (rise < NO_RISE_MIN_DELTA) {
-                set_state("safe");
-                return snprintf(out, outlen, "-> safe (no rise)\n");
-            }
-            skin_at_window_start = skin;
-            no_rise_ticks = 0;
-        }
         if (skin >= (setpoint - BOOST_EXIT_MARGIN)) {
             coast_ticks = 0;
             set_state("coast");
@@ -196,49 +147,32 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
         coast_ticks++;
         if (coast_ticks >= COAST_TICKS) {
             seed_pid(COAST_INTEGRAL_SEED, skin);
-            below_sp_ticks = 0; drop_ticks = 0;
             set_state("pid");
             return snprintf(out, outlen, "-> pid\n");
         }
         return snprintf(out, outlen, "coast\n");
     }
 
-    if (state_is("pid")) {
-        float prev_meas = read_dev("/dev/pid/prevmeas", skin);
-        float drop_rate = prev_meas - skin; // positive = falling
-        bool dropping_fast = drop_rate > SENSOR_DROP_RATE;
-        bool far_below_sp  = skin < (setpoint - SENSOR_DROP_DELTA);
-
-        if (dropping_fast && far_below_sp) {
-            if (++drop_ticks >= SENSOR_DROP_TICKS) {
-                drop_ticks = 0;
-                set_state("safe");
-                return snprintf(out, outlen, "-> safe (drop)\n");
-            }
-        } else {
-            drop_ticks = 0;
-        }
-
-        if (skin < (setpoint - SENSOR_SUSTAIN_MARGIN)) {
-            if (++below_sp_ticks >= SENSOR_SUSTAIN_TICKS) {
-                below_sp_ticks = 0;
-                set_state("safe");
-                return snprintf(out, outlen, "-> safe (sustained low)\n");
-            }
-        } else {
-            below_sp_ticks = 0;
-        }
-
-        return snprintf(out, outlen, "pid\n");
-    }
+    if (state_is("pid")) return snprintf(out, outlen, "pid\n");
 
     if (state_is("safe")) {
-        if (skin >= (setpoint - SAFE_RECOVER_MARGIN)) {
-            seed_pid(0.0f, skin);
-            set_state("pid");
-            return snprintf(out, outlen, "-> pid (recovered)\n");
-        }
-        return snprintf(out, outlen, "safe\n");
+        // The guard said ok again (checked above): back to the PID,
+        // bumpless (Leon, 2026-11-24): the integral is seeded so the PID's
+        // first output is the power heating the baby right now (the room
+        // table's, in safe), not 0. picoos seeded 0.0 ("a recovery, not a
+        // cold start"); bwsim showed the cost: the power dropped from 39 %
+        // to ~3 %, the baby cooled, and after a few minutes the guard
+        // called it "sensor off the baby" again, every ~10 minutes.
+        // output = Kp * (setpoint - skin) + integral (+ D, 0 with
+        // prevmeas = skin), so integral = power - Kp * (setpoint - skin).
+        float power = read_dev("/dev/heater", 0.0f);
+        float kp    = read_dev("/dev/pid/kp", 3.0f);
+        float integral = power - kp * (setpoint - skin);
+        if (integral < 0.0f)   integral = 0.0f;
+        if (integral > 100.0f) integral = 100.0f;
+        seed_pid(integral, skin);
+        set_state("pid");
+        return snprintf(out, outlen, "-> pid (recovered, from %.0f %%)\n", power);
     }
 
     // Unrecognized /dev/state content -- shouldn't happen (its own
