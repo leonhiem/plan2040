@@ -45,7 +45,7 @@ because one part fails, no cryptic errors.
 | `ads1115` | TI ADS1115 ADC | yes | yes | yes | yes (`convert()` for bringup/boot) | written 2026-11-23 from the datasheet, replacing pico-ads1115 |
 | `fm24cl64` | FM24CL64B 8 KB FRAM | yes | yes | not yet | yes (no write delay) | |
 | `pcf8563` | PCF8563T RTC | yes | yes | not yet | yes | |
-| `at24c` | 24C256/24C512 EEPROM | yes | yes | not yet | **no**: waits ~5 ms per page | split into steps when the EEPROM table (3g) is built |
+| `at24c` | 24C256/24C512 EEPROM | yes | yes | yes | yes: `eeprom_page_start()` + `eeprom_ready()` (2026-11-24); `eeprom_write()` waits, for bringup and boot | the NTC table writes page by page in the background |
 | `buttons` | GPIO push buttons | yes (pins) | - | - | yes (timer) | |
 
 "Not yet" gets done as each driver is touched next.

@@ -177,6 +177,7 @@ One tree for every board and every firmware (TODO.md idea 3, restructured
 | `configs/<name>.cmake` | one firmware: board, devices, programs, sizes: `cpu_rp2040`, `babywarmer_v1` | one per firmware |
 | `apps/<app>/` | an application's own `dev/`, `prog/`, `scripts/` and other sources: babywarmer (step 3), gateway (later) | per application |
 | `tests/host/` | PC tests | |
+| `tools/` | programs for the PC: `ntclut` (check an NTC calibration text before it goes to the board) | |
 
 A config is a short list, Plan 9 kernel-config style. From
 [`configs/cpu_rp2040.cmake`](configs/cpu_rp2040.cmake):
@@ -377,12 +378,78 @@ and `follow` choose the power for `/dev/heater`, `alarm` and `ledwire`
 show the alarms, and `tftwire` feeds the TFT. `jobs` lists the 13 jobs
 it starts. Like any boot script, `/fram/boot` replaces it.
 
-Both NTCs go through the table in `apps/babywarmer/ntc_lut.h` (the
-2026-08-30 recalibration for a substitute NTC). Two things to know
-about it (both to be fixed by the EEPROM table, step 3g): nothing reads below 22.9 °C
-(the table's coldest entry), and ADC codes above 21742 wrap around to
-the hottest entry, 91.8 °C (`ntctest` in `tests/host` shows the whole
-mapping).
+**The NTC table** (step 3g, 2026-11-24; `apps/babywarmer/ntclut.cpp`,
+`dev/ntc.cpp`). Both NTCs (MF58 10k B3950, each in a Wheatstone bridge on
+its own 3V3 LDO, see TODO "The NTC circuit") go through one table from
+ADC code to temperature: one entry per 32 codes over the whole 16-bit
+range (2048 entries, 0.01 °C, ~0.07 °C per step, linear in between), 4 KB
+in RAM, so a reading never touches the bus. It's agnostic to circuit and
+sensor (Leon's reason for a table): it's made from a **calibration
+text**, and outside what's calibrated a reading fails with a reason
+(`/dev/skintemp: code 31000 is outside the calibrated range (open or
+shorted?)`), so the guard goes to safe instead of using a wrong number.
+
+| File | |
+|---|---|
+| `/dev/ntc/lut` | write a calibration text: the table is made at once (or the write is refused with the reason), then written to the EEPROM and verified in the background (~1.6 s, page by page, the warmer running on), and put in use. Read: the text of the table in use, with what the generator did (`#=` lines). |
+| `/dev/ntc/status` | which table is in use (`the EEPROM table`, `the built-in table (the EEPROM is empty)`), or how far a write is |
+| `/dev/ntc/skin`, `/dev/ntc/room` | the raw ADC codes: what a calibration point needs |
+
+Where the table comes from: the EEPROM (24C512, loaded at boot, with
+checksums), or else the **built-in** one, made at boot from the bridge
+and the MF58 datasheet curve (`ntc 10000 25 3950`): Leon's flash
+fallback, accurate to ±0.005 °C against the physics, said once on the
+console (`ntc: using the built-in table (the EEPROM is empty)`). A write
+cut off by a power cut leaves "no valid table" (→ the built-in one), never
+half a table.
+
+A calibration text, one statement per line (`ntclut.h`):
+
+```
+# skin + room NTC, measured 2026-12-01 in water baths
+bridge 3.3 47000 47000 10000   # supply V, R above the NTC, R above / below the reference
+25118 0.0                      # ADC code (cat /dev/ntc/skin), reference thermometer C
+0 25.0
+-5625 35.0
+-6521 37.0
+-9497 45.0
+```
+
+With a `bridge` line and 3 or more points: a Steinhart-Hart fit through
+the bridge (the PC test: 5 points with the reference thermometer off by
+up to ±0.1 °C still give ±0.06 °C), valid 2 °C beyond the points. A
+`bridge` and an `ntc <R25> <T25> <B>` line: the datasheet curve (`range`
+says where). Points only (2 or more): a smooth, monotonic interpolation,
+fully agnostic, but it needs more points (7 points left ±0.24 °C in a
+10 °C gap). The calibration, step by step:
+
+```
+cat /dev/ntc/skin                      # the code, NTC in the bath next to the thermometer
+cat > /fram/ntc.pts                    # the bridge line and the points
+cp /fram/ntc.pts /dev/ntc/lut          # make, write, verify (or the reason it's refused)
+cat /dev/ntc/status                    # writing ... / in use: the EEPROM table
+cat /dev/ntc/lut                       # the text with the fit's results (#= lines)
+cp /dev/ntc/lut /fram/ntc.pts          # back out, to add a point and write again
+```
+
+Check a calibration text on the PC first: `tools/ntclut` runs the same
+generator as the board, so what it prints is what the board will make.
+
+```
+make -C tools/ntclut
+tools/ntclut/ntclut ntc.pts              # the #= lines (error at each point, valid range),
+                                         # then the ADC code at each whole degree
+tools/ntclut/ntclut -c -6521 0 ntc.pts   # the temperature for these codes
+```
+
+A text it refuses, it says why (`ntclut: ntc.pts: line 1: bridge <supply
+V> ...`), exit status 1. Send the board your own text (`ntc.pts`), not
+what `ntclut` printed: the per-degree table is comments, but it would use
+up the 1 KB a `/fram` file has. `tools/ntclut/example.pts` is an example.
+
+(Until 2026-11-24: picoos's `ntc_lut.h`, recalibrated 2026-08-30 for a
+substitute NTC that wasn't an MF58, with a floor at 22.9 °C and a
+wrap-around above code 21742.)
 
 **Open points** (TODO idea 3, step 4): the room table (`safelut`, 39 %
 at 24 °C) is a guess, to check on the bench; it conflicts with picoos's
@@ -1360,6 +1427,20 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-24, the NTC table** (step 3g, `build-babywarmer_v1/plan2040.uf2`,
+after the hack): the table format and generator, `/dev/ntc/*`, the
+built-in MF58 table, writing to the EEPROM in the background. On the PC:
+`luttest` (the generator against the physics), `eetest` (writing,
+verifying, booting, power cut, damaged EEPROM, against a fake 24C512).
+
+| Test | Result |
+|---|---|
+| Boot, EEPROM empty | pending: `ntc: using the built-in table (the EEPROM is empty)`; `cat /dev/skintemp` a plausible temperature (now with the MF58 curve, no longer the substitute's) |
+| NTC in iced water (0 °C), 25 °C, 37 °C | pending: within a few tenths of the thermometer on the built-in table |
+| `cat /dev/ntc/skin` | pending: the code (~ -6600 at 37 °C, 0 at 25 °C) |
+| A calibration: points in `/fram/ntc.pts`, `cp /fram/ntc.pts /dev/ntc/lut`, `cat /dev/ntc/status` | pending: writing ..., then `in use: the EEPROM table`; after a reboot still the EEPROM table |
+| NTC unplugged | pending: `/dev/skintemp: code ... is outside the calibrated range (open or shorted?)`, the guard: safe |
+
 **2026-11-24, what the nurse sees** (`build-babywarmer_v1/plan2040.uf2`,
 after the hack): CHK and the TFT's SENSOR icon from `/dev/guard`, the big
 display blinking (safe) or blank (none), the small display showing the
@@ -1485,7 +1566,7 @@ and the bargraph can be watched without heating:
 **2026-11-21, babywarmer sensors** (step 3c,
 `build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/skintemp`,
 `/dev/ambient`, `/dev/current` from picoos, on the ADS1115 driver with
-timeouts. On the PC: builds without warnings; `ntctest` records the NTC
+timeouts. On the PC: builds without warnings; `ntctest` (since replaced by `luttest`) recorded the NTC
 mapping.
 
 | Test | Result |

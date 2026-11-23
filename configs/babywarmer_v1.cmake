@@ -29,6 +29,7 @@ set(PLAN2040_DEVS
     cron         # runs /fram/crontab lines, on the RTC's minutes
     cons         # /dev/cons: write to the terminal
     # babywarmer (apps/babywarmer/dev/)
+    ntc          # /dev/ntc/{lut,status,skin,room}: the NTC table (EEPROM, or built-in)
     skintemp     # /dev/skintemp: skin NTC, ADS1115 channels 0-1 (the "adc" task samples)
     ambient      # /dev/ambient: room NTC, ADS1115 channels 2-3
     current      # /dev/current: heater current sense, ADC0 (raw counts)
@@ -59,7 +60,7 @@ set(PLAN2040_SCRIPTS boot tftmon)
 
 set(PLAN2040_FS      framfs hours)
 set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons at24c ads1115)
-set(PLAN2040_APP_SRC ntc.cpp ntcadc.cpp heater.cpp seg7.cpp safelut.cpp  # apps/babywarmer/: NTC table + sampling,
+set(PLAN2040_APP_SRC ntclut.cpp ntcadc.cpp heater.cpp seg7.cpp safelut.cpp  # apps/babywarmer/: NTC table + sampling,
     # TPO, 74HC595, the room table,
     tft/st7735.c tft/gfx.c tft/icons.c tft/baby.c    # and the TFT (a blackbox copy of the
     tft/heat_indicator.c tft/apgar_timer.c          # st7735 repo, see tft/README.md)
@@ -71,5 +72,5 @@ set(PLAN2040_SIZES
     STAGE_BUF=4096
     PROG_MAX=48
     FS_MAX_DEVICES=96    # 64 used with the TFT
-    TASK_MAX=32          # MAX_JOBS + shell, hours, cron, tpo, tftflush, adc, guard, seg7 = 28
+    TASK_MAX=32          # MAX_JOBS + shell, hours, cron, tpo, tftflush, adc, guard, seg7, ntcw = 29
 )

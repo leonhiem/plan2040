@@ -1,0 +1,96 @@
+--- the built-in table
+# built-in: the babywarmer bridge (3V3, 47k / 47k + 10k) and the
+# MF58 10k B3950 datasheet curve, until the EEPROM has a calibration
+bridge 3.3 47000 47000 10000
+ntc 10000 25 3950
+range -5 60
+#= Beta curve through the bridge: R25 10000, T25 25.0 C, B 3950
+#= valid -5.0 .. 60.0 C (codes -13216 .. 32544)
+  1431 of 2048 entries calibrated
+   -5.0 C = code  32549 -> code 32549 is outside the calibrated range (open or shorted?)
+    0.0 C = code  25511 ->   0.00 C (+0.003)
+   10.0 C = code  13189 ->  10.00 C (-0.005)
+   25.0 C = code      0 ->  25.00 C (+0.000)
+   30.0 C = code  -3105 ->  30.00 C (+0.002)
+   35.0 C = code  -5687 ->  35.00 C (+0.000)
+   36.5 C = code  -6371 ->  36.50 C (-0.002)
+   37.0 C = code  -6590 ->  37.00 C (-0.004)
+   40.0 C = code  -7822 ->  40.00 C (-0.001)
+   50.0 C = code -11036 ->  49.99 C (-0.005)
+   59.0 C = code -13038 ->  59.00 C (-0.001)
+   62.0 C = code -13566 -> code -13566 is outside the calibrated range (open or shorted?)
+  code 32767 (open NTC): code 32767 is outside the calibrated range (open or shorted?)
+  code -32768 (shorted): code -32768 is outside the calibrated range (open or shorted?)
+--- calibration, Steinhart-Hart through the bridge (a sensor with B 3900)
+# 5 points, exact, real Beta 3900
+bridge 3.3 47000 47000 10000
+25118 0.0
+0 25.0
+-5625 35.0
+-6521 37.0
+-9497 45.0
+#= Steinhart-Hart through the bridge, 5 points: A=9.917395e-04 B=2.565108e-04 C=-3.529992e-10
+#= point 25118 0.00: the curve says -0.00 (-0.00)
+#= point 0 25.00: the curve says 25.00 (+0.00)
+#= point -5625 35.00: the curve says 35.00 (+0.00)
+#= point -6521 37.00: the curve says 37.00 (-0.00)
+#= point -9497 45.00: the curve says 45.00 (+0.00)
+#= valid -2.0 .. 47.0 C (codes -10080 .. 27808)
+   -3.0 C = code  29226 -> code 29226 is outside the calibrated range (open or shorted?)
+   10.0 C = code  12992 ->  10.00 C (+0.000)
+   30.0 C = code  -3069 ->  30.00 C (+0.004)
+   36.0 C = code  -6082 ->  36.00 C (+0.004)
+   37.0 C = code  -6521 ->  37.00 C (+0.002)
+   38.5 C = code  -7151 ->  38.50 C (+0.003)
+   47.0 C = code -10110 -> code -10110 is outside the calibrated range (open or shorted?)
+   48.0 C = code -10399 -> code -10399 is outside the calibrated range (open or shorted?)
+--- the same, reference readings off by up to 0.1 C
+bridge 3.3 47000 47000 10000
+25118 0.10
+0 24.92
+-5625 35.05
+-6521 36.90
+-9497 45.07
+#= Steinhart-Hart through the bridge, 5 points: A=8.928897e-04 B=2.725640e-04 C=-6.205722e-08
+#= point 25118 0.10: the curve says 0.10 (-0.00)
+#= point 0 24.92: the curve says 24.93 (+0.01)
+#= point -5625 35.05: the curve says 34.97 (-0.08)
+#= point -6521 36.90: the curve says 36.98 (+0.08)
+#= point -9497 45.07: the curve says 45.06 (-0.01)
+#= valid -1.9 .. 47.1 C (codes -10080 .. 27872)
+   10.0 C = code  12992 ->   9.98 C (-0.020)
+   30.0 C = code  -3069 ->  29.94 C (-0.056)
+   36.0 C = code  -6082 ->  35.97 C (-0.026)
+   37.0 C = code  -6521 ->  36.98 C (-0.018)
+   38.5 C = code  -7151 ->  38.50 C (-0.002)
+--- agnostic, 7 points, no bridge
+# no bridge: interpolation only
+3658 20.0
+-3069 30.0
+-5151 34.0
+-6082 36.0
+-6945 38.0
+-8486 42.0
+-10945 50.0
+#= monotonic interpolation through 7 points (no bridge given)
+#= valid codes -10945 .. 3658 (50.00 .. 20.00 C)
+   19.0 C = code   4466 -> code 4466 is outside the calibrated range (open or shorted?)
+   25.0 C = code      0 ->  25.24 C (+0.240)
+   32.0 C = code  -4149 ->  31.99 C (-0.011)
+   35.0 C = code  -5625 ->  34.99 C (-0.005)
+   37.0 C = code  -6521 ->  36.99 C (-0.005)
+   40.0 C = code  -7745 ->  39.98 C (-0.018)
+   46.0 C = code  -9810 ->  46.21 C (+0.212)
+   51.0 C = code -11203 -> code -11203 is outside the calibrated range (open or shorted?)
+--- round trip (the stored text written again): same table, same text
+--- error: a bridge with too few points
+  refused: a curve through the bridge needs at least 3 points (2 given)
+--- error: a typo
+  refused: line 3: expected '<ADC code> <temperature C>', or bridge/adc/ntc/range
+--- error: not monotonic
+  refused: points not monotonic at code 200: the temperature must keep falling (or rising)
+--- error: a code outside the ADC
+  refused: line 2: ADC code -66000 outside -32768..32767
+--- error: empty
+  refused: nothing to make a table from: points (at least 2), or a bridge with points or an ntc line
+exit 0

@@ -1,0 +1,8 @@
+# an example calibration: the skin NTC in water baths, next to a
+# reference thermometer (these points are made up: the MF58 curve)
+bridge 3.3 47000 47000 10000   # supply V, R above the NTC, R above / below the reference
+25118 0.0                      # ADC code (cat /dev/ntc/skin), reference C
+0 25.0
+-5625 35.0
+-6521 37.0
+-9497 45.0

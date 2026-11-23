@@ -3,7 +3,7 @@
  * NTC via the same ADS1115 (channels 2-3, differential)
  *
  * From picoos @ 89c16e5 (dev/ambient.cpp): the same as /dev/skintemp,
- * the other channel, the same NTC table (ntc.cpp); both come from the
+ * the other channel, the same NTC table (dev/ntc.cpp); both come from the
  * one "adc" task (ntcadc.cpp). prog/safelut (safe mode) is what reads
  * it: the heater power for a given room temperature.
  *
@@ -21,7 +21,8 @@ static int ambient_read(char *buf, int len)
 {
     int16_t code;
     if (!ntcadc_get(NTC_ROOM, &code)) return -1;     // errstr says why
-    float t_ambient = ntc_convert((uint16_t)code);
+    float t_ambient;
+    if (!ntc_temp(code, &t_ambient)) return -1;     // outside the calibrated range: errstr says so
     return snprintf(buf, len, "%.1f\n", t_ambient);
 }
 

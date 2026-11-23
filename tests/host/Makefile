@@ -19,11 +19,11 @@ SIM = fakefram.cpp $(K) $(P)/dev/fram.cpp $(FS)
 pr  = $(foreach n,$(1),$(P)/prog/$(n).cpp)
 
 # filesystem and hour-counter tests (warnings on: these are clean)
-UNIT = fstest hourstest fscktest mvcut ntctest
+UNIT = fstest hourstest fscktest mvcut luttest
 # whole-shell simulations (-w: the fakes are quick and dirty)
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
 # babywarmer app tests (the real babywarmer_v1 pin map, fake GPIO/PWM)
-APP  = outtest bwsim adctest
+APP  = outtest bwsim adctest eetest
 ALL  = $(UNIT) $(SIMS) $(APP)
 
 all: $(ALL)
@@ -32,14 +32,17 @@ fstest:    fstest.cpp    $(FS) fakefram.cpp
 hourstest: hourstest.cpp $(P)/fs/hours.cpp $(FS) fakefram2.cpp
 fscktest:  fscktest.cpp  $(FS) fakefram2.cpp
 mvcut:     mvcut.cpp     $(FS) fakefram.cpp
-ntctest:   ntctest.cpp   $(P)/apps/babywarmer/ntc.cpp
+luttest:   luttest.cpp   $(P)/apps/babywarmer/ntclut.cpp $(P)/kernel/errstr.cpp
 $(UNIT):
 	$(CXX) -Wall -I fake -I $(P) -I $(P)/apps/babywarmer -o $@ $^
 
 BW  = $(P)/apps/babywarmer
 outtest:  outtest.cpp  $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp $(BW)/heater.cpp $(BW)/seg7.cpp $(BW)/dev/heater.cpp $(BW)/dev/relay.cpp $(BW)/dev/alarm.cpp $(BW)/dev/seg7.cpp
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
-adctest:  adctest.cpp $(P)/drivers/ads1115.cpp $(BW)/ntcadc.cpp $(BW)/ntc.cpp $(BW)/dev/skintemp.cpp $(BW)/dev/ambient.cpp \
+eetest:   eetest.cpp $(BW)/dev/ntc.cpp $(BW)/ntclut.cpp $(P)/drivers/at24c.cpp $(P)/drivers/pcf8563.cpp \
+          $(P)/kernel/task.cpp $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp
+	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
+adctest:  adctest.cpp $(P)/drivers/ads1115.cpp $(BW)/ntcadc.cpp ntcstub.cpp $(BW)/ntclut.cpp $(BW)/dev/skintemp.cpp $(BW)/dev/ambient.cpp \
           $(P)/kernel/task.cpp $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 BWSRC = $(P)/kernel/task.cpp $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp $(P)/kernel/errstr.cpp conf_scripts_bw.cpp \

@@ -23,7 +23,8 @@ static int skintemp_read(char *buf, int len)
 {
     int16_t code;
     if (!ntcadc_get(NTC_SKIN, &code)) return -1;     // errstr says why
-    float t_skin = ntc_convert((uint16_t)code);
+    float t_skin;
+    if (!ntc_temp(code, &t_skin)) return -1;     // outside the calibrated range: errstr says so
     return snprintf(buf, len, "%.1f\n", t_skin);
 }
 

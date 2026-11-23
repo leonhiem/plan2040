@@ -1,24 +1,16 @@
 /**
- * apps/babywarmer/ntc.h — ADS1115 code to degrees Celsius, for the NTC
- * channels (skin, ambient)
+ * apps/babywarmer/ntc.h — ADS1115 code to degrees C, from the NTC table in
+ * use (dev/ntc.cpp: the EEPROM's calibration, or the built-in MF58 table)
  *
- * From picoos @ 89c16e5 (ntc.h/ntc.cpp), unchanged. The table in
- * ntc_lut.h is a plain array (no static/extern), so it's included from
- * ntc.cpp only: including it twice was a "multiple definition" link
- * error in picoos once dev/ambient.cpp needed it too.
- *
- * The table: 650 entries, one per 32 ADC codes, covering codes -11025
- * .. 9743 (+-1.024 V range): the 2026-08-30 recalibration for a
- * substitute NTC, see the comment at the top of ntc_lut.h.
- *
- * NOTE (2026-11-21, TODO idea 3): codes above 21742 wrap around in the
- * (short) arithmetic and land on entry 0, the hottest value (91.8 C),
- * while codes 9744..21742 clamp to the coldest, entry 649 (22.9 C). And
- * nothing reads below 22.9 C: a colder room reads 22.9 (which is why
- * alarmcheck's TEMPLOW_C is 23 C, just above that floor). Kept as in picoos; Leon: the table is experimental, the
- * full EEPROM lookup table (step 3g) replaces it and fixes both.
+ * Since 2026-11-24 (step 3g). picoos's ntc_convert() and ntc_lut.h (a
+ * fixed table, recalibrated 2026-08-30 for a substitute NTC that wasn't
+ * an MF58, with a wrap-around above code 21742) are gone; outside the
+ * calibrated range a reading now fails with a reason instead.
  */
 #pragma once
 #include <stdint.h>
+#include <stdbool.h>
 
-float ntc_convert(uint16_t adc_value);
+// The temperature for an ADC code, or false (errstr: "code ... is outside
+// the calibrated range (open or shorted?)").
+bool ntc_temp(int16_t code, float *t);

@@ -723,6 +723,19 @@ comment "0V -> 50degC" is wrong: 0 V is 25 C; its table starts at code
   (Leon): use the flash fallback, and build the EEPROM side fully now**:
   the driver and the writing tools (`/dev/ntc/lut`, the points file, the
   generator), ready for the calibration later.
+- **Built 2026-11-24**, board test pending: `tools/ntclut` (the PC checker) and `apps/babywarmer/ntclut.{h,cpp}`
+  (the format, the parser, the generator: Steinhart-Hart through the
+  bridge, the Beta curve, or Fritsch-Carlson interpolation; the lookup),
+  `dev/ntc.cpp` (`/dev/ntc/lut`, `status`, `skin`, `room`; the table in
+  RAM, from the EEPROM or built-in at boot; writing and verifying in the
+  background, header invalid first and valid last), `drivers/at24c`
+  non-blocking (`eeprom_page_start()`, `eeprom_ready()`). picoos's
+  `ntc.cpp`/`ntc_lut.h` are gone (the built-in table replaces them, made
+  from the bridge and the MF58 curve: +-0.005 C against the physics).
+  RAM +13 KB (the table in use, a pending one, their texts). PC tests:
+  `luttest`, `eetest` (and `adctest` now reads correct temperatures:
+  code 0 = 25.0 C). Still open: calculate-or-lookup (the format keeps
+  both; the coefficients are in the stored text).
 - The generator: with a `bridge ...` line in the points file, code ->
   resistance and a Steinhart-Hart fit through the points (3-5 points
   enough); without it, a smooth monotonic interpolation through the

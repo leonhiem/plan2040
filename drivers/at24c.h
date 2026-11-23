@@ -12,7 +12,8 @@
  * - it wears out (~1M writes per cell): for a table written once and
  *   read often, not for a counter or a log (that's the FRAM's job).
  *
- * Reads can start anywhere and be any length. Bus, address, size and
+ * Reads can start anywhere and be any length; a 1 KB read is ~50 ms at
+ * 200 kHz, so periodic work reads in small pieces. Bus, address, size and
  * page size come from board.h (EEPROM_I2C, EEPROM_I2C_ADDR, EEPROM_SIZE,
  * EEPROM_PAGE). Blocking.
  */
@@ -21,4 +22,16 @@
 #include <stdint.h>
 
 bool eeprom_read(uint32_t addr, uint8_t *buf, int len);
+
+// Writes any length, splitting at pages and waiting out each page's ~5 ms
+// programming time. Blocks: for bringup and boot only (drivers/README.md).
 bool eeprom_write(uint32_t addr, const uint8_t *buf, int len);
+
+// The same without waiting (2026-11-24), for writing while the system runs:
+// eeprom_page_start() sends up to the end of addr's page and returns at
+// once; the chip then programs it (~5 ms) and doesn't answer meanwhile;
+// eeprom_ready() says whether it's done (true) or still busy (false). The
+// caller gives up after a while (a chip that never answers again is gone).
+// Failures say why in errstr().
+bool eeprom_page_start(uint32_t addr, const uint8_t *buf, int len);
+bool eeprom_ready(void);

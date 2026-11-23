@@ -1,0 +1,66 @@
+--- boot: a new, empty EEPROM
+ntc: using the built-in table (the EEPROM is empty)
+  in use: the built-in table (the EEPROM is empty)
+  code  -6590 -> 37.00 C
+  code      0 -> 25.00 C
+  code   3658 -> 20.06 C
+  code -13566 -> code -13566 is outside the calibrated range (open or shorted?)
+  cat /dev/ntc/skin: -6590
+--- write a calibration (5 points, B 3900): cp /fram/ntc.pts /dev/ntc/lut
+ntc: using the built-in table (the EEPROM is empty)
+  after 0.1 s: writing to the EEPROM: 512 of 6208 bytes; in use: the built-in table (the EEPROM is empty)
+  a second write meanwhile:
+  write refused: /dev/ntc/lut: still writing the last table (cat /dev/ntc/status)
+ntc: the new table is written, verified and in use
+  done after 1.59 s, 50 page writes: in use: the EEPROM table (the new table is written, verified and in use)
+  code  -6590 -> 37.16 C
+  code      0 -> 25.00 C
+  code   3658 -> 20.00 C
+  code -13566 -> code -13566 is outside the calibrated range (open or shorted?)
+  cat /dev/ntc/lut:
+# skin + room NTC, measured 2026-11-24 in water baths
+bridge 3.3 47000 47000 10000
+25118 0.0
+0 25.0
+-5625 35.0
+-6521 37.0
+-9497 45.0
+#= Steinhart-Hart through the bridge, 5 points: A=9.917395e-04 B=2.565108e-04 C=-3.529992e-10
+#= point 25118 0.00: the curve says -0.00 (-0.00)
+#= point 0 25.00: the curve says 25.00 (+0.00)
+#= point -5625 35.00: the curve says 35.00 (+0.00)
+#= point -6521 37.00: the curve says 37.00 (-0.00)
+#= point -9497 45.00: the curve says 45.00 (+0.00)
+#= valid -2.0 .. 47.0 C (codes -10080 .. 27808)
+--- boot: with the calibration
+ntc: using the EEPROM table
+  in use: the EEPROM table
+  code  -6590 -> 37.16 C
+  code      0 -> 25.00 C
+  code   3658 -> 20.00 C
+  code -13566 -> code -13566 is outside the calibrated range (open or shorted?)
+  cat /dev/ntc/skin: -6590
+--- a power cut halfway through writing a new calibration
+ntc: write failed: verify: byte 0x0000 reads back wrong; still using the EEPROM table
+--- boot: after the power cut
+ntc: using the built-in table (no valid table in the EEPROM)
+  in use: the built-in table (no valid table in the EEPROM)
+  code  -6590 -> 37.00 C
+  code      0 -> 25.00 C
+  code   3658 -> 20.06 C
+  code -13566 -> code -13566 is outside the calibrated range (open or shorted?)
+  cat /dev/ntc/skin: -6590
+--- one damaged byte in the table
+--- boot: a damaged EEPROM
+ntc: using the built-in table (the EEPROM's table is damaged: checksum)
+  in use: the built-in table (the EEPROM's table is damaged: checksum)
+  code  -6590 -> 37.00 C
+  code      0 -> 25.00 C
+  code   3658 -> 20.06 C
+  code -13566 -> code -13566 is outside the calibrated range (open or shorted?)
+  cat /dev/ntc/skin: -6590
+--- texts that are refused
+  write refused: /dev/ntc/lut: a curve through the bridge needs at least 3 points (1 given)
+  write refused: /dev/ntc/lut: line 1: expected '<ADC code> <temperature C>', or bridge/adc/ntc/range
+  still: in use: the EEPROM table (write failed: verify: byte 0x0000 reads back wrong; still using the EEPROM table)
+exit 0

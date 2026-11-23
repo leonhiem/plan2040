@@ -89,8 +89,8 @@ static void load(const char *what, int seconds)
 int main()
 {
     char a[120], b[120];
-    input[0] = 0;       // diff 0-1, the skin NTC: code 0 (45.2 C in the table)
-    input[3] = 5000;    // diff 2-3, the room NTC (32.9 C)
+    input[0] = 0;       // diff 0-1, the skin NTC: code 0 (25.0 C, the bridge in balance)
+    input[3] = 5000;    // diff 2-3, the room NTC (18.4 C with the MF58 table)
     dev_skintemp_register(); dev_ambient_register();
     printf("boot: first readings took %.1f ms (blocking, at boot only)\n", t_s() * 1000);
     rd("/dev/skintemp", a, sizeof a); rd("/dev/ambient", b, sizeof b);
@@ -99,9 +99,15 @@ int main()
     printf("normal running:\n");
     load("2 channels, each every ~100 ms:", 5);
 
-    printf("a change on the skin NTC (code 0 -> 5000):\n");
+    printf("a change on the skin NTC (code 0 -> 5000, the same as the room channel):\n");
     input[0] = 5000; uint64_t t0 = fake_now;
-    for (;;) { rd("/dev/skintemp", a, sizeof a); if (!strcmp(a, "32.9")) break; run_ms(1); }
+    char want[16]; rd("/dev/ambient", want, sizeof want);       // the room channel reads code 5000 already
+    for (;;) {
+        rd("/dev/skintemp", a, sizeof a);
+        if (!strcmp(a, want)) break;
+        if (fake_now - t0 > 5000000) { printf("  NEVER (after 5 s: %s, want %s)\n", a, want); return 1; }
+        run_ms(1);
+    }
     printf("  /dev/skintemp shows it after %llu ms\n", (unsigned long long)((fake_now - t0) / 1000));
 
     printf("one glitch (a single NACK):\n");

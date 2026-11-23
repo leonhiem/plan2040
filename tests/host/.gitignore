@@ -17,9 +17,10 @@ fscksim
 helpsim
 progtest
 conf_scripts.cpp
-ntctest
 outtest
 bwsim
 conf_scripts_bw.cpp
 *.o
 adctest
+luttest
+eetest
