@@ -509,10 +509,23 @@ Order, one commit each, tested on the PC and then the board:
     **Known limit, accepted:** a sensor lying on the mattress under the
     heater warms up, passes "no rise", and the PID then controls the
     mattress spot (scenario 3, wrongly placed, isn't detected).
+    **Decided 2026-11-24, what the nurse sees:**
+    | | ok | safe (sensor off the baby, no rise, skin unreadable) | none (no sensors) |
+    |---|---|---|---|
+    | the warmer does | PID | heats from the room temperature (safelut) | manual at a conservative %, UP/DOWN adjust it |
+    | CHK LED | off | on | on |
+    | TFT | normal | SENSOR icon + yellow triangle blink | same, MODE icon shows manual |
+    | big display | skin temperature | **the reading, blinking** (shown, not trusted: it may be the room) | blank (no reading) |
+    | small display | setpoint | the power it heats with now (e.g. `39`) | the manual % |
+    | buzzer | - | **sounds; MUTE silences it for 1 min**, then again until fixed | the same |
+    | the nurse | - | puts the sensor back: skin control again by itself after 2 min plausible; or takes over with MANUAL | fixes the sensor/cable; meanwhile UP/DOWN |
+    | console | - | once: `guard: safe: <why>, heating N % from room T`; later `guard: ok again` | once, with the reason |
+    A text line on the TFT's warmer screen ("SENSOR OFF BABY? heating
+    39 %"): **later**, designed in the st7735 repo (display.h) and
+    re-synced; for now icons, LEDs, displays, buzzer.
     **Still to look at:** what IEC 60601-2-21 (radiant warmers) requires
     (sensor fault alarm, temperature deviation alarm, output limits in
-    baby control mode), and what a nurse should see and do (TFT, LEDs,
-    messages) in safe and none.
+    baby control mode).
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
