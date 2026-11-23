@@ -681,6 +681,76 @@ temperatures in between interpolated. Notes for when it's built:
   range, method, step, so `hexdump /dev/eeprom` (or a small `lutinfo`)
   shows what a module carries.
 
+**The NTC circuit as it is (Leon, 2026-11-24)**, on the babywarmer PCB:
+a Wheatstone bridge per sensor, both on a separate AMS1117-3V3 LDO that
+powers only the bridges and the ADS1115. Skin: reference leg 3V3 - 47k -
+**AIN1** - 10k - GND; NTC leg 3V3 - 47k - **AIN0** - NTC - GND; each centre
+through 4k7 to the ADS1115. Room: the same on AIN3 (reference) / AIN2
+(NTC). Filtering: 2.2 uF across the NTC, 100 nF AIN0-AIN1, 100 nF
+AIN0-3V3, 100 nF AIN1-GND. Both NTCs MF58 10k@25 C, B = 3950 (the
+substitute of 2026-08 that messed up `ntc_lut.h` was not an MF58).
+What it gives (AIN0 - AIN1, the ADS1115 at +-1.024 V, 31.25 uV a code):
+| T | R_NTC | AIN0-AIN1 | code |
+|---|---|---|---|
+| 0 C | 33.6 k | +0.797 V | +25 500 |
+| 10 C | 19.9 k | +0.403 V | +12 900 |
+| 25 C | 10.0 k | 0 | 0 |
+| 37 C | 6.0 k | -0.206 V | -6 600 |
+| 50 C | 3.6 k | -0.345 V | -11 025 |
+About 14 mV/K near 37 C: **1 code = ~0.002 C**. (picoos's `ntc.cpp`
+comment "0V -> 50degC" is wrong: 0 V is 25 C; its table starts at code
+-11025 = 50 C, which matches this circuit.)
+
+**3g, decided 2026-11-24 (Leon):**
+- **Still open: calculate or look up.** The LUT's strength (Leon): simple,
+  and agnostic to circuit and sensor type. So the format keeps both open:
+- **The table: the full 16-bit range, one entry per 32 codes**: 2048
+  entries x 2 bytes = **4 KB** (~0.07 C per step here, linear in between;
+  as `ntc_lut.h`'s step). Entries in 0.01 C; a marker for "not calibrated
+  here", so a reading outside the calibrated range fails with a reason
+  (`outside the calibrated range (open or shorted?)`) and the guard goes
+  to safe. Plus a header: magic, version, step, date, the measured
+  points, an optional bridge description, fitted coefficients, a
+  checksum: whatever "calculate" would need later is already on the
+  module.
+- **One table for both NTCs** (same sensor, same bridge): **`/dev/ntc/lut`**
+  (write the points: it builds and writes the table; read: the
+  calibration as text). `/dev/skintemp`, `/dev/ambient` stay.
+- **The EEPROM is the table's home.** A built-in table in flash,
+  generated from this circuit and the MF58 datasheet (bridge formula +
+  B = 3950), replaces the messed-up `ntc_lut.h` as the fallback while the
+  EEPROM has no valid table (said once on the console). **Decided
+  (Leon): use the flash fallback, and build the EEPROM side fully now**:
+  the driver and the writing tools (`/dev/ntc/lut`, the points file, the
+  generator), ready for the calibration later.
+- The generator: with a `bridge ...` line in the points file, code ->
+  resistance and a Steinhart-Hart fit through the points (3-5 points
+  enough); without it, a smooth monotonic interpolation through the
+  points (agnostic, needs more points).
+
+**The ADC module, next revision: ratiometric (Leon, 2026-11-24: later).**
+Today's bridge isn't ratiometric: it runs on the AMS1117 (initial
+accuracy ~+-1-2 %, plus drift with temperature and load), but the ADS1115
+measures against its own internal reference, so every change of the 3V3
+shows in the reading: **~0.14 C per 1 %** near 37 C. Options, to check
+against datasheets before buying:
+- **Ratiometric (recommended):** use the bridge supply as the ADC's
+  reference, so supply changes affect bridge and reference alike and
+  cancel; even the AMS1117 is good enough then. The ADS1115 has no
+  reference input; TI's **ADS1219** (24-bit, I2C, 4 inputs = 2
+  differential pairs, external REFP/REFN) does, as far as known: same
+  header bus, a similar driver (start / ready / result).
+- A precision reference (REF30xx, MCP1501 class) for the bridge: a stable
+  excitation, but the ADC's own internal reference still drifts on its
+  own: two errors that add. Second choice.
+- Either way: **0.1 %, 25 ppm/C resistors** for the 47k/10k (the reference
+  leg sets the zero point); the NTC's self-heating is no issue (~60 uA,
+  ~20 uW). The 4k7 series resistors plus the ADC's finite input
+  impedance give a small fixed error (~1 %): a calibration on the real
+  circuit absorbs it (another reason for measured points over a formula).
+- On the module: the 24C512 with the table (0x52), so the calibration
+  travels with the bridge and its supply.
+
 **Name: decided 2026-11-21: plan2040.** The repo is
 github.com/leonhiem/plan2040; development continues there.
 
