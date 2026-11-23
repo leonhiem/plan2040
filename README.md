@@ -274,7 +274,8 @@ with the boot script's readers.
 | `/dev/heater/ssr` | read | The SSR right now and how long it has been so, in ms: `on 1300`, `off 200`. What the heater-current check judges. |
 | `/dev/relay` | read/write | The mechanical safety relay (GPIO17): `on` = energized, the heater may run; `off` = released. |
 | `/dev/alarm` | write | Buzzer (GPIO0) + alarm LED (GPIO1): `on` both, `muted` LED only, `off` neither. |
-| `/dev/seg7big`, `/dev/seg7small` | write | The two 3-digit displays: a number, up to 3 digits right-aligned, `.` lights the dot after the middle digit (`36.5`). More digits: the first three show. |
+| `/dev/seg7big`, `/dev/seg7small` | write | The two 3-digit displays: a number, up to 3 digits right-aligned, `.` lights the dot after the middle digit (`36.5`). More digits: the first three show. No digits (e.g. `echo off`): blank. |
+| `/dev/seg7big/blink` | read/write | `on`: the big display blinks its value (0.5 s on, 0.5 s off; the "seg7" task); `off`: steady. |
 | `/dev/leds`, `/dev/leds/<name>` | write; read/write | The 7 front-panel LEDs (`aut warm low high fail chk man`): `echo "man on" > /dev/leds`, or `echo on > /dev/leds/man`. |
 
 Every output is off at power-up (`board_pins_init()`: SSR off, relay
@@ -352,6 +353,23 @@ alarms, a ceiling fan already makes the heater work harder). Known
 limit: a sensor lying on the mattress under the heater warms up and
 isn't caught. The guard's decision acts in `tpo_apply()`, within 100 ms.
 
+**What the nurse sees** (decided with Leon 2026-11-24; `ledwire` and
+`tftwire` show it from `/dev/guard`, the boot script's `select` picks the
+small display's value from `/dev/state`):
+
+| | ok | safe | none |
+|---|---|---|---|
+| CHK LED, TFT SENSOR icon + triangle | off | on / blinking | on / blinking |
+| big display | the skin temperature | **the reading, blinking**: shown, not trusted (it may be the room) | **blank**: no reading |
+| small display | the setpoint (auto) or the manual % | **the power it heats with** | the manual %, UP/DOWN adjust it |
+| MODE (LEDs, TFT) | auto/manual | auto | **manual** (the guard switched) |
+| buzzer | - | sounds, MUTE silences it for 1 min | the same |
+| console | - | `guard: safe: <why>, heating N % from the room (T C)` once | `guard: none: <why>, manual at N %` once |
+
+Putting the sensor back is all a nurse has to do: 2 minutes later the
+warmer is back on skin control by itself (or MANUAL, to take over). A
+text line on the TFT's warmer screen comes later, in the st7735 repo.
+
 **The boot script** (`apps/babywarmer/scripts/boot`) wires the control
 together, 14 lines: MANUAL toggles auto/manual, UP/DOWN adjust the
 setpoint or the manual percent, the displays follow, `phase`, `select`
@@ -369,8 +387,7 @@ mapping).
 **Open points** (TODO idea 3, step 4): the room table (`safelut`, 39 %
 at 24 °C) is a guess, to check on the bench; it conflicts with picoos's
 note that the PID integrator settled at ~6.6 %, and that decides the
-coast seed too. What the nurse sees in safe/none (CHK, blinking/blank
-displays) is the next step. (Fixed 2026-11-23/24: the heater-current
+coast seed too. (Fixed 2026-11-23/24: the heater-current
 check's false alarms, a failing job's error every 150 ms, and a dead
 ADS1115 leaving the heater at a stale power.)
 
@@ -1342,6 +1359,18 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | New: `#` comments (`date # hi` runs `date`) | ok: typed and inside `/fram/boot` |
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
+
+**2026-11-24, what the nurse sees** (`build-babywarmer_v1/plan2040.uf2`,
+after the hack): CHK and the TFT's SENSOR icon from `/dev/guard`, the big
+display blinking (safe) or blank (none), the small display showing the
+power in safe. On the PC: `bwsim` decodes both displays from the
+74HC595 bits, every state as in the table above.
+
+| Test | Result |
+|---|---|
+| Skin NTC off the baby, auto | pending: CHK on, SENSOR icon blinks, big display blinks the reading, small display shows the power (e.g. `39.0`), buzzer; MUTE: quiet for a minute |
+| NTC back on | pending: 2 min later all back: steady skin temperature, setpoint on the small display, CHK off |
+| Header SDA off | pending: big display blank, small display the manual %, MAN, CHK on |
 
 **2026-11-24, the guard** (`build-babywarmer_v1/plan2040.uf2`, after
 the hack): all heater safety in a kernel task, `/dev/guard`,

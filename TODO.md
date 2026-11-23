@@ -547,8 +547,13 @@ Order, one commit each, tested on the PC and then the board:
     right, picoos's coast seed (3 %) is far too low (bwsim: after `none`
     the fresh start-up coasts, the PID starts from 3 %, the baby cools,
     a false "safe" at 108:58).
-  - **4b next:** what the nurse sees (CHK LED, blinking/blank big
-    display, the power on the small display) from `/dev/guard`.
+  - **4b built 2026-11-24**, board test pending: `ledwire` (CHK; the
+    big display blinks in safe, blank in none) and `tftwire` (SENSOR
+    icon) from `/dev/guard`; `/dev/seg7big/blink` with a "seg7" task;
+    the boot script's small display line is a `select` on `/dev/state`
+    (manual %, setpoint, or the power in safe). bwsim decodes both
+    displays: every state as decided. Left for later: the TFT text line
+    (st7735 repo).
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

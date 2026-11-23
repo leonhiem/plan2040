@@ -33,6 +33,9 @@
  *
  * From picoos @ 89c16e5 (prog/ledwire.cpp), unchanged apart from the includes
  * and the register function's name (2026-11-22).
+ *
+ * Changed 2026-11-24 (plan2040): CHK, the big display's blink and blank
+ * follow the guard (/dev/guard) instead of /dev/state, see ledwire_run().
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
@@ -72,7 +75,15 @@ static int ledwire_run(const char *in, int inlen, int argc, char **argv, char *o
     set_led("/dev/leds/man", !auto_mode);
 
     set_led("/dev/leds/warm", dev_is("/dev/state", "boost"));
-    set_led("/dev/leds/chk",  dev_is("/dev/state", "safe"));
+    // From the guard (2026-11-24): CHK whenever it doesn't trust the skin
+    // reading (safe or none), in auto and manual; the big display blinks
+    // the reading in safe (shown, not trusted: it may be the room) and is
+    // blank in none (there's no reading). Leon's decision, TODO step 4.
+    bool guard_ok   = dev_is("/dev/guard", "ok");
+    bool guard_none = dev_is("/dev/guard", "none");
+    set_led("/dev/leds/chk", !guard_ok);
+    set_led("/dev/seg7big/blink", !guard_ok && !guard_none);
+    if (guard_none) set_led("/dev/seg7big", false);      // "off": no digits = blank
 
     set_led("/dev/leds/low",  dev_is("/dev/alarm/templow",  "on"));
     set_led("/dev/leds/high", dev_is("/dev/alarm/temphigh", "on"));

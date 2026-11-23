@@ -9,7 +9,9 @@
 #
 # Read it as a block diagram:
 #   MANUAL toggles auto/manual; UP/DOWN adjust the setpoint (auto) or the
-#   manual percent (manual); the small display follows the same choice.
+#   manual percent (manual); the small display shows the manual percent
+#   (manual), the setpoint (auto), or the power the guard heats with
+#   (safe, 2026-11-24; picoos: `follow` between setpoint and percent).
 #   phase decides idle/boost/coast/pid/safe once a second; select turns
 #   that state into a power (boost 80 %, coast 0, pid = the PID's output,
 #   safe = the table for the room temperature); follow sends the auto or
@@ -22,7 +24,7 @@
 #   or not these jobs run (picoos's `alarmcheck &` was a job, 2026-11-24).
 date
 toggle /dev/buttons/lamp /dev/lamp &
-follow /dev/heaterauto /dev/setpoint /dev/percent /dev/seg7small &
+select /dev/state idle=/dev/percent boost=/dev/setpoint coast=/dev/setpoint pid=/dev/setpoint safe=/dev/heater > /dev/seg7small &
 toggle /dev/buttons/manual /dev/heaterauto &
 adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 &
 phase &

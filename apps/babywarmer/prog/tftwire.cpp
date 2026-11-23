@@ -13,7 +13,8 @@
  * Mapping:
  *   aut  -- /dev/heaterauto reads "on"
  *   man  -- /dev/heaterauto reads "off"
- *   chk  -- /dev/state reads "safe"
+ *   chk  -- /dev/guard isn't "ok" (safe or none; until 2026-11-24:
+ *           /dev/state reads "safe")
  *   low  -- /dev/alarm/templow reads "on"
  *   high -- /dev/alarm/temphigh reads "on"
  *   fail -- /dev/alarm/heater reads "on"
@@ -77,7 +78,7 @@ static int tftwire_run(const char *in, int inlen, int argc, char **argv, char *o
     set_tft("/dev/tft/aut", auto_mode);
     set_tft("/dev/tft/man", !auto_mode);
 
-    set_tft("/dev/tft/chk", dev_is("/dev/state", "safe"));
+    set_tft("/dev/tft/chk", !dev_is("/dev/guard", "ok"));   // the guard (2026-11-24): safe or none
 
     set_tft("/dev/tft/low",  dev_is("/dev/alarm/templow",  "on"));
     set_tft("/dev/tft/high", dev_is("/dev/alarm/temphigh", "on"));

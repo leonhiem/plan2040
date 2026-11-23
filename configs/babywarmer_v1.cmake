@@ -71,5 +71,5 @@ set(PLAN2040_SIZES
     STAGE_BUF=4096
     PROG_MAX=48
     FS_MAX_DEVICES=96    # 64 used with the TFT
-    TASK_MAX=32          # MAX_JOBS + shell, hours, cron, tpo, tftflush, adc, guard = 27
+    TASK_MAX=32          # MAX_JOBS + shell, hours, cron, tpo, tftflush, adc, guard, seg7 = 28
 )

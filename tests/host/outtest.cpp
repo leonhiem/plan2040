@@ -19,7 +19,7 @@ uint16_t fake_pwm_level[8][2];
 i2c_inst_t *fake_i2c0, *fake_i2c1;
 int getchar_timeout_us(uint32_t) { return -1; }
 static task_fn_t tpo; static const char *tpo_name; static uint32_t tpo_ms;
-void task_register(const char *name, task_fn_t f, uint32_t ms) { tpo_name = name; tpo = f; tpo_ms = ms; }
+void task_register(const char *name, task_fn_t f, uint32_t ms) { if (strcmp(name, "tpo")) return; tpo_name = name; tpo = f; tpo_ms = ms; }
 
 void dev_heater_register(void); void dev_relay_register(void);
 void dev_alarm_register(void);  void dev_seg7_register(void);

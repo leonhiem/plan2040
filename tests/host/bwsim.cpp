@@ -111,10 +111,32 @@ static void rd(const char *path, char *b, int len)
     int fd = fs_open(path); int n = fd < 0 ? -1 : fs_read(fd, b, len - 1); if (fd >= 0) fs_close(fd);
     if (n < 0) strcpy(b, "?"); else { b[n] = 0; char *nl = strchr(b, '\n'); if (nl) *nl = 0; }
 }
-static unsigned seg_big; // last 3 digit bytes latched for the big display
-static uint64_t sh; static void hook(uint pin, int v)
+// The 74HC595 chain: what the displays show, decoded back from the bits.
+static unsigned seg_big;                 // last 3 digit bytes latched for the big display
+static uint64_t seg_all;                 // all 56 bits of the last latch
+static char big_lit[8] = "";             // the big display's last non-blank text (it may blink)
+static uint64_t sh;
+static void decode(uint64_t r, char *big, char *small)
+{   // seg7.cpp's tables; bit 0 is the dot after the middle digit
+    static const uint8_t L[10] = {0xFC,0x60,0xDA,0xF2,0x66,0xB6,0xBE,0xE4,0xFE,0xF6};
+    static const uint8_t S[10] = {0xBE,0x18,0x76,0x7C,0xD8,0xEC,0xEE,0xB8,0xFE,0xFC};
+    auto dig = [](uint8_t b, const uint8_t *t, bool *dot) -> char {
+        for (int d = 0; d < 10; d++) if (t[d] == b) { *dot = false; return '0' + d; }
+        for (int d = 0; d < 10; d++) if ((t[d] | 1) == b) { *dot = true; return '0' + d; }
+        *dot = b & 1; return b > 1 ? '?' : ' ';
+    };
+    uint8_t by[7]; for (int i = 0; i < 7; i++) by[i] = (r >> (8 * (6 - i))) & 0xff; // l3 l2 l1 leds s3 s2 s1
+    for (int k = 0; k < 2; k++) {
+        const uint8_t *t = k ? S : L; int o = k ? 4 : 0; char *out = k ? small : big; bool d1, d2, d3;
+        char c1 = dig(by[o + 2], t, &d1), c2 = dig(by[o + 1], t, &d2), c3 = dig(by[o], t, &d3);
+        int n = 0; out[n++] = c1; out[n++] = c2; if (d2) out[n++] = '.'; out[n++] = c3; out[n] = 0;
+        char *a = out; while (*a == ' ') a++; memmove(out, a, strlen(a) + 1);   // trim the left
+    }
+}
+static void hook(uint pin, int v)
 { static int sck, lat; if (pin == PIN_SEG_SCK) { if (v && !sck) sh = (sh << 1) | fake_gpio[PIN_SEG_SER]; sck = v; }
-  if (pin == PIN_SEG_LATCH) { if (v && !lat) seg_big = (unsigned)(sh >> 32) & 0xffffff; lat = v; } }
+  if (pin == PIN_SEG_LATCH) { if (v && !lat) { seg_big = (unsigned)(sh >> 32) & 0xffffff; seg_all = sh;
+        char b[8], sm[8]; decode(sh, b, sm); if (b[0]) strcpy(big_lit, b); } lat = v; } }
 
 static void status(int sec)
 {
@@ -125,9 +147,15 @@ static void status(int sec)
     rd("/dev/alarm/heater", ah, sizeof ah); rd("/dev/alarm/temphigh", th, sizeof th); rd("/dev/alarm/templow", tl, sizeof tl);
     char *al[] = { ah, th, tl };
     for (char *a : al) if (!strncmp(a, "on", 2)) a[2] = 0;   // the reason is logged separately
-    SAY("%3d:%02d  auto %-3s %-5s guard %-4s set %-4s skin %5.2f%s heater %5.1f pidout %-6s relay %d buzzer %d  alarms heater %-3s high %-3s low %-3s\n",
+    char big[8], small[8], blink[8], chk[8];
+    decode(seg_all, big, small);
+    rd("/dev/seg7big/blink", blink, sizeof blink); rd("/dev/leds/chk", chk, sizeof chk);
+    char bigs[16];
+    if (!strcmp(blink, "on")) snprintf(bigs, sizeof bigs, "%s~", big_lit);   // ~ = blinking
+    else snprintf(bigs, sizeof bigs, "%s", big[0] ? big : "-");               // - = blank
+    SAY("%3d:%02d  auto %-3s %-5s guard %-4s set %-4s skin %5.2f%s heater %5.1f pidout %-6s relay %d buzzer %d  big %-5s small %-4s chk %-3s alarms heater %-3s high %-3s low %-3s\n",
            sec / 60, sec % 60, ha, st, gd, sp, skin, sensor_on_baby ? " " : "*", heater_now(), po,
-           fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], ah, th, tl);
+           fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], bigs, small[0] ? small : "-", chk, ah, th, tl);
 }
 
 // End of the quiet window: stdout back, and what the jobs printed meanwhile.

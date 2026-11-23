@@ -31,11 +31,13 @@
  * From picoos @ 89c16e5 (dev/seg7.cpp). plan2040 (2026-11-21): one
  * register function for all ten devices, in picoos's order, and it does
  * the boot lamp test (init_seg7(): everything lit for 1 s, then blank),
- * which picoos's main() did. The rest unchanged.
+ * which picoos's main() did; and /dev/seg7big/blink (2026-11-24, with
+ * the "seg7" task that blinks it). The rest unchanged.
  */
 #include "board.h"
 #include "seg7.h"
 #include "kernel/fs.h"
+#include "kernel/task.h"
 #include <cstdio>
 #include <cstring>
 
@@ -45,8 +47,21 @@ static uint8_t small_d[3] = {SEG_BLANK, SEG_BLANK, SEG_BLANK};
 static uint8_t small_dot  = 0;
 static led_t   leds       = {0,0,0,0,0,0,0};
 
+// /dev/seg7big/blink (plan2040, 2026-11-24): the big display blinks its
+// value, 0.5 s on / 0.5 s off, e.g. while the guard doesn't trust the skin
+// reading (ledwire writes it from /dev/guard). The "seg7" task below does
+// the blinking; it costs nothing while nothing blinks.
+#define BLINK_MS 500
+static bool big_blink  = false;
+static bool blink_dark = false;   // in the dark half of a blink
+
 static void flush(void)
 {
+    if (big_blink && blink_dark) {
+        update_7seg(SEG_BLANK, SEG_BLANK, SEG_BLANK, 0,
+                    small_d[2], small_d[1], small_d[0], small_dot, leds);
+        return;
+    }
     // update_7seg()'s own header comment claims digl3/digs3 are the
     // most-significant digit -- they're not, going by the original
     // (hardware-validated) caller: digl1/digs1 is most-significant,
@@ -120,6 +135,30 @@ static int leds_write(const char *buf, int len)
 
 static const device_t dev_leds      = {"/dev/leds",      0, 0, 0, leds_write};
 static const device_t dev_seg7big   = {"/dev/seg7big",   0, 0, 0, seg7big_write};
+
+static int blink_read(char *buf, int len)
+{
+    return snprintf(buf, len, big_blink ? "on\n" : "off\n");
+}
+
+static int blink_write(const char *buf, int len)
+{
+    bool on;
+    if (len >= 2 && strncmp(buf, "on", 2) == 0)       on = true;
+    else if (len >= 3 && strncmp(buf, "off", 3) == 0) on = false;
+    else return -1;
+    if (on != big_blink) { big_blink = on; blink_dark = false; flush(); }
+    return len;
+}
+
+static void blink_task(void)
+{
+    if (!big_blink) return;
+    blink_dark = !blink_dark;
+    flush();
+}
+
+static const device_t dev_seg7big_blink = {"/dev/seg7big/blink", 0, 0, blink_read, blink_write};
 static const device_t dev_seg7small = {"/dev/seg7small", 0, 0, 0, seg7small_write};
 
 
@@ -182,5 +221,7 @@ void dev_seg7_register(void)
     fs_register(&dev_led_chk);
     fs_register(&dev_led_man);
     fs_register(&dev_seg7big);
+    fs_register(&dev_seg7big_blink);
+    task_register("seg7", blink_task, BLINK_MS);
     fs_register(&dev_seg7small);
 }
