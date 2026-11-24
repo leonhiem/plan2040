@@ -13,10 +13,7 @@
 // Story (each step with what the guard should do):
 //   0:00  manual 10 %; the skin sensor is NOT on the baby (reads the room)
 //   1:00  MANUAL -> auto: boost; scenario (2), sensor out during warm-up:
-//         "no rise" after 10 min -> safe, heating from the room (39 %).
-//         (In this light model the baby meanwhile reaches 41 C at 80 %:
-//         the price of 10 minutes open loop; a real baby and mattress are
-//         slower, the hardware test will tell.)
+//         "no rise" after 5 min -> safe, heating from the room (39 %)
 //  14:00  the sensor goes on the baby -> ok after 2 min plausible, pid
 //         (feed-forward 30 % + the PID's correction, step 5)
 //  20:00  UP twice -> setpoint 36.0 (+1.0: no re-boost)

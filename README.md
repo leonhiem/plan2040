@@ -341,7 +341,7 @@ user's intent (setpoint, auto/manual), never what a job computed.
 | `/dev/guard` | When (auto mode) | The heater |
 |---|---|---|
 | `ok` | the skin reading is used | the PID's power, as the jobs ask, at most 80 % (boost's) |
-| `safe: <why>` | the sensor fell off the baby (the skin fell > 0.08 °C/s for 3 s, or stays > 3 °C below the setpoint for 20 s); it was off from the start (< 0.3 °C rise in 10 min of warm-up, or after the setpoint was raised by 2 °C or more); the skin reading fails; or the control jobs are gone (nothing wrote `/dev/heater` for 10 s) | **the guard's own power**: the room table (`safelut`) for the room temperature, whatever the jobs ask |
+| `safe: <why>` | the sensor fell off the baby (the skin fell > 0.08 °C/s for 3 s, or stays > 3 °C below the setpoint for 20 s); it was off from the start (< 0.3 °C rise in 5 min of warm-up, or after the setpoint was raised by 2 °C or more); the skin reading fails; or the control jobs are gone (nothing wrote `/dev/heater` for 10 s) | **the guard's own power**: the room table (`safelut`) for the room temperature, whatever the jobs ask |
 | `none: <why>` | no temperature at all (skin and room unreadable) | the guard switches to **manual** at the room table's power for the last room temperature seen (else 10 %); UP/DOWN adjust it |
 
 Back to `ok` by itself: 2 minutes after the skin is within 2 °C of the
@@ -1500,7 +1500,8 @@ the room NTC open → `/dev/alarm/sensor` says so, the PID carries on; MANUAL
 | A raise with the skin more than 3 °C below the new setpoint | pending: 5 s later boost (then coast, pid) |
 | MANUAL: auto → manual | pending: small display `10`; UP → `15`, never above `80` |
 | Room NTC unplugged in auto | pending: buzzer, `cat /dev/alarm/sensor` gives the reason; PID keeps the skin; after 10 min `/dev/ffpower` 30.0 |
-| Warm-up with the sensor out of the bed | pending: safe after 10 min (`skin rose only ... in 10 min`); how far does the real skin/mattress rise meanwhile? |
+| Warm-up with the sensor out of the bed | pending: safe after 5 min (`skin rose only ... in 5 min`) |
+| A normal warm-up at 80 % (`watch 1000 monitor`) | pending: when does the skin rise 0.3 °C? (April logs at 100 %: after ~2.5-3 min; 5 min must leave margin, also in a cool room) |
 
 **2026-11-24, the guard** (`build-babywarmer_v1/plan2040.uf2`, after
 the hack): all heater safety in a kernel task, `/dev/guard`,

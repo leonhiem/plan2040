@@ -635,9 +635,9 @@ Order, one commit each, tested on the PC and then the board:
     4. Re-boost when the setpoint goes up by 2 C or more (and, decided
        later the same day, the skin is more than 3 C below it).
     5. Alarms: high at setpoint+2, low at room-2, as in the field.
-    6. No-rise: **10 minutes** (decided 2026-11-24, Leon): twice what
-       the field code meant (5 min, never run: the tick bug made it 50),
-       until the hardware tests show the real rise rate at 80 %.
+    6. No-rise: **5 minutes** (decided 2026-11-24, Leon; 10 in the first
+       decision that morning, changed after the April field logs, see
+       below): what the field code meant (the tick bug made it 50).
     7. The field's telemetry line, as an option, so new logs compare
        side by side with the April logs.
     8. Then board and bench tests; the 39 % bench check confirms.
@@ -660,10 +660,16 @@ Order, one commit each, tested on the PC and then the board:
       (the field rule: skin down to 34.9 C in the 45 s at 0 %), 38 C
       reached ~3 minutes sooner. Built the same day.
     - **10 minutes of no-rise is 10 minutes of 80 % open loop** when the
-      sensor is out of the bed: in bwsim's light model (~8 min time
-      constant) the baby reaches 41 C before safe (5 min: ~34 C). A real
-      baby and mattress are slower; the hardware test should log how far
-      the skin under the heater rises in 5 and 10 minutes of boost.
+      sensor is out of the bed: in bwsim the baby reaches 41 C before safe.
+      **The April field logs** (`../warmer-1apr/warmerlog-{1,2,3}.txt`,
+      `../warmer-5apr/warmerlog7.txt`, boost at 100 % then) show four real
+      warm-ups: ~2 min dead time, then 1-2 C per minute; the 0.3 C rise
+      after ~2.5-3 min; a whole warm-up to setpoint-3 in 3.5-5.5 min. So
+      10 min is ~2 warm-ups of heat with the sensor out. **Decided
+      2026-11-24 (Leon): back to 5 min**, built the same day. Unknown from
+      the logs: what the sensor was on, and a cooler room (the room read
+      25.0 C throughout, perhaps unconnected); the hardware test at 80 %
+      checks the margin.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

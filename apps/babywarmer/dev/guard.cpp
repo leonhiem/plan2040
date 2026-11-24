@@ -29,9 +29,11 @@
  *     a baby can (> 0.08 C/s for 3 s, more than 2 C below the setpoint), or
  *     stays more than 3 C below the setpoint for 20 s;
  *   - the sensor is out from the start: during warm-up the skin rises less
- *     than 0.3 C in 10 minutes (Leon 2026-11-24: the field warmer's code
- *     meant 5, but a tick bug made it 50; 10 until the hardware tests
- *     show the real rise at 80 %); a warm-up is auto switching on, or the
+ *     than 0.3 C in 5 minutes (the field warmer's code meant 5, but a tick
+ *     bug made it 50; Leon 2026-11-24, from the April field logs: at 100 %
+ *     boost the 0.3 C came after ~2.5-3 min and a whole warm-up took
+ *     3.5-5.5 min, so a longer window means more open-loop heat with the
+ *     sensor out of the bed); a warm-up is auto switching on, or the
  *     setpoint raised by 2 C or more (/dev/setpoint/raised) with the skin
  *     more than 3 C below it (as phase boosts again);
  *   - the skin reading fails (ADS1115 or NTC);
@@ -85,7 +87,7 @@
 
 // The watchdogs: picoos prog/phase.cpp's numbers.
 #define WARMUP_EXIT_MARGIN    3.0f   // warm-up ends when skin >= setpoint - this (phase's boost exit)
-#define NO_RISE_S             600    // 10 minutes of warm-up ...
+#define NO_RISE_S             300    // 5 minutes of warm-up ...
 #define NO_RISE_MIN_DELTA     0.3f   // ... must raise the skin at least this
 #define DROP_RATE             0.08f  // C per second
 #define DROP_DELTA            2.0f   // ... and this far below the setpoint
@@ -317,7 +319,7 @@ static void guard_task(void)
                 if (skin >= sp - WARMUP_EXIT_MARGIN) warming = false;
                 else if (warm_s >= NO_RISE_S) {
                     if (skin - warm_start_skin < NO_RISE_MIN_DELTA)
-                        set_level(G_SAFE, C_SENSOR, "skin rose only %.1f C in 10 min of warm-up (sensor off the baby?)",
+                        set_level(G_SAFE, C_SENSOR, "skin rose only %.1f C in 5 min of warm-up (sensor off the baby?)",
                                   skin - warm_start_skin);
                     else { warm_start_skin = skin; warm_s = 0; }
                 }
