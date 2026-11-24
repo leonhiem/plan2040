@@ -8,7 +8,7 @@
  * can't stop it and no boot script can leave it out. It trusts only
  * hardware facts and the user's intent (/dev/skintemp, ambient, current,
  * heater/ssr, relay, setpoint, heaterauto, percent), never what a job
- * computed (/dev/state, /dev/pidout): that is what it guards.
+ * computed (/dev/state, /dev/autopower): that is what it guards.
  *
  * /dev/guard, how far the skin reading can be trusted, with the reason:
  *
@@ -67,7 +67,7 @@
 #define GUARD_MS              1000
 
 // The watchdogs (the field warmer's numbers).
-#define WARMUP_EXIT_MARGIN    3.0f   // warm-up ends when skin >= setpoint - this (phase's boost exit)
+#define WARMUP_EXIT_MARGIN    3.0f   // warm-up ends when skin >= setpoint - this (warmer's boost exit)
 #define NO_RISE_S             300    // 5 minutes of warm-up ...
 #define NO_RISE_MIN_DELTA     0.3f   // ... must raise the skin at least this
 #define DROP_RATE             0.08f  // C per second
@@ -294,7 +294,7 @@ static void guard_task(void)
         } else if (level == G_SAFE && cause == C_CONTROL) {
             if (++back_s >= HW_RECOVER_S) set_level(G_OK, C_SENSOR, "control jobs running again");
         } else if (level == G_OK) {
-            if (reboost && !warming && skin < sp - WARMUP_EXIT_MARGIN) start_warmup(skin);   // phase boosts again
+            if (reboost && !warming && skin < sp - WARMUP_EXIT_MARGIN) start_warmup(skin);   // warmer boosts again
             if (warming) {
                 warm_s++;
                 if (skin >= sp - WARMUP_EXIT_MARGIN) warming = false;

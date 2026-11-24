@@ -14,7 +14,7 @@ label skin = /dev/skintemp > /dev/tft/text
 label amb = /dev/ambient > /dev/tft/text
 label heat = /dev/heater > /dev/tft/text
 label curr = /dev/current > /dev/tft/text
-label pid = /dev/pidout > /dev/tft/text
+label auto = /dev/autopower > /dev/tft/text
 label pct = /dev/percent > /dev/tft/text
 label integ = /dev/pid/integral > /dev/tft/text
 sleep 1000

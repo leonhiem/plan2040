@@ -1,26 +1,11 @@
 /**
- * prog/select.cpp — select <state-device> <label>=<source> [<label>=<source> ...]
+ * prog/select.cpp — select <state> <label>=<source> [<label>=<source> ...]
  *
- * follow's N-way sibling, not a revision of follow itself (follow's
- * own on/off two-source shape stays exactly as shipped -- this is a
- * separate, new program for a separate need: picking among more than
- * two sources by a multi-valued device's current text, not a boolean
- * gate). "Different device names/programs for different functionality,
- * not ioctl()" applies to programs here just as much as devices.
+ *   select /dev/state idle=/dev/percent pid=/dev/setpoint safe=/dev/heater > /dev/seg7small &
  *
- * Reads <state-device>'s current value, finds the <label>=<source>
- * pair whose label matches it, reads that pair's source (device path
- * or literal number, same convention as thresh/hyst/pid's own
- * arguments), and outputs it. No match (including any state not
- * listed, e.g. "idle") falls back to a hardcoded literal "0" -- a safe
- * default that doesn't require every caller to spell out every case.
- *
- * Meant to run as a background job, feeding a target via `>`:
- *
- *   select /dev/state boost=80 coast=0 pid=/dev/pidout safe=/dev/safepower > /dev/autopower &
- *
- * Fitted in picoos's 5 args (JOB_MAX_ARGS, 15 since 2026-11-16), covering exactly the 4
- * real active phases -- no bump needed.
+ * follow's N-way sibling: outputs the <source> whose <label> matches
+ * <state>'s value (a device path or a number); no match gives 0. Run as a
+ * job, feeding a target with `>`.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"

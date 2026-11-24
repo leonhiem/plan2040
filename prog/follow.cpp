@@ -1,38 +1,13 @@
 /**
- * prog/follow.cpp — follow <gate-device> <source-if-on> <source-if-off> <target-device>
+ * prog/follow.cpp — follow <gate> <on-source> <off-source> <target>
  *
- * Continuously copies whichever source the gate currently selects to
- * the target -- on: source-if-on, off: source-if-off -- every tick,
- * unconditionally. The read-side twin of prog/adjust.cpp's write-side
- * shape (adjust picks WHICH TARGET a step goes to, based on a gate;
- * follow picks WHICH SOURCE a copy comes from):
+ *   follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
  *
- *   adjust <gate> <target-if-on> <target-if-off> <step>
- *   follow <gate> <source-if-on>  <source-if-off>  <target>
- *
- * Always writes a live, defined value -- never an undefined/stale
- * state, and no special-cased "off means 0" baked into follow itself.
- * The caller decides what "off" means by choosing what device to read
- * in that branch (e.g. /dev/percent, which defaults to 0 but is
- * user-tunable). Meant to run as a background job, the single arbiter
- * for a shared target:
- *
- *   follow /dev/heaterauto /dev/pidout /dev/percent /dev/heater &
- *
- * -- heaterauto=on forwards prog/pid.cpp's output, off forwards manual
- * /dev/percent; either way exactly one live value reaches the heater.
- *
- * Revised from an earlier shape (follow <gate> <on|off> <source>
- * <target>, one source + "hold target at 0 when idle"). That needed
- * two mirrored instances to cover both directions of one gate -- and
- * two independent background jobs both writing the same target, each
- * on its own 150ms poll, genuinely raced: whichever job's turn came
- * up as "idle" that tick stomped 0 over whatever the other had just
- * written. Not hit while there was only ever one real source
- * (/dev/percent, manual mode); would have been hit for real the
- * moment prog/pid.cpp gave auto mode a second one. This shape has
- * exactly one writer per target, always, by construction -- no race
- * possible.
+ * Copies <on-source> to <target> while <gate> reads "on", else
+ * <off-source>: one job, the only writer of the target, so two sources
+ * never race over it (two jobs each writing the same target did: the
+ * idle one's 0 stomped the other's value). Sources are device paths or
+ * numbers.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"

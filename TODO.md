@@ -761,6 +761,17 @@ Order, one commit each, tested on the PC and then the board:
     The boot script rewritten as a readable guide. Comments trimmed to
     what and why, the history left to git: the app went from 4219 to 3557
     lines, the code unchanged (bwsim the same to 0.01 C).
+    **Point 1 done 2026-11-24 (Leon: option A):** `prog/warmer.cpp`, the
+    field warmer's state machine as one program (`warmer >
+    /dev/autopower &`): idle, boost, coast, feed-forward + PID, safe,
+    the re-boost and the bumpless handover, no state passed through
+    files. Its devices in `dev/warmer.cpp` (/dev/state, /dev/autopower,
+    the tuning, the integral and feed-forward published). Gone: `phase`,
+    `pid`, `fftable`, `safelut` (programs only the warmer used; Leon:
+    only `select` and `follow` are generic, they stay), /dev/pidout,
+    /dev/ffpower, /dev/pid/{dt,prevmeas,bias}. Jobs 13 -> 10; control +
+    safety code 1682 -> 1446 lines. bwsim: every guard and alarm event at
+    the same second as before.
     **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
     (b) a manual-mode check timer; (c) deviation alarms relative to the
     setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on

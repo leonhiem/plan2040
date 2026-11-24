@@ -6,7 +6,7 @@
 //
 //   skin' = (heater% * GAIN  -  (skin - room) * LOSS) per second
 //
-// calibrated so the room table is right: safelut's 39 % at a 24 C room
+// calibrated so the room table is right: the safe table's 39 % at a 24 C room
 // keeps the baby at 36 C (time constant ~8 minutes; a rough model, not
 // babywarmer's real thermal mass).
 //
@@ -14,12 +14,12 @@
 //   0:00  manual 10 %; the skin sensor is NOT on the baby (reads the room)
 //   1:00  MANUAL -> auto: boost; scenario (2), sensor out during warm-up:
 //         "no rise" after 5 min -> safe, heating from the room (39 %)
-//  14:00  the sensor goes on the baby -> ok after 2 min plausible, pid
+//  14:00  the sensor goes on the baby -> ok after 2 min plausible, warmer's pid
 //         (feed-forward 30 % + the PID's correction, step 5)
 //  20:00  UP twice -> setpoint 36.0 (+1.0: no re-boost)
 //  29:00  `monitor`: the field warmer's telemetry line
 //  30:00  scenario (1): the sensor falls off while warm -> safe; 33:00 back
-//  40:00  `kill 8` (follow, the job that writes /dev/heater): control dead
+//  40:00  `kill 5` (follow, the job that writes /dev/heater): control dead
 //         -> safe after 10 s; 43:00 the job started again -> ok
 //  50:00  START (APGAR), `run tftmon`; 52:00 back to the warmer screen
 //  55:00  the heater element breaks; 57:00 works again
@@ -101,8 +101,8 @@ static const program_t p_date = {"date", date_run};
 void task_shell(void); void jobs_init(void);
 #define D(n) void dev_##n##_register(void);
 #define P(n) void prog_##n##_register(void);
-D(lamp) D(buttons) D(heater) D(relay) D(alarm) D(seg7) D(setpoint) D(heaterauto) D(percent) D(pid) D(phase) D(guard) D(tft)
-P(cat) P(echo) P(label) P(follow) P(toggle) P(adjust) P(select) P(pid) P(phase) P(safelut) P(fftable) P(alarm) P(ledwire) P(monitor) P(tftwire)
+D(lamp) D(buttons) D(heater) D(relay) D(alarm) D(seg7) D(setpoint) D(heaterauto) D(percent) D(warmer) D(guard) D(tft)
+P(cat) P(echo) P(label) P(follow) P(toggle) P(adjust) P(select) P(warmer) P(alarm) P(ledwire) P(monitor) P(tftwire)
 
 // The sim's own lines go to `out` (the real stdout); what the shell and
 // the jobs print goes to stdout, which is sent to a scratch file while
@@ -150,8 +150,8 @@ static void status(int sec)
 {
     char st[12], sp[12], ha[8], pc[12], po[12], ah[8], th[8], tl[8], gd[8];
     rd("/dev/state", st, sizeof st); rd("/dev/setpoint", sp, sizeof sp); rd("/dev/heaterauto", ha, sizeof ha);
-    rd("/dev/percent", pc, sizeof pc); rd("/dev/pidout", po, sizeof po);
-    char ff[12]; rd("/dev/ffpower", ff, sizeof ff);
+    rd("/dev/percent", pc, sizeof pc); rd("/dev/autopower", po, sizeof po);
+    char ff[12]; rd("/dev/pid/ff", ff, sizeof ff);
     rd("/dev/guard", gd, sizeof gd); { char *c = strchr(gd, ':'); if (c) *c = 0; }
     rd("/dev/alarm/heater", ah, sizeof ah); rd("/dev/alarm/temphigh", th, sizeof th); rd("/dev/alarm/templow", tl, sizeof tl);
     char *al[] = { ah, th, tl };
@@ -162,7 +162,7 @@ static void status(int sec)
     char bigs[16];
     if (!strcmp(blink, "on")) snprintf(bigs, sizeof bigs, "%s~", big_lit);   // ~ = blinking
     else snprintf(bigs, sizeof bigs, "%s", big[0] ? big : "-");               // - = blank
-    SAY("%3d:%02d  auto %-3s %-5s guard %-4s set %-4s skin %5.2f%s heater %5.1f ff %-4s pidout %-6s relay %d buzzer %d  big %-5s small %-4s chk %-3s alarms heater %-3s high %-3s low %-3s\n",
+    SAY("%3d:%02d  auto %-3s %-5s guard %-4s set %-4s skin %5.2f%s heater %5.1f ff %-4s autopower %-6s relay %d buzzer %d  big %-5s small %-4s chk %-3s alarms heater %-3s high %-3s low %-3s\n",
            sec / 60, sec % 60, ha, st, gd, sp, skin, sensor_on_baby ? " " : "*", heater_now(), ff, po,
            fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], bigs, small[0] ? small : "-", chk, ah, th, tl);
 }
@@ -186,10 +186,10 @@ int main()
     fs_register(&d_skin); fs_register(&d_amb); fs_register(&d_cur);
     dev_lamp_register(); dev_buttons_register(); dev_heater_register(); dev_relay_register(); dev_alarm_register();
     dev_seg7_register(); dev_setpoint_register(); dev_heaterauto_register(); dev_percent_register();
-    dev_pid_register(); dev_phase_register(); dev_guard_register(); dev_tft_register();
+    dev_warmer_register(); dev_guard_register(); dev_tft_register();
     prog_register(&p_date);
     prog_cat_register(); prog_echo_register(); prog_follow_register(); prog_toggle_register(); prog_adjust_register();
-    prog_select_register(); prog_pid_register(); prog_phase_register(); prog_safelut_register(); prog_fftable_register();
+    prog_select_register(); prog_warmer_register();
     prog_alarm_register(); prog_ledwire_register(); prog_monitor_register();
     prog_label_register(); prog_tftwire_register();
     jobs_init();
@@ -212,7 +212,7 @@ int main()
         if (sec == 29 * 60)  { SAY("--- 29:00 type `monitor` (the field warmer's telemetry line)\n"); type("monitor\n"); }
         if (sec == 30 * 60)  { SAY("--- 30:00 the skin sensor falls off the baby (reads the room)\n"); sensor_on_baby = false; }
         if (sec == 33 * 60)  { SAY("--- 33:00 the skin sensor back on the baby\n"); sensor_on_baby = true; }
-        if (sec == 40 * 60)  { SAY("--- 40:00 type `kill 8` (follow ... /dev/heater: the job that sets the power)\n"); type("kill 8\n"); }
+        if (sec == 40 * 60)  { SAY("--- 40:00 type `kill 5` (follow ... /dev/heater: the job that sets the power)\n"); type("kill 5\n"); }
         if (sec == 43 * 60)  { SAY("--- 43:00 start it again\n"); type("follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &\n"); }
         if (sec == 50 * 60)  { SAY("--- 50:00 press START (APGAR clock); type `run tftmon`\n"); button[BUTTON_START] = true; type("run tftmon\n"); }
         if (sec == 52 * 60)  { SAY("--- 52:00 type `echo graphical > /dev/tft/mode`\n"); type("echo graphical > /dev/tft/mode\n"); }

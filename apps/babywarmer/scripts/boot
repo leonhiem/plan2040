@@ -5,9 +5,9 @@
 # alarm conditions and the power when the skin reading can't be trusted,
 # whether or not these jobs run.
 #
-#   skin --> pid (feed-forward + PID) --> select by phase --> follow --> heater
-#   room --> fftable --------^             (boost 80, coast 0)   ^
-#                                                   manual % ----'
+#   skin, room, setpoint --> warmer --> /dev/autopower --> follow --> heater
+#                            (boost, coast, feed-forward + PID)    ^
+#                                                     manual % ----'
 
 date
 toggle /dev/buttons/lamp /dev/lamp &
@@ -17,15 +17,10 @@ toggle /dev/buttons/lamp /dev/lamp &
 toggle /dev/buttons/manual /dev/heaterauto &
 adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 5 &
 
-# The control: phase sets idle/boost/coast/pid/safe once a second; the PID
-# runs on the feed-forward for the room; select turns the phase into the
-# auto power (in safe: what the guard heats with, so the PID takes over
-# from that power when the guard says ok again); follow sends the auto or
-# the manual power to the heater.
-phase &
-cat /dev/ambient | fftable > /dev/ffpower &
-cat /dev/skintemp | pid /dev/state pid /dev/setpoint /dev/ffpower > /dev/pidout &
-select /dev/state boost=80 coast=0 pid=/dev/pidout safe=/dev/heater > /dev/autopower &
+# The control: warmer (the field-tested warmer's state machine: boost,
+# coast, feed-forward + PID) sets /dev/state and the auto power once a
+# second; follow sends the auto or the manual power to the heater.
+warmer > /dev/autopower &
 follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
 
 # What the nurse sees: the skin temperature; the setpoint, the manual %, or

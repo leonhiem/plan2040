@@ -7,7 +7,7 @@
  *                              or more
  *
  * A raise counts when the presses stop (EDIT_SETTLE_MS, 5 s, after the
- * last change), from the value before the first press. phase boosts again
+ * last change), from the value before the first press. warmer boosts again
  * on it when the skin is far below, and the guard then watches the
  * warm-up. A counter, so both see each raise without taking it from the
  * other. UP/DOWN reach the setpoint through `adjust` in the boot script.

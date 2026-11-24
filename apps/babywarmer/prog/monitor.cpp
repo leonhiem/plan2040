@@ -6,7 +6,8 @@
  * The field-tested warmer.cpp's telemetry line, column for column (state
  * setp skin amb heat low high curr fail warn pid_i pid_pm), with ff (the
  * feed-forward) added at the end, so logs compare side by side with the
- * April 2026 field logs. warn is the guard not ok. The header line
+ * April 2026 field logs. warn is the guard not ok; pid_pm (warmer.cpp's
+ * last measurement) is the skin now. The header line
  * repeats every 10 lines, as warmer.cpp's did.
  */
 #include "kernel/prog.h"
@@ -85,8 +86,7 @@ static int monitor_run(const char *in, int inlen, int argc, char **argv, char *o
     float heat     = read_dev("/dev/heater");
     float curr     = read_dev("/dev/current");
     float integral = read_dev("/dev/pid/integral");
-    float prevmeas = read_dev("/dev/pid/prevmeas");
-    float ff       = read_dev("/dev/pid/bias");
+    float ff       = read_dev("/dev/pid/ff");
     char guard[4];
     read_dev_str("/dev/guard", guard, sizeof(guard));
 
@@ -105,7 +105,7 @@ static int monitor_run(const char *in, int inlen, int argc, char **argv, char *o
         field_state(auto_mode, phase), setp, skin, amb, heat,
         is_on("/dev/alarm/templow"), is_on("/dev/alarm/temphigh"), (int)curr,
         is_on("/dev/alarm/heater"), strncmp(guard, "ok", 2) != 0,
-        integral, prevmeas, ff);
+        integral, skin, ff);
     if (n >= 0 && n < avail) pos += n;
 
     return pos;

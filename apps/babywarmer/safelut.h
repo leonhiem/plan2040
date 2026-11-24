@@ -3,9 +3,8 @@
  * temperature: the field warmer's safe_ff_table, interpolated, at most
  * DUTY_SAFE_CAP (55 %)
  *
- * Used by the guard (dev/guard.cpp) when the skin reading can't be trusted,
- * and by the `safelut` program for a look from the shell. room_lookup() is
- * the interpolation fftable.h uses too.
+ * Used by the guard (dev/guard.cpp) when the skin reading can't be
+ * trusted. room_lookup() is the interpolation fftable.h uses too.
  */
 #pragma once
 
