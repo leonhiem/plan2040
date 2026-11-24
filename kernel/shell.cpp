@@ -109,9 +109,10 @@
  * every reboot. task_shell() auto-runs "boot" on its very first tick,
  * before the prompt ever appears -- /fram/boot if it exists, which
  * overrides the built-in one, so the board's power-up behavior is a
- * file you edit, not firmware you rebuild. On babywarmer the boot
- * script starts the whole heater wiring (apps/babywarmer/scripts/boot);
- * the generic one is deliberately tiny.
+ * file you edit, not firmware you rebuild. A config can switch that off
+ * (FRAM_BOOT=0): the babywarmer always starts its built-in, tested
+ * wiring (apps/babywarmer/scripts/boot), and /fram/boot runs only by
+ * hand (`run /fram/boot`). The generic boot script is deliberately tiny.
  *
  * `help` -- lists the builtins and the grammar. Builtins don't show up
  * in `ls` (only devices and programs do), so this is where to find them.
@@ -121,6 +122,9 @@
 
 #ifndef PLAN2040_BOARD          // set by CMakeLists.txt from the config
 #define PLAN2040_BOARD "?"
+#endif
+#ifndef FRAM_BOOT               // 1: /fram/boot replaces the built-in boot at power-up
+#define FRAM_BOOT 1
 #endif
 #include "pico/stdlib.h"
 #include <cstdio>
@@ -331,14 +335,14 @@ static int find_script(const char *name)
 // Loads script <name> into run_buf: a path as-is if it contains '/',
 // else /fram/<name>, else the built-in table. Remembers the name in
 // run_name, for loop restarts. False if it's nowhere.
-static bool load_script(const char *name)
+static bool load_script(const char *name, bool fram = true)
 {
     char path[JOB_TOK_MAX];
     if (strchr(name, '/')) snprintf(path, sizeof(path), "%s", name);
     else                   snprintf(path, sizeof(path), "/fram/%s", name);
 
     int n = -1;
-    int fd = fs_open(path);
+    int fd = fram || strchr(name, '/') ? fs_open(path) : -1;
     if (fd >= 0) {
         n = fs_read(fd, run_buf, SCRIPT_TEXT_MAX - 1);
         fs_close(fd);
@@ -522,12 +526,17 @@ void task_shell(void)
         printf("  help          builtins, grammar, often needed (reboot, bootsel, ...)\n");
         banner_shown = true;
 
-        // Auto-run 'boot': /fram/boot if it exists, else the built-in one.
-        // CMakeLists.txt makes sure every config has a built-in "boot",
-        // so load_script() only fails here if that ever changes.
-        if (load_script("boot")) {
+        // Auto-run 'boot': /fram/boot if it exists (and FRAM_BOOT), else the
+        // built-in one. CMakeLists.txt makes sure every config has a
+        // built-in "boot", so load_script() only fails if that changes.
+        if (load_script("boot", FRAM_BOOT)) {
             int fd = fs_open("/fram/boot");
-            printf("running %s automatically...\n", fd >= 0 ? "/fram/boot" : "built-in 'boot'");
+            if (fd >= 0 && FRAM_BOOT)
+                printf("running /fram/boot automatically...\n");
+            else if (fd >= 0)
+                printf("running built-in 'boot' automatically (this firmware ignores /fram/boot; `run /fram/boot` runs it by hand)...\n");
+            else
+                printf("running built-in 'boot' automatically...\n");
             fs_close(fd);
             running = true; // picked up by the `if (running)` block below,
                              // same tick -- first line runs immediately

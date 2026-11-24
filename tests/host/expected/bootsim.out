@@ -1,0 +1,17 @@
+===== power-up with a /fram/boot on the FRAM, FRAM_BOOT=0 =====
+
+plan2040 on ?
+  ls            list /dev and bin/
+  help          builtins, grammar, often needed (reboot, bootsel, ...)
+running built-in 'boot' automatically (this firmware ignores /fram/boot; `run /fram/boot` runs it by hand)...
+% date
+date: not found (try 'ls')
+% toggle /dev/buttons/lamp /dev/lamp &
+[1]
+% cat /fram/boot
+echo this is /fram/boot
+% run /fram/boot
+% echo this is /fram/boot
+this is /fram/boot
+% 
+exit 0

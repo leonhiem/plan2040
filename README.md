@@ -380,7 +380,10 @@ together, 14 lines: MANUAL toggles auto/manual, UP/DOWN adjust the
 setpoint or the manual percent, `warmer` computes the auto power and
 `follow` sends it or the manual power to `/dev/heater`, the displays
 follow, `alarm` and `ledwire` show the alarms, and `tftwire` feeds the
-TFT. `jobs` lists the 10 jobs it starts. Like any boot script, `/fram/boot` replaces it.
+TFT. `jobs` lists the 10 jobs it starts. Unlike other boards, the
+babywarmer **never** lets `/fram/boot` replace it (`FRAM_BOOT=0` in its
+config): a warmer in use always runs the tested wiring; on the bench
+`run /fram/boot` runs a boot file by hand.
 
 **The NTC table** (step 3g, 2026-11-24; `apps/babywarmer/ntclut.cpp`,
 `dev/ntc.cpp`). Both NTCs (MF58 10k B3950, each in a Wheatstone bridge on
@@ -757,7 +760,8 @@ df
   `run`/`loop <name>` take `/fram/<name>` first, else a built-in one.
 - **`/fram/boot` replaces the built-in boot script** when it exists, so
   what the board does at power-up is a file you edit, not firmware.
-  `rm /fram/boot` brings the built-in one back.
+  `rm /fram/boot` brings the built-in one back. (Not on the babywarmer:
+  its config has `FRAM_BOOT=0`, so it always runs its built-in one.)
 
 ### Settings that survive a power cycle
 

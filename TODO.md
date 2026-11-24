@@ -777,6 +777,17 @@ Order, one commit each, tested on the PC and then the board:
     numbers both use are in one header, `apps/babywarmer/warmup.h`: the
     boost power (80 %, also the guard's cap in auto) and the boost exit
     (3 C). The 2 C raise was already in one place (dev/setpoint.cpp).
+    **Point 5 done 2026-11-24 (Leon: option A):** `FRAM_BOOT=0` in
+    configs/babywarmer_v1.cmake: at power-up the babywarmer always runs
+    its built-in, tested boot script and says so when it ignores a
+    /fram/boot; `run /fram/boot` still runs one by hand on the bench.
+    Other boards are unchanged. tests/host/bootsim. Consequence: settings
+    kept with `remember` in /fram/boot (README) don't apply to the
+    warmer; it starts at 35.0 C and manual 10 %, as the field warmer did.
+    **Point 6, decided 2026-11-24 (Leon): kept as it is.** The board
+    makes its NTC table itself (no PC needed to calibrate, the built-in
+    table needs the code anyway, no file transfer exists for a finished
+    table). The review is done.
     **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
     (b) a manual-mode check timer; (c) deviation alarms relative to the
     setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on

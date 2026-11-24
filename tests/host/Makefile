@@ -24,7 +24,7 @@ UNIT = fstest hourstest fscktest mvcut luttest
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
 # babywarmer app tests (the real babywarmer_v1 pin map, fake GPIO/PWM)
 APP  = outtest bwsim adctest eetest drvtest
-ALL  = $(UNIT) $(SIMS) $(APP)
+ALL  = $(UNIT) $(SIMS) bootsim $(APP)
 
 all: $(ALL)
 
@@ -61,6 +61,8 @@ drvtest:  drvtest.cpp $(P)/drivers/fm24cl64.cpp $(P)/drivers/pcf8563.cpp $(P)/de
 bwsim:    bwsim.cpp $(BWSRC) $(TFTO)
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -DPLAN2040_BOARD='"babywarmer_v1"' -o $@ $^
 sim:      sim.cpp      $(SIM) $(call pr,cat echo ls grep wc headtail tee rm mkfs df)
+bootsim:  bootsim.cpp  $(SIM) $(call pr,cat echo)
+	$(CXX) -w -DFRAM_BOOT=0 -I fake -I $(P) -o $@ $^
 quotesim: quotesim.cpp $(SIM) $(call pr,cat echo ls mkfs grep wc)
 cronsim:  cronsim.cpp  $(SIM) $(P)/dev/cron.cpp $(P)/dev/cons.cpp $(call pr,cat echo ls mkfs)
 catsim:   catsim.cpp   $(SIM) $(call pr,cat echo ls mkfs)

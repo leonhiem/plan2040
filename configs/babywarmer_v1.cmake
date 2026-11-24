@@ -71,4 +71,7 @@ set(PLAN2040_SIZES
     PROG_MAX=48
     FS_MAX_DEVICES=96    # 64 used with the TFT
     TASK_MAX=32          # MAX_JOBS + shell, hours, cron, tpo, tftflush, adc, guard, seg7, ntcw = 29
+    FRAM_BOOT=0          # power-up always runs the built-in boot script, never
+                         # /fram/boot: a warmer in use runs the tested wiring
+                         # (`run /fram/boot` still works by hand, on the bench)
 )

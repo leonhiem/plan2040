@@ -39,6 +39,7 @@ the shell did, line by line.
 | `fscktest` | fsck on damaged filesystems: leaked blocks, crossed chains, what it may and may not fix |
 | `mvcut` | `mv` (rename) with a power cut at every write |
 | `sim` | a whole shell session: pipes, redirects, ls, grep, wc, head/tail, tee, rm, df |
+| `bootsim` | a firmware built with `FRAM_BOOT=0` (the babywarmer): at power-up the built-in boot script runs although a `/fram/boot` exists, and says so; `run /fram/boot` still runs it by hand |
 | `quotesim` | shell quotes `"..."` / `'...'`, `#` comments, too many arguments, empty pipelines |
 | `cronsim` | cron minute by minute with a fake RTC, `/dev/cons` |
 | `catsim` | `cat > file` / `cat >> file` typing mode |
