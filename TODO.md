@@ -554,6 +554,87 @@ Order, one commit each, tested on the PC and then the board:
     (manual %, setpoint, or the power in safe). bwsim decodes both
     displays: every state as decided. Left for later: the TFT text line
     (st7735 repo).
+  - **Step 5: the field warmer's lessons back, before the first
+    hardware test** (evaluated 2026-11-24). `../warmer/warmer.cpp`
+    (LH20260427, 2026-04-27) is the **only firmware tested for real**
+    (real heater, real NTC, a real room in Vietnam); `../babywarmer`
+    and `../picoos` came later and were bench tests only. Compared line
+    by line with plan2040's babywarmer app. Leon: "otherwise we would be
+    wasting time and re-inventing what we already did before."
+    **The decisive difference: plan2040 has no feed-forward.** In the
+    field warmer the power in PID mode is `ff_table(room)` (30 % at
+    24 C, 25 % at 28 C) + PID, the PID part clamped to -35..+25 %, the
+    total to 0..75 % (`DUTY_MAX`). picoos cut the feed-forward on
+    purpose ("PID alone", `prog/pid.cpp`), so the integrator has to
+    carry the whole ~27-30 % by itself: at Kp/Ti = 0.015 %/(C s) that's
+    ~1800 C s of error, e.g. 1 C too cold for half an hour. The coast
+    seed of 3 % was meant *on top of* the feed-forward; alone it's far
+    too low. That is what bwsim showed (power 3 % after coast, the baby
+    cooling, a false "safe" at 108:58).
+    **It settles the 39 % question:** picoos's "integrator settled at
+    ~6.6 %" was the integrator on top of the feed-forward, not the total
+    power. The field log: the heater settled at 27.3 % in a 27.7 C room;
+    the safe table (`safelut.cpp` is exactly the field's
+    `safe_ff_table`) gives ~32.5 % there, ~5 % above the real steady
+    power: a mild warm bias in open loop, field-derived, not a guess.
+    The bench check becomes a confirmation.
+    **The NTC table is right:** the field's `ntc_lut.h` (650 entries,
+    0.1 C) and plan2040's built-in MF58 B3950 table agree within
+    +-0.15 C over 30-40 C (+-0.2 C over 14-50 C).
+    **Everything compared:**
+    | | Field warmer | plan2040 (2026-11-24) | |
+    |---|---|---|---|
+    | NTC table | 650 entries, 0.1 C, clamps out of range (templow/temphigh) | built-in MF58 table, interpolated; out of range a reading fails, guard to safe | agree +-0.15 C |
+    | PID gains | Kp 3, Ti 200, Td 5, dt 1 s, D on measurement, anti-windup | the same | ok |
+    | PID output | FF + PID(-35..+25), total cap 75 % | PID(0..100), no cap in ok (`guard.cpp`: 100) | **to fix** |
+    | Boost / coast | 80 % to setpoint-3, 0 % for 45 s, seed 3 | the same (the seed wrong without FF) | ok with FF |
+    | Setpoint raised >= 2 C | back to boost (commit 2026-04-27) | missing | **to fix** |
+    | Manual | step 5 %, max 80 %, back to 10 % on every switch to manual (customer request) | step 0.5 % (`adjust`'s one step), max 100 %, no reset | **to fix** |
+    | No-rise | coded as 5 min, but counts 1 s ticks against `300000/TICK_MS`: really **50 min** (a bug) | really 5 min | **to decide**: 5 min never field-tested |
+    | Sensor off the baby | fast drop, sustained low -> safe | the same thresholds | ok |
+    | Safe mode | safe table capped 55 %; CHK LED only, no buzzer (commented out); back to PID at once at setpoint-2 | the same table; buzzer, blinking display; back after 2 min, bumpless | stricter, decided; nothing above 55 % in safe |
+    | Temperature alarms | high: skin > setpoint+2; low: skin < room-2 | fixed 40 C / 23 C (picoos's test thresholds) | **to fix** |
+    | Relay off, overtemperature | skin > setpoint+3 | the same | ok |
+    | Heater current | every 15 s, 8-sample average (false alarms at 50-99 %) | every 1 s, after the SSR settles, 3 s confirm, stuck-SSR latch | better |
+    | Dead ADS1115 | the library waits forever: watchdog reboot every ~8 s, each back into 80 % boost | reason in words, safe, retry every 1 s | much better |
+    | Dead control | impossible (one loop) | possible (jobs, `/fram/boot`); the guard catches it in 10 s | new risk, covered |
+    | Structure | one 1245-line loop | ~12 jobs from a script + kernel tasks (~0.6 s chain delay, nothing against a 15 s TPO) | flexible, observable, more parts |
+    | Telemetry | one line per second (state setp skin amb heat low high curr fail warn pid_i pid_pm): Leon's tuning logs | `monitor`, another format | **to add** |
+    **Chances:** as it is now, plan2040 would keep the baby warm *worse*
+    than the field warmer (slow undershooting approach, false safe
+    alarms) while failing *more* safely. With the field's control back,
+    it equals the proven control and exceeds its safety.
+    **To do, in this order, before the first hardware test:**
+    1. **Feed-forward back.** **Decided 2026-11-24 (Leon):**
+       - `fftable`, built in exactly like `safelut`: the field's
+         `ff_table` compiled in (reflash to change, as in the field; a
+         `/fram` override can come later without redesign):
+         `cat /dev/ambient | fftable > /dev/ffpower &`.
+       - **`pid` takes the feed-forward as a bias**, an optional 4th
+         argument: `pid /dev/state pid /dev/setpoint /dev/ffpower`, and
+         computes the field's formula in one place:
+         `pidout = clamp(ff + clamp(P + I + D, -35, +25), 0, 75)`, the
+         anti-windup on the PID part's clamp, as in `warmer.cpp`. The
+         limits are devices (`/dev/pid/min`, `/dev/pid/max`,
+         `/dev/pid/outmax`). Without the 4th argument `pid` works as now.
+       - **Room sensor down** (decided 2026-11-24, Leon): keep the last
+         feed-forward while it's younger than ~10 minutes (a room changes
+         slowly), then a conservative 30 % (the table at 24 C); the PID
+         corrects the rest, an alarm says the room sensor is down. (The
+         field used 50 %: a high bias in a warm room.)
+       - `phase`'s seeds include the FF: the coast seed of 3 % is the
+         integrator on top of it again, and the bumpless handover from
+         safe seeds `integral = power in use - ff - P - D`.
+    2. Caps: 75 % in auto (the guard's cap in ok), 80 % in manual.
+    3. Manual: 5 % per step; back to 10 % on every switch to manual.
+    4. Re-boost when the setpoint goes up by 2 C or more.
+    5. Alarms: high at setpoint+2, low at room-2, as in the field.
+    6. No-rise: **10 minutes** (decided 2026-11-24, Leon): twice what
+       the field code meant (5 min, never run: the tick bug made it 50),
+       until the hardware tests show the real rise rate at 80 %.
+    7. The field's telemetry line, as an option, so new logs compare
+       side by side with the April logs.
+    8. Then board and bench tests; the 39 % bench check confirms.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
