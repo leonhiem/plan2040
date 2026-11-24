@@ -813,6 +813,18 @@ Order, one commit each, tested on the PC and then the board:
     and the guard calls safe at 93:07; the April field logs show the
     real skin rising through the coast (33.0 -> 33.9 C in 30 s). A
     two-node model (heater -> mattress -> skin) would fix the model.
+    **Done 2026-11-24:** bwsim's heat model fitted to the field log
+    ../warmer-5apr/warmerlog7.txt (32 minutes: warm-up, coast, PID):
+    power -> three 60 s lags -> skin, 0.0405 C/s at 100 %, loss to the
+    room over 600 s, rms 0.37 C (one stage: 0.66, two: 0.46). The heat
+    flows only with the relay on and the element whole. The false safe
+    after the coast is gone. Caveats: the April 1 logs (warmerlog-2/3)
+    show a plant 3-4x faster (the skin +4 C in 30-60 s; their room sensor
+    read 25.0 throughout, unconnected?), so the sensor sat on something
+    else then; the model is one plausible baby. And it shows the PID slow
+    after a large step: its part stops at +25 %, the skin sags 1.5-2 C for
+    ~10 min, as warmerlog7 itself does (35.8 -> 33.3 C at 540-1200 s,
+    before the feed-forward was raised): a point for the hardware test.
     **Gap (d) done 2026-11-24 (Leon):** the setpoint 34.0-37.5 C (was
     30-39); above 37.5, up to 39.0, only on purpose: hold UP 3 s at 37.5
     (dev/setpoint.cpp counts writes past the limit, the buttons repeat),

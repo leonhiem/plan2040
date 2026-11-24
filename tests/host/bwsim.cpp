@@ -2,18 +2,23 @@
 // simulated time. The real kernel scheduler (task.cpp), shell, jobs, the
 // real babywarmer boot script, every real device and program, and the
 // guard (dev/guard.cpp, the kernel task that owns the heater safety);
-// only the sensors are fakes, fed by a simple thermal model:
+// only the sensors are fakes, fed by a thermal model fitted to the field
+// warmer's log of 5 April 2026 (../warmer-5apr/warmerlog7.txt, 32 minutes
+// of warm-up, coast and PID; rms error 0.37 C):
 //
-//   skin' = (heater% * GAIN  -  (skin - room) * LOSS) per second
+//   power -> 3 lags of 60 s each (heater, mattress) -> skin
+//   skin' = 0.0405 C/s * lagged power (0..1) - (skin - room) / 600 s
 //
-// calibrated so the room table is right: the safe table's 39 % at a 24 C room
-// keeps the baby at 36 C (time constant ~8 minutes; a rough model, not
-// babywarmer's real thermal mass).
+// so the skin rises ~2 minutes after the heater goes on, and keeps rising
+// through the coast after it goes off, as in the log. The heat only flows
+// with the relay on and the element whole (or the SSR stuck on). The April
+// 1 logs show a plant 3-4x faster (the sensor on something lighter?), so
+// this is one plausible baby, not the only one.
 //
 // Story (each step with what the guard should do):
 //   0:00  manual 10 %; the skin sensor is NOT on the baby (reads the room)
 //   1:00  MANUAL -> auto: boost; scenario (2), sensor out during warm-up:
-//         "no rise" after 5 min -> safe, heating from the room (39 %)
+//         "no rise" after 5 min -> safe, heating from the room (33.5 %)
 //  14:00  the sensor goes on the baby -> ok after 2 min plausible, warmer's pid
 //         (feed-forward 30 % + the PID's correction, step 5)
 //  20:00  UP 10 times -> setpoint 36.0 (+1.0: no re-boost)
@@ -41,13 +46,11 @@
 // Gap c, the deviation from the setpoint: 22:00-26:00 a phototherapy lamp
 // (HIGH warns at 1 C over, alarms at 2 C, the relay drops at 3 C);
 // 44:00-49:00 a draught (LOW warns at 1 C under, alarms at 2 C).
-//
-// A known limit of this model: it has no mattress storing heat, so the
-// skin falls during the 45 s coast at 0 % (and the PID may start more than
-// 3 C below the setpoint: a false "safe"; at 105:51 a LOW warning, the skin
-// 1.8 C under after the coast). On the real warmer the skin
-// keeps rising through the coast (the April 2026 field logs: 33.0 -> 33.9
-// C, 32.0 -> 33.1 C in 30 s).
+// Real deviations the model shows: 63:57 LOW warns (the relay was held off
+// 3 minutes for the stuck SSR); 66:00 and 92:00 the PID climbs slowly after
+// a large step (its part stops at +25 %, the integrator gains 0.015 %/C/s):
+// the skin sags 1.5-2 C for ~10 minutes, LOW warns at 95:10. The field log
+// the model comes from shows the same sag (35.8 -> 33.3 C, 540-1200 s).
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -79,8 +82,9 @@ static void type(const char *line) { typed_len = snprintf(typed, sizeof typed, "
 int getchar_timeout_us(uint32_t) { return typed_pos < typed_len ? (unsigned char)typed[typed_pos++] : -1; }
 
 // ---- the world
-static const float ROOM = 24.0f, LOSS = 0.0020f, GAIN = LOSS * 12.0f / 39.0f; // 39 % -> room + 12 C = 36 C
-static float skin = 24.0f;       // what's under the sensor
+static const float ROOM = 27.0f, LAG_S = 60.0f, GAIN = 0.0405f, LOSS_S = 600.0f;
+static float skin = 27.0f;       // what's under the sensor
+static float lag1, lag2, lag3;   // the heater's and the mattress's warmth, 0..1
 static bool sensor_on_baby = false, adc_dead = false, room_dead = false;
 static float draught = 1.0f, lamp = 0.0f;   // more heat loss; an extra heat source (C/s)
 static bool element_broken = false, ssr_stuck = false;   // heater faults
@@ -220,7 +224,12 @@ int main()
         if (fake_now < next_sec) continue;
         next_sec += 1000000; sec++;
         // the world, once a second
-        skin += heater_now() * GAIN - (skin - ROOM) * LOSS * draught + lamp;
+        {   // the heat that really flows: relay on, element whole (or the SSR stuck on)
+            bool relay = fake_gpio[PIN_HEATERSAFE];
+            float p = (!relay || element_broken) ? 0.0f : ssr_stuck ? 1.0f : heater_now() / 100.0f;
+            lag1 += (p - lag1) / LAG_S; lag2 += (lag1 - lag2) / LAG_S; lag3 += (lag2 - lag3) / LAG_S;
+            skin += GAIN * lag3 - (skin - ROOM) / LOSS_S * draught + lamp;
+        }
         if (sec == 60)       { SAY("--- 1:00 press MANUAL (-> auto); the skin sensor is not on the baby\n"); button[BUTTON_MANUAL] = true; }
         if (sec == 14 * 60)  { SAY("--- 14:00 the skin sensor goes on the baby\n"); sensor_on_baby = true; }
         if (sec == 20 * 60)  SAY("--- 20:00 press UP 10 times (0.1 C each: setpoint 36.0)\n");
