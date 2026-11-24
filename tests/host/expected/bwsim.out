@@ -19,7 +19,7 @@ Sun Nov 22 10:00:00 2026
 [6]
 % select /dev/state idle=/dev/percent boost=/dev/setpoint coast=/dev/setpoint pid=/dev/setpoint safe=/dev/heater > /dev/seg7small &
 [7]
-% alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow /dev/alarm/sensor &
+% alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow /dev/alarm/sensor /dev/alarm/check &
 [8]
 % ledwire &
 [9]
@@ -221,7 +221,7 @@ jobs
 [6] cat /dev/skintemp > /dev/seg7big &
     failing: cat: /dev/skintemp: ADS1115 (0x48) not answering
 [7] select /dev/state idle=/dev/percent boost=/dev/setpoint coast=/dev/setpoint pid=/dev/setpoint safe=/dev/heater > /dev/seg7small &
-[8] alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow /dev/alarm/sensor &
+[8] alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow /dev/alarm/sensor /dev/alarm/check &
 [9] ledwire &
 [10] tftwire &
 % --- 105:00 the ADS1115 answers again
@@ -233,6 +233,40 @@ guard: ok: sensors answer again, back to auto
 107:00  auto on  pid   guard ok   set 38.0 skin 35.27  heater  43.5 ff 30.0 autopower 43.5   relay 1 buzzer 0  big 35.3  small 38.0 chk off alarms heater off high off low off
 108:00  auto on  pid   guard ok   set 38.0 skin 35.54  heater  45.0 ff 30.0 autopower 45.0   relay 1 buzzer 0  big 35.5  small 38.0 chk off alarms heater off high off low off
 109:00  auto on  pid   guard ok   set 38.0 skin 35.81  heater  46.0 ff 30.0 autopower 46.0   relay 1 buzzer 0  big 35.8  small 38.0 chk off alarms heater off high off low off
+--- 110:00 press MANUAL (-> manual 10 %), then UP 4 times (30 %)
 110:00  auto on  pid   guard ok   set 38.0 skin 36.09  heater  46.7 ff 30.0 autopower 46.7   relay 1 buzzer 0  big 36.1  small 38.0 chk off alarms heater off high off low off
-big display bytes at the end: 60bff2
+111:00  auto off idle  guard ok   set 38.0 skin 35.69  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 35.7  small 30.0 chk off alarms heater off high off low off
+112:00  auto off idle  guard ok   set 38.0 skin 35.41  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 35.4  small 30.0 chk off alarms heater off high off low off
+113:00  auto off idle  guard ok   set 38.0 skin 35.17  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 35.2  small 30.0 chk off alarms heater off high off low off
+114:00  auto off idle  guard ok   set 38.0 skin 34.95  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 35.0  small 30.0 chk off alarms heater off high off low off
+115:00  auto off idle  guard ok   set 38.0 skin 34.75  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 34.8  small 30.0 chk off alarms heater off high off low off
+116:00  auto off idle  guard ok   set 38.0 skin 34.58  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 34.6  small 30.0 chk off alarms heater off high off low off
+117:00  auto off idle  guard ok   set 38.0 skin 34.43  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 34.4  small 30.0 chk off alarms heater off high off low off
+118:00  auto off idle  guard ok   set 38.0 skin 34.29  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 34.3  small 30.0 chk off alarms heater off high off low off
+119:00  auto off idle  guard ok   set 38.0 skin 34.17  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 34.2  small 30.0 chk off alarms heater off high off low off
+120:00  auto off idle  guard ok   set 38.0 skin 34.07  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 34.1  small 30.0 chk off alarms heater off high off low off
+121:00  auto off idle  guard ok   set 38.0 skin 33.97  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 34.0  small 30.0 chk off alarms heater off high off low off
+122:00  auto off idle  guard ok   set 38.0 skin 33.89  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 33.9  small 30.0 chk off alarms heater off high off low off
+guard: manual 30 % for 12 min: check the baby, then press MUTE
+    122:15  /dev/alarm/check: on: manual 30 % for 12 min: check the baby, press MUTE (heater 30.0)
+123:00  auto off idle  guard ok   set 38.0 skin 33.81  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 1  big 33.8  small 30.0 chk off alarms heater off high off low off
+124:00  auto off idle  guard ok   set 38.0 skin 33.75  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 1  big 33.7  small 30.0 chk off alarms heater off high off low off
+125:00  auto off idle  guard ok   set 38.0 skin 33.69  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 1  big 33.7  small 30.0 chk off alarms heater off high off low off
+guard: check not answered for 3 min: heater off until MUTE
+    125:17  /dev/alarm/check: on: manual 30 %, not answered: heater off, check the baby, press MUTE (heater 0.0)
+126:00  auto off idle  guard ok   set 38.0 skin 32.86  heater   0.0 ff 30.0 autopower 0.0    relay 1 buzzer 1  big 32.9  small 30.0 chk off alarms heater off high off low off
+--- 127:00 a nurse comes: press MUTE
+127:00  auto off idle  guard ok   set 38.0 skin 31.86  heater   0.0 ff 30.0 autopower 0.0    relay 1 buzzer 1  big 31.9  small 30.0 chk off alarms heater off high off low off
+guard: check answered, heater back on
+    127:01  /dev/alarm/check: off (heater 30.0)
+128:00  auto off idle  guard ok   set 38.0 skin 32.01  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 32.0  small 30.0 chk off alarms heater off high off low off
+129:00  auto off idle  guard ok   set 38.0 skin 32.15  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 32.1  small 30.0 chk off alarms heater off high off low off
+--- 130:00 press DOWN twice (20 %: no more check timer)
+130:00  auto off idle  guard ok   set 38.0 skin 32.27  heater  30.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 32.3  small 30.0 chk off alarms heater off high off low off
+131:00  auto off idle  guard ok   set 38.0 skin 32.03  heater  20.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 32.0  small 20.0 chk off alarms heater off high off low off
+132:00  auto off idle  guard ok   set 38.0 skin 31.82  heater  20.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 31.8  small 20.0 chk off alarms heater off high off low off
+133:00  auto off idle  guard ok   set 38.0 skin 31.63  heater  20.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 31.6  small 20.0 chk off alarms heater off high off low off
+134:00  auto off idle  guard ok   set 38.0 skin 31.47  heater  20.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 31.5  small 20.0 chk off alarms heater off high off low off
+135:00  auto off idle  guard ok   set 38.0 skin 31.32  heater  20.0 ff 30.0 autopower 0.0    relay 1 buzzer 0  big 31.3  small 20.0 chk off alarms heater off high off low off
+big display bytes at the end: f261f2
 exit 0

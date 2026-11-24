@@ -1,14 +1,15 @@
 /**
  * apps/babywarmer/dev/alarm.cpp — /dev/alarm (the buzzer and alarm LED) and
- * the alarm conditions /dev/alarm/{heater,temphigh,templow,sensor}
+ * the alarm conditions /dev/alarm/{heater,temphigh,templow,sensor,check}
  *
  *   echo on > /dev/alarm       buzzer + alarm LED on
  *   echo muted > /dev/alarm    LED on, buzzer off (MUTE: never silent and dark)
  *   echo off > /dev/alarm      both off
  *
  * The conditions are written by the guard (dev/guard.cpp), read by the jobs
- * alarm, ledwire and tftwire: "on"/"off"; heater and sensor also keep a
- * reason ("on: <why>"), which readers that only look for "on" ignore.
+ * alarm, ledwire and tftwire: "on"/"off"; heater, sensor and check also
+ * keep a reason ("on: <why>"), which readers that only look for "on"
+ * ignore. check is manual mode's "check the baby" (dev/guard.cpp).
  *
  * GPIO: the alarm LED is active-low, the buzzer active-high (since the
  * 2026-08-26 buzzer circuit change). Both off at boot (board_pins_init()).
@@ -59,7 +60,7 @@ static int write_bool(const char *buf, int len, bool *dst)
 // heater and sensor keep their reason: write "on: <why>", read gives it
 // back; "off" clears it.
 typedef struct { bool on; char why[96]; } alarm_why_t;
-static alarm_why_t heater_alarm, sensor_alarm;
+static alarm_why_t heater_alarm, sensor_alarm, check_alarm;
 
 static int why_read(const alarm_why_t *a, char *buf, int len)
 {
@@ -85,6 +86,8 @@ static int heater_read(char *buf, int len)        { return why_read(&heater_alar
 static int heater_write(const char *buf, int len) { return why_write(&heater_alarm, buf, len); }
 static int sensor_read(char *buf, int len)        { return why_read(&sensor_alarm, buf, len); }
 static int sensor_write(const char *buf, int len) { return why_write(&sensor_alarm, buf, len); }
+static int check_read(char *buf, int len)         { return why_read(&check_alarm, buf, len); }
+static int check_write(const char *buf, int len)  { return why_write(&check_alarm, buf, len); }
 
 static int temphigh_read(char *buf, int len)        { return read_bool(buf, len, temphigh_fail); }
 static int temphigh_write(const char *buf, int len) { return write_bool(buf, len, &temphigh_fail); }
@@ -96,6 +99,7 @@ static const device_t dev_alarm_heater   = { "/dev/alarm/heater",   0, 0, heater
 static const device_t dev_alarm_temphigh = { "/dev/alarm/temphigh", 0, 0, temphigh_read, temphigh_write };
 static const device_t dev_alarm_templow  = { "/dev/alarm/templow",  0, 0, templow_read,  templow_write };
 static const device_t dev_alarm_sensor   = { "/dev/alarm/sensor",   0, 0, sensor_read,   sensor_write };
+static const device_t dev_alarm_check    = { "/dev/alarm/check",    0, 0, check_read,    check_write };
 
 void dev_alarm_register(void)
 {
@@ -104,4 +108,5 @@ void dev_alarm_register(void)
     fs_register(&dev_alarm_temphigh);
     fs_register(&dev_alarm_templow);
     fs_register(&dev_alarm_sensor);
+    fs_register(&dev_alarm_check);
 }

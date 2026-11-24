@@ -21,6 +21,7 @@ static const uint button_pin[BUTTON_COUNT] = { BUTTON_PIN_UP,
                                                BUTTON_PIN_LAMP };
 
 volatile bool button[BUTTON_COUNT];
+volatile uint32_t button_presses[BUTTON_COUNT];
 static volatile bool button_pressed[BUTTON_COUNT];
 static volatile int  button_cnt[BUTTON_COUNT];
 static int held_ms[BUTTON_COUNT];
@@ -30,7 +31,7 @@ static bool repeating_timer_callback(struct repeating_timer *t)
     (void)t;
     for (int i = 0; i < BUTTON_COUNT; i++) {
         if ((gpio_get(button_pin[i]) == false) && button_pressed[i]==false && button_cnt[i]==0) {
-            button_pressed[i]=true; button[i]=true; button_cnt[i]=DEBOUNCE_SHORT;
+            button_pressed[i]=true; button[i]=true; button_cnt[i]=DEBOUNCE_SHORT; button_presses[i]++;
         } else if((gpio_get(button_pin[i]) == true) && button_pressed[i]==true && button_cnt[i]==0) {
             button_pressed[i]=false; button_cnt[i]=DEBOUNCE_SHORT;
         } else if(button_cnt[i]>0) button_cnt[i]--;
@@ -40,6 +41,7 @@ static bool repeating_timer_callback(struct repeating_timer *t)
             held_ms[i] += TICK_MS;
             if (held_ms[i] >= REPEAT_DELAY_MS + REPEAT_EVERY_MS) {
                 button[i] = true;
+                button_presses[i]++;
                 held_ms[i] = REPEAT_DELAY_MS;
             }
         } else held_ms[i] = 0;

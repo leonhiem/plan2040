@@ -12,6 +12,7 @@
  * forth.
  */
 #pragma once
+#include <stdint.h>
 
 #define BUTTON_UP     0
 #define BUTTON_DOWN   1
@@ -22,6 +23,12 @@
 #define BUTTON_COUNT  6
 
 extern volatile bool button[BUTTON_COUNT];
+
+// Every press counted (repeats included), never cleared: a reader that
+// only wants to know "was it pressed since I last looked" compares counts,
+// without taking the press away from the button[] consumer (the guard
+// sees MUTE this way; the `alarm` job takes button[BUTTON_MUTE]).
+extern volatile uint32_t button_presses[BUTTON_COUNT];
 
 // GPIO setup + start the debounce timer.
 void buttons_init(void);

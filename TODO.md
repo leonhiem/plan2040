@@ -792,6 +792,13 @@ Order, one commit each, tested on the PC and then the board:
     (`adjust ... 0.1 5`), and **UP/DOWN repeat while held** (drivers/
     buttons.cpp: after 0.5 s, every 0.15 s; 2 C in ~3 s; MANUAL, MUTE,
     START, LAMP never repeat). tests/host/btntest.
+    **Gap (b) done 2026-11-24 (Leon, as the GE Panda):** manual mode's
+    check timer in the guard: above 25 % for 12 min -> /dev/alarm/check
+    ("check the baby, press MUTE", buzzer); unanswered 3 more min ->
+    heater off until MUTE; MUTE answers and restarts the timer (the
+    guard counts presses, drivers/buttons.h button_presses[], without
+    taking them from the `alarm` job); 25 % or less, or auto, stop it.
+    bwsim 110:00-135:00.
     **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
     (b) a manual-mode check timer; (c) deviation alarms relative to the
     setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on

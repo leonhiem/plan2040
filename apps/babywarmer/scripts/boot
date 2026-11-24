@@ -29,6 +29,6 @@ follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
 # minute); the front-panel LEDs; the TFT (START starts the APGAR clock).
 cat /dev/skintemp > /dev/seg7big &
 select /dev/state idle=/dev/percent boost=/dev/setpoint coast=/dev/setpoint pid=/dev/setpoint safe=/dev/heater > /dev/seg7small &
-alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow /dev/alarm/sensor &
+alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow /dev/alarm/sensor /dev/alarm/check &
 ledwire &
 tftwire &

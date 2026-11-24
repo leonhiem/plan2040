@@ -38,7 +38,12 @@
  *
  * The decision acts at the heater: heater_guard() (heater.h), applied by
  * tpo_apply() within 100 ms. Manual mode is the nurse's choice: hardware
- * safety only.
+ * safety, and the check timer: nothing watches the baby's temperature in
+ * manual, so above CHECK_POWER (25 %) for CHECK_S (12 min) the alarm
+ * /dev/alarm/check asks the nurse to check the baby; unanswered for
+ * CHECK_OFF_S (3 more minutes), the heater goes off until answered. MUTE
+ * answers (and restarts the timer); so does lowering the power to 25 % or
+ * less, or auto mode. As the GE Panda warmer (IEC 60601-2-21).
  *
  * The hardware safety, in any mode: the relay (off when the skin is more
  * than 3 C above the setpoint, on when heating); the heater current against
@@ -59,6 +64,7 @@
 #include "heater.h"
 #include "safelut.h"
 #include "warmup.h"
+#include "drivers/buttons.h"
 #include "pico/stdlib.h"
 #include <cstdarg>
 #include <cstdio>
@@ -81,6 +87,11 @@
 #define CONTROL_DEAD_S        10     // auto mode, nobody writes /dev/heater
 #define NONE_DEFAULT_PERCENT  10.0f  // no room temperature ever seen
 #define AUTO_CAP              WARMUP_POWER  // the backstop in auto: the most auto asks
+
+// Manual mode's check timer.
+#define CHECK_POWER           25.0f  // manual above this ...
+#define CHECK_S               720    // ... for 12 minutes: "check the baby"
+#define CHECK_OFF_S           180    // unanswered 3 more minutes: heater off
 
 // The hardware safety.
 #define OVERTEMP_MARGIN       3.0f   // skin > setpoint + this -> relay off
@@ -107,6 +118,11 @@ static bool  have_prev;
 static int   drop_s, low_s, recover_s, back_s;
 static bool  last_auto;
 static int   raised_seen = -1;             // /dev/setpoint/raised
+
+static int   check_s;                      // manual above CHECK_POWER this long
+static bool  check_off;                    // unanswered: the heater off
+static float check_power;
+static uint32_t mute_seen;
 
 static int   nocurrent_s, stuck_s;
 static bool  nocurrent, stuck;
@@ -198,13 +214,37 @@ static void set_level(int lv, int c, const char *fmt, ...)
 static void power(void)
 {
     float pct;
-    if (level == G_NONE && forced_manual) {
+    if (check_off) {
+        heater_guard(HEATER_GUARD_SET, 0.0f);
+    } else if (level == G_NONE && forced_manual) {
         if (!read_float("/dev/percent", &pct)) pct = NONE_DEFAULT_PERCENT;
         heater_guard(HEATER_GUARD_SET, pct);
     } else if (level == G_SAFE && last_auto) {
         heater_guard(HEATER_GUARD_SET, have_room ? safelut_power(last_room) : NONE_DEFAULT_PERCENT);
     } else {
         heater_guard(HEATER_GUARD_CAP, last_auto ? AUTO_CAP : 100.0f);
+    }
+}
+
+// ---- manual mode's check timer -----------------------------------------
+
+static void manual_check(bool manual)
+{
+    uint32_t mutes = button_presses[BUTTON_MUTE];
+    bool answered = mutes != mute_seen;
+    mute_seen = mutes;
+    check_power = heater_asked();
+    if (!manual || check_power <= CHECK_POWER || answered) {
+        if (check_off) printf("guard: check answered, heater back on\n");
+        check_s = 0;
+        check_off = false;
+        return;
+    }
+    if (++check_s == CHECK_S)
+        printf("guard: manual %.0f %% for 12 min: check the baby, then press MUTE\n", check_power);
+    if (check_s >= CHECK_S + CHECK_OFF_S && !check_off) {
+        check_off = true;
+        printf("guard: check not answered for 3 min: heater off until MUTE\n");
     }
 }
 
@@ -328,6 +368,7 @@ static void guard_task(void)
     }
     prev_skin = skin;
     have_prev = skin_ok;
+    manual_check(!autom);
     power();                                              // e.g. /dev/percent changed in none
 
     // -- hardware safety --
@@ -347,6 +388,11 @@ static void guard_task(void)
     else if (!room_ok && autom) snprintf(s, sizeof(s), "on: %.90s", room_err);
     else snprintf(s, sizeof(s), "off");
     alarm_set("/dev/alarm/sensor", a_sensor, sizeof(a_sensor), s);
+    static char a_check[100] = "off";
+    if (check_off)              snprintf(s, sizeof(s), "on: manual %.0f %%, not answered: heater off, check the baby, press MUTE", check_power);
+    else if (check_s >= CHECK_S) snprintf(s, sizeof(s), "on: manual %.0f %% for 12 min: check the baby, press MUTE", check_power);
+    else                        snprintf(s, sizeof(s), "off");
+    alarm_set("/dev/alarm/check", a_check, sizeof(a_check), s);
 }
 
 // ---- /dev/guard ---------------------------------------------------------

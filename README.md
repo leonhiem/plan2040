@@ -297,7 +297,7 @@ The control, as devices that hold values and programs that run as jobs
 | `/dev/pid/integral`, `ff` | read | What `warmer` uses now: the integral and the feed-forward for the room (30 % at 24 °C; the room sensor down: the last value for 10 minutes, then 30 %). |
 | `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `warmer`). |
 | `/dev/autopower` | read/write | The power auto mode asks for (from `select`; in safe, what the guard heats with). |
-| `/dev/alarm/heater`, `temphigh`, `templow`, `sensor` | read/write | The alarm conditions (written by the guard): `on`/`off`. `heater` and `sensor` give their reason too: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
+| `/dev/alarm/heater`, `temphigh`, `templow`, `sensor`, `check` | read/write | The alarm conditions (written by the guard): `on`/`off`. `check` is manual mode's "check the baby" (below). `heater`, `sensor` and `check` give their reason too: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
 | `/dev/guard` | read | The guard's verdict on the skin reading, with the reason: `ok`, `safe: <why>`, `none: <why>` (see "The guard" below). |
 | `/dev/heater/limit` | read | The guard's say over the heater: `cap 100.0` (the jobs' power, at most that) or `set 39.0` (the guard's own power, whatever the jobs ask). |
 
@@ -347,7 +347,12 @@ back (hardware causes); from `none`, back to auto. Manual mode (the
 nurse's choice): hardware safety only. The guard also owns what
 picoos's `alarmcheck` job did: the relay (off on overtemp, on when
 heating), the temperature alarms, the heater-current check, the stuck
-SSR; and it writes `/dev/alarm/sensor` (also when only the room sensor
+SSR; the **check timer in manual mode** (nothing watches the baby's
+temperature there, IEC 60601-2-21, as the GE Panda warmer): manual
+power above 25 % for 12 minutes sounds `/dev/alarm/check` ("check the
+baby, press MUTE"); 3 more minutes unanswered switch the heater off
+until MUTE, which also restarts the timer (lowering the power to 25 %
+or less, or auto mode, stop it); and it writes `/dev/alarm/sensor` (also when only the room sensor
 is down: the PID then runs on the last feed-forward). The temperature
 alarms are the field warmer's: high when the skin is more than 2 °C
 above the setpoint, low when it is more than 2 °C below the room. Each change is said once on the
@@ -1604,6 +1609,8 @@ element safe to run, or disconnected.
 | UP/DOWN in manual | pending: percent changes in steps of 5 (small display), at most 80 |
 | UP/DOWN in auto | pending: setpoint in steps of 0.1 °C; held: repeats after 0.5 s (2 °C in ~3 s) |
 | MANUAL held for 3 s | pending: switches once, never back and forth |
+| Manual at 30 % for 12 min | pending: buzzer, `cat /dev/alarm/check`: `on: manual 30 % for 12 min: check the baby, press MUTE`; 3 min more: heater off (`cat /dev/heater/limit`: `set 0.0`); MUTE: heater back, quiet |
+| Manual at 20 % | pending: no check alarm, however long |
 | MANUAL | pending: auto on: small display shows the setpoint, `cat /dev/state` = `boost`, heater 80 %, AUT LED |
 | `watch 1000 monitor` | pending: one line per second through boost, coast, pid |
 | Warm the NTC by hand above 40 °C | pending: `/dev/alarm/temphigh` on, buzzer; MUTE silences it for a minute |

@@ -1,4 +1,4 @@
-// bwsim: the whole babywarmer controller on the PC, 110 minutes of
+// bwsim: the whole babywarmer controller on the PC, 135 minutes of
 // simulated time. The real kernel scheduler (task.cpp), shell, jobs, the
 // real babywarmer boot script, every real device and program, and the
 // guard (dev/guard.cpp, the kernel task that owns the heater safety);
@@ -35,6 +35,9 @@
 //         power; 102:00 UP (+5 %); 104:00 `jobs`; 105:00 back -> auto by
 //         itself, and with the feed-forward no undershoot (before step 5 the
 //         PID started from picoos's 3 % alone: a false "safe" at 108:58)
+// 110:00  MANUAL -> manual, UP to 30 %: the check timer (IEC gap b): at
+//         12 min "check the baby", 3 min later unanswered -> heater off;
+//         127:00 MUTE answers -> heater back; 130:00 DOWN to 20 %: no timer
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -58,6 +61,8 @@ i2c_inst_t *fake_i2c0, *fake_i2c1;
 spi_inst_t *fake_spi0;
 unsigned long fake_spi_bytes;
 volatile bool button[BUTTON_COUNT];
+volatile uint32_t button_presses[BUTTON_COUNT];
+static void press(int b) { button[b] = true; button_presses[b]++; }   // as the driver does
 // Typed input: type("...") queues a line for the shell.
 static char typed[256]; static int typed_pos, typed_len;
 static void type(const char *line) { typed_len = snprintf(typed, sizeof typed, "%s", line); typed_pos = 0; }
@@ -198,7 +203,7 @@ int main()
     const uint64_t STEP = 10000;  // 10 ms of simulated time per loop
     uint64_t next_sec = 1000000;
     int sec = 0;
-    while (sec < 110 * 60) {
+    while (sec < 135 * 60) {
         task_run();
         fake_now += STEP;
         if (fake_now < next_sec) continue;
@@ -228,10 +233,18 @@ int main()
         if (sec == 90 * 60)  { SAY("--- 90:00 press MANUAL (-> manual: 10 %%)\n"); button[BUTTON_MANUAL] = true; }
         if (sec == 91 * 60)  { SAY("--- 91:00 press UP (manual: +5 %%)\n"); button[BUTTON_UP] = true; }
         if (sec == 92 * 60)  { SAY("--- 92:00 press MANUAL (-> auto)\n"); button[BUTTON_MANUAL] = true; }
+        if (sec == 110 * 60) { SAY("--- 110:00 press MANUAL (-> manual 10 %%), then UP 4 times (30 %%)\n"); press(BUTTON_MANUAL); }
+        if (sec >= 110 * 60 + 5 && sec < 110 * 60 + 9) press(BUTTON_UP);
+        if (sec == 127 * 60) { SAY("--- 127:00 a nurse comes: press MUTE\n"); press(BUTTON_MUTE); }
+        if (sec == 130 * 60) { SAY("--- 130:00 press DOWN twice (20 %%: no more check timer)\n"); press(BUTTON_DOWN); }
+        if (sec == 130 * 60 + 1) press(BUTTON_DOWN);
         {   // log every change of the heater alarm and of the guard, to the second
             static char last[120] = "off", lastg[120] = "ok";
             char now[120]; rd("/dev/alarm/heater", now, sizeof now);
             if (strcmp(now, last)) { SAY("%7d:%02d  /dev/alarm/heater: %s (relay %d)\n", sec / 60, sec % 60, now, fake_gpio[PIN_HEATERSAFE]); strcpy(last, now); }
+            static char lastc[120] = "off";
+            rd("/dev/alarm/check", now, sizeof now);
+            if (strcmp(now, lastc)) { SAY("%7d:%02d  /dev/alarm/check: %s (heater %.1f)\n", sec / 60, sec % 60, now, heater_now()); strcpy(lastc, now); }
             static char lasts[120] = "off";   // the sensor alarm, where it isn't the guard's level: the room sensor
             rd("/dev/alarm/sensor", now, sizeof now);
             if (strcmp(now, lasts)) {
