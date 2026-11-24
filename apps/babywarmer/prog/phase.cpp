@@ -14,7 +14,11 @@
  *   pid    prog/pid.cpp controls the skin temperature (feed-forward + PID);
  *          back to boost when the setpoint is raised by 2 C or more
  *          (/dev/setpoint/raised; warmer.cpp 2026-04-27: "large upward
- *          step -- skin needs active warmup")
+ *          step -- skin needs active warmup") and the skin is more than
+ *          BOOST_EXIT_MARGIN below the new setpoint (Leon, 2026-11-24:
+ *          otherwise the field rule boosted not at all, only coasted 45 s
+ *          at 0 % and restarted the PID from 3 %; now the PID keeps its
+ *          integrator and climbs)
  *   safe   shown while the guard (dev/guard.cpp) says the skin reading
  *          can't be trusted (safe or none); the guard heats by itself then.
  *          When it says ok again: pid, bumpless (the integral seeded so the
@@ -163,7 +167,7 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
     }
 
     if (state_is("pid")) {
-        if (reboost) {
+        if (reboost && skin < setpoint - BOOST_EXIT_MARGIN) {
             set_state("boost");
             return snprintf(out, outlen, "-> boost (setpoint raised to %.1f)\n", setpoint);
         }

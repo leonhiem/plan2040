@@ -32,7 +32,8 @@
  *     than 0.3 C in 10 minutes (Leon 2026-11-24: the field warmer's code
  *     meant 5, but a tick bug made it 50; 10 until the hardware tests
  *     show the real rise at 80 %); a warm-up is auto switching on, or the
- *     setpoint raised by 2 C or more (/dev/setpoint/raised);
+ *     setpoint raised by 2 C or more (/dev/setpoint/raised) with the skin
+ *     more than 3 C below it (as phase boosts again);
  *   - the skin reading fails (ADS1115 or NTC);
  *   - the control jobs are gone: in auto mode nothing has written /dev/heater
  *     for 10 s.
@@ -310,7 +311,7 @@ static void guard_task(void)
         } else if (level == G_SAFE && cause == C_CONTROL) {
             if (++back_s >= HW_RECOVER_S) set_level(G_OK, C_SENSOR, "control jobs running again");
         } else if (level == G_OK) {
-            if (reboost && !warming) start_warmup(skin);   // phase boosts again
+            if (reboost && !warming && skin < sp - WARMUP_EXIT_MARGIN) start_warmup(skin);   // phase boosts again
             if (warming) {
                 warm_s++;
                 if (skin >= sp - WARMUP_EXIT_MARGIN) warming = false;

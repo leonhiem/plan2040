@@ -632,7 +632,8 @@ Order, one commit each, tested on the PC and then the board:
        auto: 80 %** (the most auto ever asks; it only stops a broken or
        edited job); **manual at most 80 %** (`/dev/percent`).
     3. Manual: 5 % per step; back to 10 % on every switch to manual.
-    4. Re-boost when the setpoint goes up by 2 C or more.
+    4. Re-boost when the setpoint goes up by 2 C or more (and, decided
+       later the same day, the skin is more than 3 C below it).
     5. Alarms: high at setpoint+2, low at room-2, as in the field.
     6. No-rise: **10 minutes** (decided 2026-11-24, Leon): twice what
        the field code meant (5 min, never run: the tick bug made it 50),
@@ -655,7 +656,9 @@ Order, one commit each, tested on the PC and then the board:
       3 % seed, dropping the converged integrator. In bwsim's light model
       the skin falls ~1 C meanwhile. Perhaps re-boost only when the skin
       is more than 3 C below the new setpoint, and otherwise let the PID
-      climb.
+      climb. **Decided 2026-11-24 (Leon): so.** bwsim, 36 -> 38 C: no dip
+      (the field rule: skin down to 34.9 C in the 45 s at 0 %), 38 C
+      reached ~3 minutes sooner. Built the same day.
     - **10 minutes of no-rise is 10 minutes of 80 % open loop** when the
       sensor is out of the bed: in bwsim's light model (~8 min time
       constant) the baby reaches 41 C before safe (5 min: ~34 C). A real

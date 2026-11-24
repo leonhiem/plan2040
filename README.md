@@ -289,7 +289,7 @@ The control, as devices that hold values and programs that run as jobs
 | Device | | |
 |---|---|---|
 | `/dev/setpoint` | read/write | Skin setpoint, 30.0-39.0 °C, default 35.0. |
-| `/dev/setpoint/raised` | read | How many times the setpoint was raised by 2 °C or more (counted 5 s after the last press): `phase` boosts again, the guard watches it as a warm-up. |
+| `/dev/setpoint/raised` | read | How many times the setpoint was raised by 2 °C or more (counted 5 s after the last press): `phase` boosts again if the skin is more than 3 °C below it, and the guard watches that as a warm-up. |
 | `/dev/heaterauto` | read/write | `on` = auto (the PID), `off` = manual (`/dev/percent`). Starts `off`. Every switch to manual sets `/dev/percent` to 10 (the field warmer's customer request). |
 | `/dev/percent` | read/write | Manual heater power, 0-80 (the field warmer's maximum), default 10. |
 | `/dev/pid/kp`, `ti`, `td`, `dt`, `integral`, `prevmeas`; `/dev/pidout` | read/write | The PID's tuning, its state, and its output. |
@@ -303,7 +303,7 @@ The control, as devices that hold values and programs that run as jobs
 
 | Program | What it does |
 |---|---|
-| `phase` | once a second: idle (manual) → boost (80 %) → coast (0 %) → pid, and back to boost when the setpoint is raised by 2 °C or more; shows `safe` while the guard says so, and hands back to the PID bumpless (the PID starts from the power in use) |
+| `phase` | once a second: idle (manual) → boost (80 %) → coast (0 %) → pid, and back to boost when the setpoint is raised by 2 °C or more and the skin is more than 3 °C below it; shows `safe` while the guard says so, and hands back to the PID bumpless (the PID starts from the power in use) |
 | `pid <gate> <state> <setpoint> [<bias>]` | the PID on the skin temperature, while `/dev/state` is `pid`; with a bias (the boot script: `/dev/ffpower`) the field warmer's formula: feed-forward + PID(-35..+25), at most 75 % |
 | `safelut` | room temperature → a fixed heater power, for safe mode |
 | `fftable` | room temperature → the feed-forward power for the PID (the field warmer's `ff_table`) |
@@ -1486,7 +1486,7 @@ power in safe. On the PC: `bwsim` decodes both displays from the
 **2026-11-24, step 5: the field warmer's control back**
 (`build-babywarmer_v1/plan2040.uf2`, after the hack). On the PC
 (`bwsim`): after warm-up the PID runs on the feed-forward (30 % +
-~7 % integrator in the model); setpoint +2 °C → boost, coast, pid again;
+~7 % integrator in the model); setpoint +2 °C → the PID climbs, no pause;
 the room NTC open → `/dev/alarm/sensor` says so, the PID carries on; MANUAL
 → 10 %, UP → 15 %; after a dead ADS1115 back to auto without the false
 "safe" of before (108:58). `monitor` prints the field warmer's line.
@@ -1496,7 +1496,8 @@ the room NTC open → `/dev/alarm/sensor` says so, the PID carries on; MANUAL
 | `watch 1000 monitor` through boost, coast, pid | pending: the field warmer's columns; compare with the April logs |
 | Steady state in pid | pending: `heat` near the field's 27 % at a ~28 °C room, `pid_i` a few % |
 | `cat /dev/ffpower`, `cat /dev/pid/bias` | pending: the table's value for the room (30.0 at 24 °C) |
-| UP four times in pid (+2.0 °C) | pending: 5 s later boost (then coast, pid) |
+| UP four times in pid (+2.0 °C), skin near the old setpoint | pending: stays in pid, the power rises, no pause |
+| A raise with the skin more than 3 °C below the new setpoint | pending: 5 s later boost (then coast, pid) |
 | MANUAL: auto → manual | pending: small display `10`; UP → `15`, never above `80` |
 | Room NTC unplugged in auto | pending: buzzer, `cat /dev/alarm/sensor` gives the reason; PID keeps the skin; after 10 min `/dev/ffpower` 30.0 |
 | Warm-up with the sensor out of the bed | pending: safe after 10 min (`skin rose only ... in 10 min`); how far does the real skin/mattress rise meanwhile? |
