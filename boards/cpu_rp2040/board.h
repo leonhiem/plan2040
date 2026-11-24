@@ -28,8 +28,10 @@
 // chip can sit on another bus on another board (boards/babywarmer_v1).
 #define RTC_I2C            BOARD_I2C
 #define RTC_I2C_ADDR       0x51  // PCF8563T, fixed address
+#define RTC_I2C_NAME       "local bus"    // for error texts
 #define FRAM_I2C           BOARD_I2C
 #define FRAM_I2C_ADDR      0x50  // FM24CL64B, A2..A0 = 0
+#define FRAM_I2C_NAME      "local bus"
 #define FRAM_SIZE          8192  // 64 Kbit; WP hardwired to GND
 
 // FRAM layout (decided 2026-11-15, see README "Files on the FRAM"):

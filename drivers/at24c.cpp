@@ -10,7 +10,7 @@
 
 static bool no_answer(void)
 {
-    werrstr("EEPROM (0x%02x) not answering", EEPROM_I2C_ADDR);
+    werrstr("EEPROM (0x%02x, %s) not answering", EEPROM_I2C_ADDR, EEPROM_I2C_NAME);
     return false;
 }
 

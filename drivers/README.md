@@ -38,14 +38,15 @@ because one part fails, no cryptic errors.
    timing, quirks, and where the driver came from (datasheet, or what it
    replaced), plus how it's meant to be used.
 
-## Where each driver stands (2026-11-23)
+## Where each driver stands (2026-11-24)
 
 | Driver | Chip | 1 board.h | 2 timeouts | 3 errstr | 4 never waits | Notes |
 |---|---|---|---|---|---|---|
 | `ads1115` | TI ADS1115 ADC | yes | yes | yes | yes (`convert()` for bringup/boot) | written 2026-11-23 from the datasheet, replacing pico-ads1115 |
-| `fm24cl64` | FM24CL64B 8 KB FRAM | yes | yes | not yet | yes (no write delay) | |
-| `pcf8563` | PCF8563T RTC | yes | yes | not yet | yes | |
-| `at24c` | 24C256/24C512 EEPROM | yes | yes | yes | yes: `eeprom_page_start()` + `eeprom_ready()` (2026-11-24); `eeprom_write()` waits, for bringup and boot | the NTC table writes page by page in the background |
+| `fm24cl64` | FM24CL64B 8 KB FRAM | yes | yes | yes (2026-11-24): `FRAM (0x50, local bus) not answering`; `/fram` mounts again by itself, at most one try a second (`fs/framfs.cpp`) | yes (no write delay) | |
+| `pcf8563` | PCF8563T RTC | yes | yes | yes (2026-11-24): `RTC (0x51, local bus) not answering`; a write that isn't a date says what's wrong | yes | |
+| `at24c` | 24C256/24C512 EEPROM | yes | yes | yes (with the bus, 2026-11-24) | yes: `eeprom_page_start()` + `eeprom_ready()` (2026-11-24); `eeprom_write()` waits, for bringup and boot | the NTC table writes page by page in the background |
 | `buttons` | GPIO push buttons | yes (pins) | - | - | yes (timer) | |
 
-"Not yet" gets done as each driver is touched next.
+Every driver meets the contract since 2026-11-24. `tests/host/drvtest`
+checks the FRAM's and the RTC's reasons.

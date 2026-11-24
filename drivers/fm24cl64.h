@@ -11,5 +11,6 @@
 
 #include <stdint.h>
 
+// Both false on failure, with the reason in errstr() (kernel/errstr.h).
 bool fram_read(uint16_t addr, uint8_t *buf, int len);
 bool fram_write(uint16_t addr, const uint8_t *buf, int len);

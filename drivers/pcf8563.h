@@ -26,6 +26,7 @@ bool rtc_init(void);
 bool rtc_read_regs(uint8_t reg, uint8_t *buf, int len);
 bool rtc_write_reg(uint8_t reg, uint8_t val);
 
+// All false on failure, with the reason in errstr() (kernel/errstr.h).
 bool rtc_get(rtc_time *t);
 bool rtc_set(const rtc_time *t);   // computes weekday itself; clears VL
 

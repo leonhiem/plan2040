@@ -12,9 +12,14 @@
  *
  * VL is its own device rather than a suffix on the time: one file, one
  * value, so `cat /dev/rtc` always parses the same way.
+ *
+ * Failures say why (2026-11-24, the driver's errstr): `cat: /dev/rtc: RTC
+ * (0x51, local bus) not answering`, or for a write that isn't a date
+ * `/dev/rtc: not a date and time: want YYYY-MM-DD HH:MM:SS`.
  */
 #include "drivers/pcf8563.h"
 #include "kernel/fs.h"
+#include "kernel/errstr.h"
 #include <cstdio>
 #include <cstring>
 
@@ -31,7 +36,7 @@ static int rtc_dev_read(char *buf, int len)
 static int rtc_dev_write(const char *buf, int len)
 {
     char tmp[32];
-    if (len <= 0 || len >= (int)sizeof(tmp)) return -1;
+    if (len <= 0 || len >= (int)sizeof(tmp)) { werrstr("not a date and time: want YYYY-MM-DD HH:MM:SS"); return -1; }
     memcpy(tmp, buf, len);
     tmp[len] = '\0';
     rtc_time t;
@@ -52,7 +57,7 @@ static const device_t dev_rtc_vl = {"/dev/rtc/vl", 0, 0, vl_read,      0};
 void dev_rtc_register(void)
 {
     if (!rtc_init())
-        printf("rtc: init failed (no answer at 0x51?)\n");
+        printf("rtc: %s\n", errstr());
     fs_register(&dev_rtc);
     fs_register(&dev_rtc_vl);
 }

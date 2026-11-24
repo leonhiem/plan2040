@@ -412,7 +412,9 @@ Order, one commit each, tested on the PC and then the board:
     from the datasheet (start / ready / result, never waiting;
     `ads1115_convert()` for bringup and boot), `drivers/README.md` (the
     contract, and where each driver stands: `fm24cl64`, `pcf8563` lack
-    errstr reasons; `at24c` waits ~5 ms per page, to split with 3g),
+    errstr reasons (**done 2026-11-24**, `tests/host/drvtest`; `/fram`
+    also mounts again by itself when the FRAM answers again); `at24c`
+    waits ~5 ms per page, to split with 3g, done),
     `apps/babywarmer/ntcadc.cpp`: the "adc" task, each channel every
     ~100 ms, 1 s backoff, fresh for 1.5 s. `/dev/skintemp`, `/dev/ambient`
     answer at once. `tests/host/adctest` against a fake ADS1115: ~1.3 %

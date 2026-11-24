@@ -615,13 +615,24 @@ cat: /fram/nope: no such file
 /fram/waytoolongname: bad name (1-11 characters, no spaces or /)
 % cat /dev/skintemp                      (babywarmer, ADS1115 unplugged)
 cat: /dev/skintemp: ADS1115 (0x48) not answering
+% cat /dev/rtc                           (the RTC not answering)
+cat: /dev/rtc: RTC (0x51, local bus) not answering
+% echo 2026-13-01 10:00:00 > /dev/rtc
+/dev/rtc: no such date or time (the year 2000-2199, month 1-12, day 1-31, 00:00:00-23:59:59)
+% cat /fram/setpoint                     (the FRAM not answering)
+cat: /fram/setpoint: FRAM (0x50, local bus) not answering
 ```
+
+Every driver says why since 2026-11-24 (`drivers/README.md`). When the
+FRAM stops answering, `/fram` mounts again by itself once it answers
+(at most one try a second): `fram: the FRAM answers again, /fram
+mounted`.
 
 - The part that knows sets the reason (`werrstr()`, `kernel/errstr.h`):
   a device ("ADS1115 (0x48) not answering"), the FRAM filesystem
   ("directory full (32 files)", "no space left (df /fram)", "file full
-  (files are at most 1 KB)", "not formatted (mkfs /fram) or FRAM not
-  answering", "damaged file (run fsck /fram)"), or the kernel's file
+  (files are at most 1 KB)", "not formatted (mkfs /fram)", "damaged
+  file (run fsck /fram)"), or the kernel's file
   layer, which puts the path in front and fills in a general reason
   ("value not accepted", "can't be read (write-only)") when a device
   didn't say why.

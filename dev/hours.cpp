@@ -22,6 +22,7 @@
  */
 #include "fs/hours.h"
 #include "kernel/fs.h"
+#include "kernel/errstr.h"
 #include "kernel/task.h"
 #include "pico/stdlib.h"
 #include <cstdio>
@@ -98,7 +99,7 @@ void dev_hours_register(void)
         printf("hours: COUNTER CORRUPT, not counting. Check, then: echo set H:MM > /dev/hours/ctl\n");
         break;
     case HOURS_ERROR:
-        printf("hours: can't read the FRAM, not counting this boot\n");
+        printf("hours: %s: not counting this boot\n", errstr());
         break;
     default:
         break;

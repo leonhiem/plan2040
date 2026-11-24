@@ -1,6 +1,7 @@
 #include "framfs.h"
 #include "kernel/errstr.h"
 #include "board.h"
+#include "pico/stdlib.h"
 #include "drivers/fm24cl64.h"
 #include <cstdio>
 #include <cstring>
@@ -46,14 +47,48 @@ static void superblock(uint8_t sb[16])
     sb[10] = NDIR;
 }
 
+// Why /fram isn't mounted, for every call until it is (2026-11-24): the
+// FRAM doesn't answer, or it does but holds no filesystem. When it didn't
+// answer, the next calls try to mount again, at most once a second (a dead
+// chip costs one I2C timeout per second, drivers/README.md rule 5), so
+// /fram comes back by itself when the FRAM does (Leon's rule 2).
+static char unmounted_why[ERRMAX] = "not formatted (mkfs /fram)";
+static bool io_down;
+static absolute_time_t next_try;
+
 bool framfs_mount(void)
 {
     uint8_t want[16], got[16];
     superblock(want);
-    mounted = fram_read(0, got, 16) && memcmp(want, got, 16) == 0
-           && fram_read(dir_addr(0), (uint8_t *)dir, sizeof(dir))
+    next_try = make_timeout_time_ms(1000);
+    io_down = false;
+    if (!fram_read(0, got, 16)) {
+        snprintf(unmounted_why, sizeof(unmounted_why), "%s", errstr());
+        io_down = true;
+        return mounted = false;
+    }
+    if (memcmp(want, got, 16) != 0) {
+        snprintf(unmounted_why, sizeof(unmounted_why), "not formatted (mkfs /fram)");
+        return mounted = false;
+    }
+    mounted = fram_read(dir_addr(0), (uint8_t *)dir, sizeof(dir))
            && fram_read(chain_addr(0), (uint8_t *)chain, sizeof(chain));
+    if (!mounted) { snprintf(unmounted_why, sizeof(unmounted_why), "%s", errstr()); io_down = true; }
     return mounted;
+}
+
+// Mounted, or mounted again now that the FRAM answers.
+static bool usable(void)
+{
+    if (mounted) return true;
+    if (io_down && absolute_time_diff_us(get_absolute_time(), next_try) <= 0 && framfs_mount())
+        printf("fram: the FRAM answers again, /fram mounted\n");
+    return mounted;
+}
+
+const char *framfs_unmounted_why(void)
+{
+    return unmounted_why;
 }
 
 bool framfs_mkfs(void)
@@ -66,8 +101,12 @@ bool framfs_mkfs(void)
     // Superblock last: a cut mid-format leaves no valid magic, not a half-empty fs.
     if (!fram_write(dir_addr(0), (const uint8_t *)dir, sizeof(dir))
         || !fram_write(chain_addr(0), (const uint8_t *)chain, sizeof(chain))
-        || !fram_write(0, sb, 16))
+        || !fram_write(0, sb, 16)) {
+        snprintf(unmounted_why, sizeof(unmounted_why), "%s", errstr());
+        io_down = true;
+        next_try = make_timeout_time_ms(1000);
         return false;
+    }
     mounted = true;
     return true;
 }
@@ -130,12 +169,12 @@ static int fail(const char *why)
     werrstr("%s", why);
     return -1;
 }
-#define NOT_MOUNTED  "not formatted (mkfs /fram) or FRAM not answering"
-#define FRAM_IO      "FRAM not answering (I2C)"
+#define NOT_MOUNTED  unmounted_why
+#define FRAM_IO      errstr()       // the driver's reason: "FRAM (0x50, local bus) not answering"
 
 int framfs_read(const char *name, char *buf, int len)
 {
-    if (!mounted) return fail(NOT_MOUNTED);
+    if (!usable()) return fail(NOT_MOUNTED);
     int i = find(name);
     if (i < 0) return fail("no such file");
     int n = dir[i].size < len ? dir[i].size : len;
@@ -188,7 +227,7 @@ static int write_whole(const char *name, const char *buf, int len)
 
 int framfs_write(const char *name, const char *buf, int len, bool append)
 {
-    if (!mounted) return fail(NOT_MOUNTED);
+    if (!usable()) return fail(NOT_MOUNTED);
     if (!valid_name(name)) return fail("bad name (1-11 characters, no spaces or /)");
     if (len < 0) return fail("bad length");
     if (!append) return len <= FRAMFS_MAX_FILE ? write_whole(name, buf, len) : fail("too big (files are at most 1 KB)");
@@ -205,7 +244,7 @@ int framfs_write(const char *name, const char *buf, int len, bool append)
 
 int framfs_remove(const char *name)
 {
-    if (!mounted) return fail(NOT_MOUNTED);
+    if (!usable()) return fail(NOT_MOUNTED);
     int i = find(name);
     if (i < 0) return fail("no such file");
     uint16_t first = dir[i].first;
@@ -219,7 +258,7 @@ int framfs_remove(const char *name)
 
 int framfs_rename(const char *from, const char *to)
 {
-    if (!mounted) return fail(NOT_MOUNTED);
+    if (!usable()) return fail(NOT_MOUNTED);
     if (!valid_name(to)) return fail("bad name (1-11 characters, no spaces or /)");
     int i = find(from);
     if (i < 0) return fail("no such file");
@@ -239,7 +278,7 @@ int framfs_rename(const char *from, const char *to)
 
 int framfs_list(int index, char *name, int namelen, int *size)
 {
-    if (!mounted) return -1;
+    if (!usable()) return -1;
     for (int i = 0; i < NDIR; i++) {
         if (!dir[i].name[0]) continue;
         if (index-- > 0) continue;
@@ -254,7 +293,7 @@ int framfs_list(int index, char *name, int namelen, int *size)
 int framfs_fsck(framfs_check *r, char *out, int outlen)
 {
     *r = framfs_check{};
-    if (!mounted) return fail(NOT_MOUNTED);
+    if (!usable()) return fail(NOT_MOUNTED);
     int pos = 0;
     auto say = [&](const char *fmt, const char *name, int a, int b) {
         if (!out || pos >= outlen) return;
@@ -341,7 +380,7 @@ int framfs_fsck(framfs_check *r, char *out, int outlen)
 
 int framfs_df(int *free_bytes, int *total_bytes)
 {
-    if (!mounted) return fail(NOT_MOUNTED);
+    if (!usable()) return fail(NOT_MOUNTED);
     int nfree = 0;
     for (int b = DATA_START; b < NBLOCKS; b++)
         if (chain[b] == FREE) nfree++;

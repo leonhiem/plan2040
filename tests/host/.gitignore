@@ -24,3 +24,4 @@ conf_scripts_bw.cpp
 adctest
 luttest
 eetest
+drvtest

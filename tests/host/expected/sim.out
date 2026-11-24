@@ -15,7 +15,7 @@ ls: /fram: not a mount, or no filesystem yet (mkfs /fram)
 % df
 /fram    no filesystem (mkfs /fram)
 % echo hi > /fram/a
-/fram/a: not formatted (mkfs /fram) or FRAM not answering
+/fram/a: not formatted (mkfs /fram)
 % mkfs /fram
 /fram: formatted, 7104 bytes free
 % df

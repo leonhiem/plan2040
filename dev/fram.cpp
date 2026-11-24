@@ -66,7 +66,10 @@ void dev_fram_register(void)
 {
     fs_register(&dev_fram);
     if (!framfs_mount()) {
-        printf("fram: no filesystem, run: mkfs /fram\n");
+        if (strncmp(framfs_unmounted_why(), "not formatted", 13) == 0)
+            printf("fram: no filesystem, run: mkfs /fram\n");
+        else
+            printf("fram: %s: /fram unavailable until it answers\n", framfs_unmounted_why());
     } else {
         // Every boot: a quick check from the RAM cache (no FRAM reads).
         // Silent when all is well; frees blocks a power cut left behind.

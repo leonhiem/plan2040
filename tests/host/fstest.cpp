@@ -1,3 +1,6 @@
+// fs/framfs.cpp retries a mount at most once a second (2026-11-24): the clock.
+#include <stdint.h>
+uint64_t fake_now = 0;
 #include "fs/framfs.h"
 #include <cstdio>
 #include <cstring>

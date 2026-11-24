@@ -40,13 +40,16 @@
 // Each chip: its bus and address.
 #define RTC_I2C            BOARD_I2C
 #define RTC_I2C_ADDR       0x51  // PCF8563T, fixed address
+#define RTC_I2C_NAME       "local bus"    // for error texts
 #define FRAM_I2C           BOARD_I2C
 #define FRAM_I2C_ADDR      0x50  // FM24CL64B, A2..A0 = 0
+#define FRAM_I2C_NAME      "local bus"
 #define ADS1115_I2C        HEADER_I2C
 #define ADS1115_I2C_ADDR   0x48  // ADDR pin to GND
 #define ADS1115_I2C_NAME   "header bus"   // for error texts
 #define EEPROM_I2C         HEADER_I2C
 #define EEPROM_I2C_ADDR    0x52  // 24C512, A2 A1 A0 = 010
+#define EEPROM_I2C_NAME    "header bus"
 #define EEPROM_SIZE        65536
 #define EEPROM_PAGE        128   // 24C512 (a 24C256: 32768 / 64)
 

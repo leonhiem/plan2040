@@ -37,6 +37,7 @@
 #define FRAMFS_NAME_MAX  11
 
 bool framfs_mount(void);                 // true if the FRAM holds a filesystem
+const char *framfs_unmounted_why(void);  // if not: "not formatted (mkfs /fram)", or the FRAM's reason
 bool framfs_mkfs(void);                  // format: all files gone
 
 int  framfs_read(const char *name, char *buf, int len);   // bytes, or -1 if no such file

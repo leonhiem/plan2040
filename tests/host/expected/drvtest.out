@@ -1,0 +1,53 @@
+--- boot, both chips answer, the FRAM blank
+fram: no filesystem, run: mkfs /fram
+% cat /dev/rtc
+2026-11-24 14:30:00
+% cat /fram/setpoint
+cat: /fram/setpoint: not formatted (mkfs /fram)
+% mkfs /fram
+% echo 36.5 > /fram/setpoint
+% cat /fram/setpoint
+36.5
+--- wrong dates
+% echo tomorrow > /dev/rtc
+echo: /dev/rtc: not a date and time: want YYYY-MM-DD HH:MM:SS
+% echo 2026-13-01 10:00:00 > /dev/rtc
+echo: /dev/rtc: no such date or time (the year 2000-2199, month 1-12, day 1-31, 00:00:00-23:59:59)
+% echo 2026-11-24 25:00:00 > /dev/rtc
+echo: /dev/rtc: no such date or time (the year 2000-2199, month 1-12, day 1-31, 00:00:00-23:59:59)
+% echo 2026-11-24 15:00:00 > /dev/rtc
+% cat /dev/rtc
+2026-11-24 15:00:00
+--- the RTC stops answering
+% cat /dev/rtc
+cat: /dev/rtc: RTC (0x51, local bus) not answering
+% cat /dev/rtc/vl
+cat: /dev/rtc/vl: RTC (0x51, local bus) not answering
+% echo 2026-11-24 15:00:00 > /dev/rtc
+echo: /dev/rtc: RTC (0x51, local bus) not answering
+--- the FRAM stops answering
+% echo 37.0 > /fram/setpoint
+echo: /fram/setpoint: FRAM (0x50, local bus) not answering
+% cat /dev/fram
+cat: /dev/fram: FRAM (0x50, local bus) not answering
+% mkfs /fram
+mkfs: FRAM (0x50, local bus) not answering
+% cat /fram/setpoint
+cat: /fram/setpoint: FRAM (0x50, local bus) not answering
+fram: the FRAM answers again, /fram mounted
+% cat /fram/setpoint
+36.5
+--- a boot with both chips silent
+rtc: RTC (0x51, local bus) not answering
+fram: FRAM (0x50, local bus) not answering: /fram unavailable until it answers
+% cat /fram/setpoint
+cat: /fram/setpoint: FRAM (0x50, local bus) not answering
+--- they answer again
+% cat /dev/rtc
+2026-11-24 14:30:00
+% cat /fram/setpoint
+cat: /fram/setpoint: FRAM (0x50, local bus) not answering
+fram: the FRAM answers again, /fram mounted
+% cat /fram/setpoint
+36.5
+exit 0

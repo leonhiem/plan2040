@@ -1,5 +1,9 @@
+// drivers/pcf8563.cpp — see pcf8563.h. A failure says why (errstr,
+// drivers/README.md rule 3, 2026-11-24): "RTC (0x51, local bus) not
+// answering", or what's wrong with a date.
 #include "pcf8563.h"
 #include "board.h"
+#include "kernel/errstr.h"
 #include <cstdio>
 
 #define I2C_TIMEOUT_US 10000
@@ -7,17 +11,26 @@
 static uint8_t bcd2bin(uint8_t v) { return (v >> 4) * 10 + (v & 0x0f); }
 static uint8_t bin2bcd(int v)     { return (uint8_t)(((v / 10) << 4) | (v % 10)); }
 
+static bool no_answer(void)
+{
+    werrstr("RTC (0x%02x, %s) not answering", RTC_I2C_ADDR, RTC_I2C_NAME);
+    return false;
+}
+
 bool rtc_read_regs(uint8_t reg, uint8_t *buf, int len)
 {
-    if (i2c_write_timeout_us(RTC_I2C, RTC_I2C_ADDR, &reg, 1, true, I2C_TIMEOUT_US) != 1)
-        return false;
-    return i2c_read_timeout_us(RTC_I2C, RTC_I2C_ADDR, buf, len, false, I2C_TIMEOUT_US) == len;
+    if (i2c_write_timeout_us(RTC_I2C, RTC_I2C_ADDR, &reg, 1, true, I2C_TIMEOUT_US) != 1
+        || i2c_read_timeout_us(RTC_I2C, RTC_I2C_ADDR, buf, len, false, I2C_TIMEOUT_US) != len)
+        return no_answer();
+    return true;
 }
 
 bool rtc_write_reg(uint8_t reg, uint8_t val)
 {
     uint8_t b[2] = { reg, val };
-    return i2c_write_timeout_us(RTC_I2C, RTC_I2C_ADDR, b, 2, false, I2C_TIMEOUT_US) == 2;
+    if (i2c_write_timeout_us(RTC_I2C, RTC_I2C_ADDR, b, 2, false, I2C_TIMEOUT_US) != 2)
+        return no_answer();
+    return true;
 }
 
 bool rtc_init(void)
@@ -74,15 +87,23 @@ bool rtc_set(const rtc_time *t)
     if (!rtc_write_reg(0x00, 0x20))
         return false;
     bool ok = i2c_write_timeout_us(RTC_I2C, RTC_I2C_ADDR, b, 8, false, I2C_TIMEOUT_US) == 8;
-    return rtc_write_reg(0x00, 0x00) && ok;
+    bool restarted = rtc_write_reg(0x00, 0x00);
+    if (!ok || !restarted) return no_answer();
+    return true;
 }
 
 bool rtc_parse(const char *s, rtc_time *t)
 {
     if (sscanf(s, "%d-%d-%d %d:%d:%d", &t->year, &t->month, &t->day,
-               &t->hour, &t->min, &t->sec) != 6)
+               &t->hour, &t->min, &t->sec) != 6) {
+        werrstr("not a date and time: want YYYY-MM-DD HH:MM:SS");
         return false;
-    return t->year >= 2000 && t->year <= 2199 && rtc_valid(t);
+    }
+    if (t->year < 2000 || t->year > 2199 || !rtc_valid(t)) {
+        werrstr("no such date or time (the year 2000-2199, month 1-12, day 1-31, 00:00:00-23:59:59)");
+        return false;
+    }
+    return true;
 }
 
 int rtc_format(char *buf, int len, const rtc_time *t)
