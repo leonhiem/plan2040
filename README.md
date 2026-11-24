@@ -353,8 +353,9 @@ temperature there, IEC 60601-2-21, as the GE Panda warmer): manual
 power above 25 % for 12 minutes sounds `/dev/alarm/check` ("check the
 baby, press MUTE"); 3 more minutes unanswered switch the heater off
 until MUTE, which also restarts the timer (lowering the power to 25 %
-or less, or auto mode, stop it); and it writes `/dev/alarm/sensor` (also when only the room sensor
-is down: the PID then runs on the last feed-forward). The temperature
+or less, or auto mode, stop it); and it writes `/dev/alarm/sensor`: "on" when the skin reading isn't
+trusted, "warn" (CHK, no buzzer) when only the room sensor is down in
+auto (the PID then runs on the last feed-forward). CHK lights for either. The temperature
 alarms follow the setpoint (IEC 60601-2-21, as the GE Panda warmer): in
 auto with a trusted reading, the skin 1 °C off lights LOW or HIGH, 2 °C
 off sounds the buzzer too (both clear 0.2 °C inside, so a reading on
@@ -1524,6 +1525,17 @@ the room NTC open → `/dev/alarm/sensor` says so, the PID carries on; MANUAL
 | Room NTC unplugged in auto | pending: buzzer, `cat /dev/alarm/sensor` gives the reason; PID keeps the skin; after 10 min `/dev/pid/ff` 30.0 |
 | Warm-up with the sensor out of the bed | pending: safe after 5 min (`skin rose only ... in 5 min`) |
 | A normal warm-up at 80 % (`watch 1000 monitor`) | pending: when does the skin rise 0.3 °C? (April logs at 100 %: after ~2.5-3 min; 5 min must leave margin, also in a cool room) |
+
+**2026-11-24, a faulty room sensor: CHK, no buzzer**
+(`build-babywarmer_v1/plan2040.uf2`, after the hack): `/dev/alarm/sensor`
+"warn" for the room sensor in auto (was "on"); CHK on the LEDs and the
+TFT for any sensor alarm (was: the guard not ok). On the PC: `bwsim`
+75:01-88:00 buzzer 0, CHK on, the control unchanged.
+
+| Test | Result |
+|---|---|
+| Room NTC unplugged, auto | pending: CHK lit, no buzzer, big digits steady; `cat /dev/alarm/sensor` = `warn: room sensor: ...`; plugged back: CHK off |
+| Skin NTC off the baby, auto | pending: as before: CHK, buzzer, big digits blinking |
 
 **2026-11-24, after a power cut** (`build-babywarmer_v1/plan2040.uf2`,
 after the hack): `/dev/resume` and `/fram/resume`, the "resume" task. Off

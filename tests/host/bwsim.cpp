@@ -32,8 +32,8 @@
 //  66:00  UP 20 times, 1 s apart -> the setpoint stops at 37.5 (gap d:
 //         34-37.5 C; above only by holding UP 3 s, tests/host/sptest);
 //         the skin within 3 C: no re-boost, the PID climbs
-//  75:00  the room NTC opens: /dev/alarm/sensor says so, the PID runs on
-//         the last feed-forward (30 % after 10 min); 88:00 back
+//  75:00  the room NTC opens: /dev/alarm/sensor "warn" (CHK, no buzzer),
+//         the PID runs on the last feed-forward (30 % after 10 min); 88:00 back
 //  90:00  MANUAL -> manual at 10 % (step 5: always); 91:00 UP -> 15 %;
 //         92:00 MANUAL -> auto
 // 100:00  the ADS1115 stops answering -> none: manual at the room table's

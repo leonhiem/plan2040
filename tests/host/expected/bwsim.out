@@ -184,21 +184,21 @@ echo off > /dev/alarm/heater
  74:00  auto on  pid   guard ok   set 37.5 skin 36.92  heater  51.5 ff 26.5 autopower 51.5   relay 1 buzzer 0  big 36.9  small 37.5 chk off alarms heater off high off low off
 --- 75:00 the room NTC opens (the skin sensor still works)
  75:00  auto on  pid   guard ok   set 37.5 skin 37.17  heater  51.0 ff 26.5 autopower 51.0   relay 1 buzzer 0  big 37.2  small 37.5 chk off alarms heater off high off low off
-     75:01  /dev/alarm/sensor: on: /dev/ambient: code 32767 is outside the calibrated range (open or shorted?)
- 76:00  auto on  pid   guard ok   set 37.5 skin 37.39  heater  50.5 ff 26.5 autopower 50.5   relay 1 buzzer 1  big 37.4  small 37.5 chk off alarms heater off high off low off
- 77:00  auto on  pid   guard ok   set 37.5 skin 37.58  heater  50.0 ff 26.5 autopower 50.0   relay 1 buzzer 1  big 37.6  small 37.5 chk off alarms heater off high off low off
- 78:00  auto on  pid   guard ok   set 37.5 skin 37.76  heater  47.7 ff 26.5 autopower 47.7   relay 1 buzzer 1  big 37.8  small 37.5 chk off alarms heater off high off low off
- 79:00  auto on  pid   guard ok   set 37.5 skin 37.90  heater  48.6 ff 26.5 autopower 48.6   relay 1 buzzer 1  big 37.9  small 37.5 chk off alarms heater off high off low off
- 80:00  auto on  pid   guard ok   set 37.5 skin 38.02  heater  48.0 ff 26.5 autopower 48.0   relay 1 buzzer 1  big 38.0  small 37.5 chk off alarms heater off high off low off
- 81:00  auto on  pid   guard ok   set 37.5 skin 38.12  heater  47.2 ff 26.5 autopower 47.2   relay 1 buzzer 1  big 38.1  small 37.5 chk off alarms heater off high off low off
- 82:00  auto on  pid   guard ok   set 37.5 skin 38.19  heater  46.4 ff 26.5 autopower 46.4   relay 1 buzzer 1  big 38.2  small 37.5 chk off alarms heater off high off low off
- 83:00  auto on  pid   guard ok   set 37.5 skin 38.24  heater  45.8 ff 26.5 autopower 45.8   relay 1 buzzer 1  big 38.2  small 37.5 chk off alarms heater off high off low off
- 84:00  auto on  pid   guard ok   set 37.5 skin 38.27  heater  44.9 ff 26.5 autopower 44.9   relay 1 buzzer 1  big 38.3  small 37.5 chk off alarms heater off high off low off
- 85:00  auto on  pid   guard ok   set 37.5 skin 38.27  heater  44.3 ff 26.5 autopower 44.3   relay 1 buzzer 1  big 38.3  small 37.5 chk off alarms heater off high off low off
- 86:00  auto on  pid   guard ok   set 37.5 skin 38.27  heater  43.6 ff 26.5 autopower 43.6   relay 1 buzzer 1  big 38.3  small 37.5 chk off alarms heater off high off low off
- 87:00  auto on  pid   guard ok   set 37.5 skin 38.24  heater  46.8 ff 30.0 autopower 46.8   relay 1 buzzer 1  big 38.2  small 37.5 chk off alarms heater off high off low off
+     75:01  /dev/alarm/sensor: warn: room sensor: /dev/ambient: code 32767 is outside the calibrated range (open or shorted?)
+ 76:00  auto on  pid   guard ok   set 37.5 skin 37.39  heater  50.5 ff 26.5 autopower 50.5   relay 1 buzzer 0  big 37.4  small 37.5 chk on  alarms heater off high off low off
+ 77:00  auto on  pid   guard ok   set 37.5 skin 37.58  heater  50.0 ff 26.5 autopower 50.0   relay 1 buzzer 0  big 37.6  small 37.5 chk on  alarms heater off high off low off
+ 78:00  auto on  pid   guard ok   set 37.5 skin 37.76  heater  47.7 ff 26.5 autopower 47.7   relay 1 buzzer 0  big 37.8  small 37.5 chk on  alarms heater off high off low off
+ 79:00  auto on  pid   guard ok   set 37.5 skin 37.90  heater  48.6 ff 26.5 autopower 48.6   relay 1 buzzer 0  big 37.9  small 37.5 chk on  alarms heater off high off low off
+ 80:00  auto on  pid   guard ok   set 37.5 skin 38.02  heater  48.0 ff 26.5 autopower 48.0   relay 1 buzzer 0  big 38.0  small 37.5 chk on  alarms heater off high off low off
+ 81:00  auto on  pid   guard ok   set 37.5 skin 38.12  heater  47.2 ff 26.5 autopower 47.2   relay 1 buzzer 0  big 38.1  small 37.5 chk on  alarms heater off high off low off
+ 82:00  auto on  pid   guard ok   set 37.5 skin 38.19  heater  46.4 ff 26.5 autopower 46.4   relay 1 buzzer 0  big 38.2  small 37.5 chk on  alarms heater off high off low off
+ 83:00  auto on  pid   guard ok   set 37.5 skin 38.24  heater  45.8 ff 26.5 autopower 45.8   relay 1 buzzer 0  big 38.2  small 37.5 chk on  alarms heater off high off low off
+ 84:00  auto on  pid   guard ok   set 37.5 skin 38.27  heater  44.9 ff 26.5 autopower 44.9   relay 1 buzzer 0  big 38.3  small 37.5 chk on  alarms heater off high off low off
+ 85:00  auto on  pid   guard ok   set 37.5 skin 38.27  heater  44.3 ff 26.5 autopower 44.3   relay 1 buzzer 0  big 38.3  small 37.5 chk on  alarms heater off high off low off
+ 86:00  auto on  pid   guard ok   set 37.5 skin 38.27  heater  43.6 ff 26.5 autopower 43.6   relay 1 buzzer 0  big 38.3  small 37.5 chk on  alarms heater off high off low off
+ 87:00  auto on  pid   guard ok   set 37.5 skin 38.24  heater  46.8 ff 30.0 autopower 46.8   relay 1 buzzer 0  big 38.2  small 37.5 chk on  alarms heater off high off low off
 --- 88:00 the room NTC works again
- 88:00  auto on  pid   guard ok   set 37.5 skin 38.22  heater  46.2 ff 30.0 autopower 46.2   relay 1 buzzer 1  big 38.2  small 37.5 chk off alarms heater off high off low off
+ 88:00  auto on  pid   guard ok   set 37.5 skin 38.22  heater  46.2 ff 30.0 autopower 46.2   relay 1 buzzer 0  big 38.2  small 37.5 chk on  alarms heater off high off low off
      88:01  /dev/alarm/sensor: off
  89:00  auto on  pid   guard ok   set 37.5 skin 38.20  heater  42.2 ff 26.5 autopower 42.2   relay 1 buzzer 0  big 38.2  small 37.5 chk off alarms heater off high off low off
 --- 90:00 press MANUAL (-> manual: 10 %)

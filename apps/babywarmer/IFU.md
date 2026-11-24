@@ -89,7 +89,7 @@ room, a neonatal unit or a ward, in a room of 18–30 °C.
 | WARM | warming up (auto, at full warm-up power) |
 | LOW | skin more than 1 °C below the setpoint |
 | HIGH | skin more than 1 °C above the setpoint (manual: above 39 °C) |
-| CHK | the skin reading is not trusted, or a sensor is faulty |
+| CHK | a sensor problem: with the buzzer, the skin reading is not trusted; without, the room sensor is faulty |
 | FAIL | heater fault |
 | Alarm LED | an alarm is on (stays on while the buzzer is muted) |
 
@@ -161,7 +161,7 @@ that minute, the buzzer sounds again.
 | HIGH + buzzer | auto: skin 2 °C above the setpoint; manual: skin above 39 °C | Same, now. In manual, turn the power down. |
 | CHK + buzzer, big digits blinking | auto: the skin reading isn't trusted: it fell suddenly, stayed far below the setpoint, or didn't rise during the warm-up. **The warmer now heats by itself from the room temperature**, a moderate power. | **The sensor has probably come off the baby.** Put it back (section 4). The warmer returns to normal by itself, 2 minutes after the reading is plausible again. |
 | CHK + buzzer, big digits blank | skin and room sensors both unreadable; the warmer has gone to manual, at a power for the last room temperature seen | Check the sensor cables. Adjust the power with UP/DOWN as in manual mode, and check the baby often. Auto mode returns by itself when the sensors answer. |
-| Buzzer only (no CHK) | auto: the room sensor is faulty | The warmer goes on controlling the skin, with an estimate of the room. Have it repaired. |
+| CHK (look), big digits normal | auto: the room sensor is faulty | The warmer goes on controlling the skin, with an estimate of the room. Have it repaired. |
 | Buzzer, manual mode | check the baby (section 7) | Check the baby, press MUTE. |
 | FAIL + buzzer | no heater current while switched on (element, fuse) | Check the baby; use another warmer; have it repaired. |
 | FAIL + buzzer | current while switched off (stuck switch): **the heater is cut off** by its safety relay | Use another warmer; have it repaired. The heater stays off until the warmer is switched off and on again; do not use that to go on. |

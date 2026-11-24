@@ -50,7 +50,7 @@
  * than 3 C above the setpoint, on when heating); the heater current against
  * the SSR's real state; a stuck SSR (relay held off until `echo off >
  * /dev/alarm/heater` or a reboot). And the alarm files the jobs alarm,
- * ledwire, tftwire show: heater; sensor (the level's reason, or the room
+ * ledwire, tftwire show: heater; sensor ("on" with the level's reason, or "warn" for the room
  * sensor down: the PID then runs on the last feed-forward, then 30 %);
  * check (manual's timer); and the deviation from the setpoint (IEC
  * 60601-2-21, as the GE Panda warmer), in auto with a trusted reading:
@@ -442,7 +442,7 @@ static void guard_task(void)
     char s[sizeof(a_sensor)];
     deviation(autom && !forced_manual, skin_ok, skin, sp, s, sizeof(s), a_high, sizeof(a_high), a_low, sizeof(a_low));
     if (level != G_OK) snprintf(s, sizeof(s), "on: %s", why);
-    else if (!room_ok && autom) snprintf(s, sizeof(s), "on: %.90s", room_err);
+    else if (!room_ok && autom) snprintf(s, sizeof(s), "warn: room sensor: %.80s", room_err);   // CHK, no buzzer: the skin control goes on
     else snprintf(s, sizeof(s), "off");
     alarm_set("/dev/alarm/sensor", a_sensor, sizeof(a_sensor), s);
     static char a_check[100] = "off";

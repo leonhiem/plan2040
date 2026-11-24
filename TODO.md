@@ -858,6 +858,11 @@ Order, one commit each, tested on the PC and then the board:
     supercap buzzer (Leon). Anything uncertain (no file, garbled, the RTC
     lost its time or doesn't answer, the clock gone back) means the
     defaults, the reason in `/dev/resume`. tests/host/resumetest.
+    **Done 2026-11-24 (Leon):** a faulty room sensor in auto is a "warn"
+    (CHK, no buzzer; was the buzzer without any hint): the skin control
+    and its alarms go on, it's a repair job. CHK (ledwire, tftwire) now
+    means any sensor alarm, /dev/alarm/sensor not off; the big digits
+    still blink only for an untrusted skin reading.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
