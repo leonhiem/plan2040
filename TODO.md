@@ -672,6 +672,92 @@ Order, one commit each, tested on the PC and then the board:
       the logs: what the sensor was on, and a cooler room (the room read
       25.0 C throughout, perhaps unconnected); the hardware test at 80 %
       checks the margin.
+  - **Step 6: a critical review, and IEC 60601-2-21** (2026-11-24,
+    Leon: "we added so much code that I lost track a bit ... ../warmer
+    was very simple"). Written while Leon works on the hardware; nothing
+    decided yet.
+    **Size.** Code lines without comments: `warmer.cpp` 822 (one file,
+    one loop). plan2040's babywarmer control + safety + UI wiring 1682,
+    plus the kernel 918 (shell, jobs, files: shared by every board), the
+    generic programs the boot script uses 219, the NTC table 551, the
+    TFT 4893 lines (a copy of the st7735 repo, as in warmer's successors).
+    So the warmer's own job is ~2x the code, plus an OS. Resources are
+    no issue (flash 11 %, RAM 17 %, CPU a few %): the cost is in
+    understanding and verifying it.
+    **What earns its size** (keep): the guard (one unkillable owner of
+    safety: overtemp, current, stuck SSR, sensor trust, dead control;
+    warmer.cpp had safety spread through the loop and a dead ADS1115 made
+    it reboot into 80 % every 8 s); errors in words; the driver contract;
+    the PC tests (bwsim found the missing feed-forward's effect before
+    any hardware did); the calibratable NTC table.
+    **Where it's more complex than it needs to be:**
+    1. **The power decision is a 7-hop chain over 6 jobs:** skintemp ->
+       `pid` (gated on /dev/state, reading setpoint, ffpower, 7 tunables)
+       -> /dev/pidout -> `select` -> /dev/autopower -> `follow` ->
+       /dev/heater -> the guard's cap/set -> the SSR. warmer.cpp: one
+       switch statement. State crosses programs through devices
+       (`phase` writes `pid`'s integral and prevmeas; `pid` writes
+       /dev/pid/bias for `phase`). 59 babywarmer devices in all.
+       Candidate: **one `warmer` control program** (phase + pid + the
+       feed-forward + the power select, ~250 lines, warmer.cpp's state
+       machine) writing /dev/autopower, the tunables staying devices.
+       14 jobs -> ~10, ~8 devices fewer, no state passed through files.
+    2. **Two owners of "warm-up":** `phase` and the guard both model the
+       boost (both use setpoint-3, both consume /dev/setpoint/raised). If
+       they ever disagree, the guard judges the wrong phase. With (1),
+       the guard could read the state from one place it trusts less but
+       checks (or keep its own copy, documented as deliberate).
+    3. **Dead weight:** the `safelut` job and /dev/safepower (the guard
+       sets the power in safe itself; `select safe=/dev/safepower` is
+       overridden); dev/alarmcheck.cpp's name and comment (still about
+       the removed prog/alarmcheck and 40/10 C); stale comments in
+       `monitor` and `pid`.
+    4. **Comments are ~60 % of the app's lines**, much of it history
+       ("From picoos @ ...", "Changed 2026-11-24 ..."). History belongs
+       in git and TODO; the files should say what and why.
+    5. **/fram/boot can rewire the clinical controller.** Good for the
+       bench; on a warmer in use, a wrong boot file degrades control (the
+       guard keeps it safe, not good). A clinical build could ignore
+       /fram/boot, or only on a deliberate unlock.
+    6. The on-board NTC generator (Steinhart-Hart, PCHIP: 331 lines) could
+       live in `tools/ntclut` only, the board storing a finished table.
+       Leon chose the on-board workflow; a candidate only if we simplify.
+    **IEC 60601-2-21** (the 2020 edition is current; its text is paid,
+    the public preview ends at clause 201.7). Verified from the 2020
+    preview and a CB test report (against 2009 + AMD1:2016):
+    - 201.7.4.2: **the control temperature in steps of at most 0.2 C.**
+      Ours (and warmer.cpp's): 0.5 C. A gap, easy to close.
+    - Table 201.101, essential performance: **201.12.1.103 (the
+      temperature control/deviation) and a visual and audible alarm**
+      (201.15.4.2.1). The thresholds weren't in the readable text.
+    - 201.5.3: works in **18-30 C rooms**, air < 0.3 m/s. (Vietnam rooms
+      can be warmer.)
+    - 201.10.6: on the mattress **<= 60 mW/cm2 total infrared, <= 10
+      mW/cm2 near infrared** (760-1400 nm): to measure on our heater.
+    - 201.12.1.102: the five test discs within 2 C of the middle one.
+    - 201.7.9.2.2: what the instructions for use must say (a list a-n:
+      the nurse checks the baby independently, sensor detachment, no
+      rectal probe, fever vs hypothermia, trained staff, ...).
+    - 201.14: software = PEMS (IEC 60601-1 clause 14): risk management,
+      requirements traced to tests. Our tests help; point 5 matters.
+    From a warmer designed to it (GE Panda iRes manual; F&P and Draeger
+    manuals agree on the 15 min reminder), **not the standard's text**:
+    - setpoint 34-37.5 C in 0.1 C steps (ours 30-39 in 0.5);
+    - "Baby cold/hot": skin 1 C from the setpoint -> low-priority alarm,
+      2 C -> high priority (ours: high at setpoint+2, low at room-2);
+    - "Check baby": 100 % for > 12 min in baby mode, or > 25 % for > 12 min
+      in manual -> alarm; unanswered 3 more minutes -> **heater off**
+      (ours: nothing in manual; 80 % manual can run for ever);
+    - probe unplugged / probe fault alarms (ours: out of range -> safe);
+    - power failure alarm, battery-backed (ours: none; hardware);
+    - system failure: heater off, alarm that can't be silenced;
+    - accuracy +-0.3 C at 30-42 C (ours: to measure after calibration).
+    **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
+    (b) a manual-mode check timer; (c) deviation alarms relative to the
+    setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on
+    purpose?); (e) a power-fail alarm (hardware); (f) measure irradiance
+    and uniformity on the heater; (g) the instructions-for-use list.
+    The standard itself is needed for (b)-(d)'s exact numbers.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
