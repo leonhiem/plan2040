@@ -45,10 +45,15 @@
   Closer makes the heat on the baby stronger and uneven; further makes it
   weaker, and the warmer works harder. Keep the mattress flat and
   horizontal: a tilted mattress gets uneven heat. *(IEC b, h)*
-- **There is no power-failure alarm.** After a power cut the warmer starts
-  again **in manual mode at 10 %, with the setpoint at 35.0 °C**: it does
-  not return to auto mode by itself. After any power interruption, check
-  the baby and set the warmer again. (IEC gap e, a hardware change.)
+- **Power failure:** the alarm sounds continuously while the power is off
+  (until its reserve is empty). When the power returns **within 10
+  minutes**, the warmer carries on with its settings: the mode, the
+  setpoint (above 37.5 °C it comes back as 37.5) and the manual power; in
+  auto mode it warms up again. After a longer interruption it starts
+  **in manual mode at 10 %, setpoint 35.0 °C**: set it again. Switching the
+  warmer off and on works the same way. After any power interruption,
+  check the baby and the settings. **TODO:** how long the reserve sounds
+  the alarm.
 - **Do not hang anything on the heater head or its column.** **TODO:**
   maximum loads for any brackets or accessory mounts. *(IEC f)*
 - **TODO, if the cot has side panels:** check their latches before every
@@ -104,7 +109,9 @@ room, a neonatal unit or a ward, in a room of 18–30 °C.
 ## 5. Starting
 
 1. Switch on. The display shows all segments for a moment (lamp test).
-   The warmer starts in **manual mode at 10 %**, setpoint **35.0 °C**.
+   The warmer starts in **manual mode at 10 %**, setpoint **35.0 °C**
+   (unless it was switched off less than 10 minutes ago: section 1,
+   "Power failure").
 2. Place the skin sensor first (section 4), then press **MANUAL** for auto
    mode.
 3. Check the setpoint on the small display, and change it with UP/DOWN if

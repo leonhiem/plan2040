@@ -1,0 +1,101 @@
+== mkfs /fram
+
+== first boot: no /fram/resume yet; the nurse sets 36.5 C, auto
+resume: defaults: /fram/resume: no such file
+  % cat /dev/resume
+  defaults: /fram/resume: no such file
+  -> heaterauto off setpoint 35.0 percent 10.0
+  % echo 36.5 > /dev/setpoint
+  % echo on > /dev/heaterauto
+  % cat /fram/resume
+  auto 36.5 10 2026-11-24 08:01:08
+-- power off 3 min
+
+== 3 min later: auto 36.5 again; to manual, 40 %
+resume: restored: auto, 36.5 C, manual 10 %; power was off 3 min
+  % cat /dev/resume
+  restored: auto, 36.5 C, manual 10 %; power was off 3 min
+  -> heaterauto on setpoint 36.5 percent 10.0
+  % echo off > /dev/heaterauto
+  % echo 40 > /dev/percent
+  % cat /fram/resume
+  manual 36.5 40 2026-11-24 08:04:14
+-- power off 9 min
+
+== 9 min later: manual 40 %; then 38.5 C on purpose, auto
+resume: restored: manual, 36.5 C, manual 40 %; power was off 9 min
+  % cat /dev/resume
+  restored: manual, 36.5 C, manual 40 %; power was off 9 min
+  -> heaterauto off setpoint 36.5 percent 40.0
+  % echo on > /dev/setpoint/high
+  % echo 38.5 > /dev/setpoint
+  % echo on > /dev/heaterauto
+  % cat /fram/resume
+  auto 38.5 40 2026-11-24 08:13:18
+-- power off 1 min
+
+== 1 min later: auto, the setpoint back to 37.5
+resume: restored: auto, 37.5 C, manual 40 %; power was off 1 min
+  % cat /dev/resume
+  restored: auto, 37.5 C, manual 40 %; power was off 1 min
+  -> heaterauto on setpoint 37.5 percent 40.0
+-- power off 25 min
+
+== 25 min later: the defaults (maybe another baby)
+resume: defaults: power was off 25 min (more than 10)
+  % cat /dev/resume
+  defaults: power was off 25 min (more than 10)
+  -> heaterauto off setpoint 35.0 percent 10.0
+  % echo 36.5 > /dev/setpoint
+  % echo on > /dev/heaterauto
+  % cat /fram/resume
+  auto 36.5 10 2026-11-24 08:41:40
+-- power off 2 min
+
+== 2 min later: auto 36.5; the sensors fail
+resume: restored: auto, 36.5 C, manual 10 %; power was off 2 min
+  % cat /dev/resume
+  restored: auto, 36.5 C, manual 10 %; power was off 2 min
+  -> heaterauto on setpoint 36.5 percent 10.0
+  (both sensors gone: the guard switches to manual itself)
+  % echo off > /dev/heaterauto
+  % echo 30 > /dev/percent
+  % cat /fram/resume
+  auto 36.5 10 2026-11-24 08:44:51
+-- power off 2 min
+
+== 2 min later: still auto (the guard's manual isn't the nurse's)
+resume: restored: auto, 36.5 C, manual 10 %; power was off 2 min
+  % cat /dev/resume
+  restored: auto, 36.5 C, manual 10 %; power was off 2 min
+  -> heaterauto on setpoint 36.5 percent 10.0
+-- power off 2 min
+
+== 2 min later, the RTC lost its time (VL)
+resume: defaults: the RTC lost its time (VL; set it: echo "YYYY-MM-DD HH:MM:SS" > /dev/rtc)
+  % cat /dev/resume
+  defaults: the RTC lost its time (VL; set it: echo "YYYY-MM-DD HH:MM:SS" > /dev/rtc)
+  -> heaterauto off setpoint 35.0 percent 10.0
+-- power off 1 min
+
+== the clock set back an hour
+resume: defaults: the clock is earlier than the last save
+  % cat /dev/resume
+  defaults: the clock is earlier than the last save
+  -> heaterauto off setpoint 35.0 percent 10.0
+  % echo hello > /fram/resume
+-- power off 1 min
+
+== 1 min later, /fram/resume garbled
+resume: defaults: /fram/resume not understood
+  % cat /dev/resume
+  defaults: /fram/resume not understood
+  -> heaterauto off setpoint 35.0 percent 10.0
+-- power off 1 min
+
+== 1 min later, the RTC not answering
+resume: defaults: RTC (0x51, local bus) not answering
+  % cat /dev/resume
+  defaults: RTC (0x51, local bus) not answering
+  -> heaterauto off setpoint 35.0 percent 10.0
+exit 0

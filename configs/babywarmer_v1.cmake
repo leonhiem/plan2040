@@ -42,6 +42,7 @@ set(PLAN2040_DEVS
     percent      # /dev/percent: manual heater power 0-80, default 10
     warmer       # /dev/state, /dev/autopower, /dev/pid/{kp,ti,td,min,max,outmax,integral,ff}
     guard        # /dev/guard: all heater safety, an unkillable kernel task
+    resume       # /dev/resume: after a power cut < 10 min, the settings from /fram/resume
     tft          # /dev/tft/<name>: the ST7735 screen, 12 files; the "tftflush" task
 )
 
@@ -70,7 +71,7 @@ set(PLAN2040_SIZES
     STAGE_BUF=4096
     PROG_MAX=48
     FS_MAX_DEVICES=96    # 64 used with the TFT
-    TASK_MAX=32          # MAX_JOBS + shell, hours, cron, tpo, tftflush, adc, guard, seg7, ntcw = 29
+    TASK_MAX=32          # MAX_JOBS + shell, hours, cron, tpo, tftflush, adc, guard, seg7, ntcw, resume = 30
     FRAM_BOOT=0          # power-up always runs the built-in boot script, never
                          # /fram/boot: a warmer in use runs the tested wiring
                          # (`run /fram/boot` still works by hand, on the bench)

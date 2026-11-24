@@ -1525,6 +1525,21 @@ the room NTC open → `/dev/alarm/sensor` says so, the PID carries on; MANUAL
 | Warm-up with the sensor out of the bed | pending: safe after 5 min (`skin rose only ... in 5 min`) |
 | A normal warm-up at 80 % (`watch 1000 monitor`) | pending: when does the skin rise 0.3 °C? (April logs at 100 %: after ~2.5-3 min; 5 min must leave margin, also in a cool room) |
 
+**2026-11-24, after a power cut** (`build-babywarmer_v1/plan2040.uf2`,
+after the hack): `/dev/resume` and `/fram/resume`, the "resume" task. Off
+less than 10 minutes: the mode, the setpoint (above 37.5 back as 37.5)
+and the manual % come back; longer, or anything uncertain: the defaults,
+with the reason. On the PC (`resumetest`, 25 tests ok): every case above
+(see tests/host/README.md); the firmware builds without warnings.
+
+| Test | Result |
+|---|---|
+| Auto, setpoint 36.5; `cat /fram/resume` | pending: `auto 36.5 10 <RTC time>`, the time renewed every minute |
+| Power off 1 min, on | pending: console `resume: restored: auto, 36.5 C, manual 10 %; power was off 1 min`; AUT, WARM (a new warm-up) |
+| Manual 40 %, power off 2 min, on | pending: MAN, `40` on the small display |
+| Power off 11 min, on | pending: `resume: defaults: power was off 11 min (more than 10)`; MAN, 10 %, 35.0 |
+| The hardware buzzer during the cut | pending: sounds until the supercap is empty: how long? |
+
 **2026-11-24, the guard** (`build-babywarmer_v1/plan2040.uf2`, after
 the hack): all heater safety in a kernel task, `/dev/guard`,
 `/dev/heater/limit`, `/dev/alarm/sensor`, the bumpless handover. On the

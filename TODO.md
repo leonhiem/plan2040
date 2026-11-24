@@ -846,6 +846,18 @@ Order, one commit each, tested on the PC and then the board:
     while writing it: after a power cut the warmer starts in manual at
     10 % with the setpoint 35.0, so auto mode is lost silently: a reason
     for (e), or for remembering the mode in FRAM (to discuss).
+    **Done 2026-11-24 (Leon):** the hardware already covers (e)'s
+    alarm: during a cut the RP2040 is dead and the buzzer sounds from a
+    supercapacitor until it's empty. The cold boot now carries on:
+    `apps/babywarmer/dev/resume.cpp`, a kernel task, saves the mode, the
+    setpoint and the manual % to `/fram/resume` on a change and the RTC
+    time every minute; at boot it restores them when the power was off
+    less than 10 minutes (longer: maybe another baby: the defaults). A
+    setpoint above 37.5 comes back as 37.5; while the guard says none
+    (its own manual) the nurse's mode stays saved. No notice beyond the
+    supercap buzzer (Leon). Anything uncertain (no file, garbled, the RTC
+    lost its time or doesn't answer, the clock gone back) means the
+    defaults, the reason in `/dev/resume`. tests/host/resumetest.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
