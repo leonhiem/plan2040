@@ -3,7 +3,8 @@
  *
  *   echo 36.5 > /dev/seg7big      up to 3 digits, right-aligned; a '.' lights
  *   echo 35.0 > /dev/seg7small    the dot (only after the middle digit exists)
- *   echo on > /dev/seg7big/blink  blink 0.5 s on / 0.5 s off (the "seg7" task)
+ *   echo on > /dev/seg7big/blink  blink 0.5 s on / 0.5 s off (the "seg7" task);
+ *                                 /dev/seg7small/blink the same for the small one
  *   echo "chk on" > /dev/leds     or echo on > /dev/leds/chk; the seven LEDs:
  *                                 aut warm low high fail chk man
  *
@@ -24,22 +25,22 @@ static uint8_t small_d[3] = {SEG_BLANK, SEG_BLANK, SEG_BLANK};
 static uint8_t small_dot  = 0;
 static led_t   leds       = {0,0,0,0,0,0,0};
 
-// /dev/seg7big/blink: the "seg7" task below blinks; nothing while off.
+// /dev/seg7big/blink, /dev/seg7small/blink: the "seg7" task below blinks;
+// nothing while both are off.
 #define BLINK_MS 500
-static bool big_blink  = false;
-static bool blink_dark = false;   // in the dark half of a blink
+static bool big_blink   = false;
+static bool small_blink = false;
+static bool blink_dark  = false;  // in the dark half of a blink
 
 static void flush(void)
 {
-    if (big_blink && blink_dark) {
-        update_7seg(SEG_BLANK, SEG_BLANK, SEG_BLANK, 0,
-                    small_d[2], small_d[1], small_d[0], small_dot, leds);
-        return;
-    }
+    bool big_dark = big_blink && blink_dark, small_dark = small_blink && blink_dark;
     // update_7seg()'s digl1/digs1 is the most significant digit (as the
     // field warmer called it), so our leftmost digit goes in the third slot.
-    update_7seg(big_d[2], big_d[1], big_d[0], big_dot,
-                small_d[2], small_d[1], small_d[0], small_dot, leds);
+    update_7seg(big_dark ? SEG_BLANK : big_d[2], big_dark ? SEG_BLANK : big_d[1],
+                big_dark ? SEG_BLANK : big_d[0], big_dark ? 0 : big_dot,
+                small_dark ? SEG_BLANK : small_d[2], small_dark ? SEG_BLANK : small_d[1],
+                small_dark ? SEG_BLANK : small_d[0], small_dark ? 0 : small_dot, leds);
 }
 
 // Up to 3 digit characters plus an optional '.', in any order; right-
@@ -106,29 +107,29 @@ static int leds_write(const char *buf, int len)
 static const device_t dev_leds      = {"/dev/leds",      0, 0, 0, leds_write};
 static const device_t dev_seg7big   = {"/dev/seg7big",   0, 0, 0, seg7big_write};
 
-static int blink_read(char *buf, int len)
-{
-    return snprintf(buf, len, big_blink ? "on\n" : "off\n");
-}
-
-static int blink_write(const char *buf, int len)
+static int blink_set(bool *which, const char *buf, int len)
 {
     bool on;
     if (len >= 2 && strncmp(buf, "on", 2) == 0)       on = true;
     else if (len >= 3 && strncmp(buf, "off", 3) == 0) on = false;
     else return -1;
-    if (on != big_blink) { big_blink = on; blink_dark = false; flush(); }
+    if (on != *which) { *which = on; blink_dark = false; flush(); }
     return len;
 }
+static int blink_read(char *buf, int len)        { return snprintf(buf, len, big_blink ? "on\n" : "off\n"); }
+static int blink_write(const char *buf, int len)  { return blink_set(&big_blink, buf, len); }
+static int sblink_read(char *buf, int len)       { return snprintf(buf, len, small_blink ? "on\n" : "off\n"); }
+static int sblink_write(const char *buf, int len) { return blink_set(&small_blink, buf, len); }
 
 static void blink_task(void)
 {
-    if (!big_blink) return;
+    if (!big_blink && !small_blink) return;
     blink_dark = !blink_dark;
     flush();
 }
 
-static const device_t dev_seg7big_blink = {"/dev/seg7big/blink", 0, 0, blink_read, blink_write};
+static const device_t dev_seg7big_blink   = {"/dev/seg7big/blink",   0, 0, blink_read,  blink_write};
+static const device_t dev_seg7small_blink = {"/dev/seg7small/blink", 0, 0, sblink_read, sblink_write};
 static const device_t dev_seg7small = {"/dev/seg7small", 0, 0, 0, seg7small_write};
 
 
@@ -194,4 +195,5 @@ void dev_seg7_register(void)
     fs_register(&dev_seg7big_blink);
     task_register("seg7", blink_task, BLINK_MS);
     fs_register(&dev_seg7small);
+    fs_register(&dev_seg7small_blink);
 }

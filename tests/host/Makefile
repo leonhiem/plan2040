@@ -23,7 +23,7 @@ UNIT = fstest hourstest fscktest mvcut luttest
 # whole-shell simulations (-w: the fakes are quick and dirty)
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
 # babywarmer app tests (the real babywarmer_v1 pin map, fake GPIO/PWM)
-APP  = outtest bwsim adctest eetest drvtest btntest
+APP  = outtest bwsim adctest eetest drvtest btntest sptest
 ALL  = $(UNIT) $(SIMS) bootsim $(APP)
 
 all: $(ALL)
@@ -55,6 +55,8 @@ TFTC  = st7735 gfx icons baby heat_indicator apgar_timer text_console cue_icons 
 TFTO  = $(foreach n,$(TFTC),tft_$(n).o)
 tft_%.o: $(BW)/tft/%.c
 	$(CC) -w -I fake_bw -I fake -c -o $@ $<
+sptest:   sptest.cpp $(BW)/dev/setpoint.cpp $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp
+	$(CXX) -Wall -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 btntest:  btntest.cpp $(P)/drivers/buttons.cpp
 	$(CXX) -Wall -I fake_bw -I fake -I $(P) -o $@ $^
 drvtest:  drvtest.cpp $(P)/drivers/fm24cl64.cpp $(P)/drivers/pcf8563.cpp $(P)/dev/rtc.cpp $(P)/dev/fram.cpp \

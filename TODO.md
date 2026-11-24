@@ -813,6 +813,12 @@ Order, one commit each, tested on the PC and then the board:
     and the guard calls safe at 93:07; the April field logs show the
     real skin rising through the coast (33.0 -> 33.9 C in 30 s). A
     two-node model (heater -> mattress -> skin) would fix the model.
+    **Gap (d) done 2026-11-24 (Leon):** the setpoint 34.0-37.5 C (was
+    30-39); above 37.5, up to 39.0, only on purpose: hold UP 3 s at 37.5
+    (dev/setpoint.cpp counts writes past the limit, the buttons repeat),
+    or `echo on > /dev/setpoint/high`; the small display blinks meanwhile
+    (/dev/seg7small/blink). Default stays 35.0 (the field warmer's).
+    LOW is also quiet during the coast now. tests/host/sptest.
     **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
     (b) a manual-mode check timer; (c) deviation alarms relative to the
     setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on

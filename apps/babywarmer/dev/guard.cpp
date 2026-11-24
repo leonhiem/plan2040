@@ -285,12 +285,12 @@ static void deviation(bool autom, bool skin_ok, float skin, float sp, char *s, i
     // HIGH: in auto with a trusted reading, 1 C over warns, 2 C alarms; in
     // manual (any reading) above MANUAL_HIGH_C. LOW: auto, a trusted
     // reading, the skin once within 1 C since the warm-up began (the boost
-    // ends 3 C below; the last degrees take minutes), the setpoint steady
-    // for 10 minutes. A level clears DEV_HYST_C inside its threshold, so
+    // ends 3 C below; the last degrees take minutes), not in the coast
+    // (0 % on purpose), the setpoint steady for 10 minutes. A level clears DEV_HYST_C inside its threshold, so
     // a reading on the border doesn't flicker.
     bool trusted = autom && level == G_OK && skin_ok;
     high_lv = trusted ? dev_level(d, high_lv) : 0;
-    bool quiet = !trusted || !reached || sp_same_s < LOW_QUIET_S;
+    bool quiet = !trusted || !reached || coast_left > 0 || sp_same_s < LOW_QUIET_S;
     low_lv = quiet ? 0 : dev_level(-d, low_lv);
 
     if (high_lv)                                  snprintf(s, slen, "%s: skin %.1f C, %.1f C above the setpoint", high_lv == 2 ? "on" : "warn", skin, d);

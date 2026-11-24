@@ -24,9 +24,9 @@
 //  50:00  START (APGAR), `run tftmon`; 52:00 back to the warmer screen
 //  55:00  the heater element breaks; 57:00 works again
 //  60:00  the SSR sticks on -> relay held off; 62:00 replaced; 63:00 released
-//  66:00  UP 20 times -> setpoint 38.0 (+2.0), the skin within 3 C of
-//         it: no re-boost, the PID climbs with its integrator (step 5;
-//         the field rule coasted 45 s at 0 % here, the skin fell ~1 C)
+//  66:00  UP 20 times, 1 s apart -> the setpoint stops at 37.5 (gap d:
+//         34-37.5 C; above only by holding UP 3 s, tests/host/sptest);
+//         the skin within 3 C: no re-boost, the PID climbs
 //  75:00  the room NTC opens: /dev/alarm/sensor says so, the PID runs on
 //         the last feed-forward (30 % after 10 min); 88:00 back
 //  90:00  MANUAL -> manual at 10 % (step 5: always); 91:00 UP -> 15 %;
@@ -43,10 +43,11 @@
 // 44:00-49:00 a draught (LOW warns at 1 C under, alarms at 2 C).
 //
 // A known limit of this model: it has no mattress storing heat, so the
-// skin falls during the 45 s coast at 0 %; after it the PID starts more
-// than 3 C below the setpoint and the guard calls "safe" (93:07).
-// On the real warmer the skin keeps rising through the coast (the April
-// 2026 field logs: 33.0 -> 33.9 C, 32.0 -> 33.1 C in 30 s).
+// skin falls during the 45 s coast at 0 % (and the PID may start more than
+// 3 C below the setpoint: a false "safe"; at 105:51 a LOW warning, the skin
+// 1.8 C under after the coast). On the real warmer the skin
+// keeps rising through the coast (the April 2026 field logs: 33.0 -> 33.9
+// C, 32.0 -> 33.1 C in 30 s).
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -240,7 +241,7 @@ int main()
         if (sec == 60 * 60)  { SAY("--- 60:00 the SSR sticks on (conducts while switched off)\n"); ssr_stuck = true; }
         if (sec == 62 * 60)  { SAY("--- 62:00 the SSR is replaced\n"); ssr_stuck = false; }
         if (sec == 63 * 60)  { SAY("--- 63:00 type `echo off > /dev/alarm/heater` (release the latch)\n"); type("echo off > /dev/alarm/heater\n"); }
-        if (sec == 66 * 60)  SAY("--- 66:00 press UP 20 times (setpoint +2.0, skin within 3 C: the PID climbs)\n");
+        if (sec == 66 * 60)  SAY("--- 66:00 press UP 20 times, 1 s apart (the setpoint stops at 37.5: above only on purpose)\n");
         if (sec >= 66 * 60 && sec < 66 * 60 + 20) button[BUTTON_UP] = true;
         if (sec == 75 * 60)  { SAY("--- 75:00 the room NTC opens (the skin sensor still works)\n"); room_dead = true; }
         if (sec == 88 * 60)  { SAY("--- 88:00 the room NTC works again\n"); room_dead = false; }

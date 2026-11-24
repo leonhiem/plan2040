@@ -288,7 +288,8 @@ The control, as devices that hold values and programs that run as jobs
 
 | Device | | |
 |---|---|---|
-| `/dev/setpoint` | read/write | Skin setpoint, 30.0-39.0 °C, default 35.0. |
+| `/dev/setpoint` | read/write | Skin setpoint, 34.0-37.5 °C in 0.1 °C steps, default 35.0. Above 37.5 (up to 39.0) only on purpose: hold UP for 3 s at 37.5 (the small display then blinks), or `echo on > /dev/setpoint/high`. |
+| `/dev/setpoint/high` | read/write | `on` while above 37.5 °C is allowed; back at 37.5 or below it is `off` again. |
 | `/dev/setpoint/raised` | read | How many times the setpoint was raised by 2 °C or more (counted 5 s after the last press): `warmer` boosts again if the skin is more than 3 °C below it, and the guard watches that as a warm-up. |
 | `/dev/heaterauto` | read/write | `on` = auto (the PID), `off` = manual (`/dev/percent`). Starts `off`. Every switch to manual sets `/dev/percent` to 10 (the field warmer's customer request). |
 | `/dev/percent` | read/write | Manual heater power, 0-80 (the field warmer's maximum), default 10. |
@@ -1619,6 +1620,8 @@ element safe to run, or disconnected.
 | ... 2 °C off | pending: the buzzer too; MUTE: quiet for a minute |
 | Warm-up from cold, and a setpoint raised by 1 °C | pending: no LOW during the warm-up, nor for 10 min after the change |
 | Manual, skin above 39 °C | pending: HIGH and the buzzer |
+| UP to 37.5, keep pressing | pending: stops at 37.5 |
+| At 37.5, hold UP 3 s | pending: 37.6 and on, the small display blinks; DOWN to 37.5: steady, the limit back |
 | MANUAL | pending: auto on: small display shows the setpoint, `cat /dev/state` = `boost`, heater 80 %, AUT LED |
 | `watch 1000 monitor` | pending: one line per second through boost, coast, pid |
 | Warm the NTC by hand above 40 °C | pending: `/dev/alarm/temphigh` on, buzzer; MUTE silences it for a minute |

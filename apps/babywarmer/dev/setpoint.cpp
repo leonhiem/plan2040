@@ -2,7 +2,15 @@
  * apps/babywarmer/dev/setpoint.cpp — /dev/setpoint, /dev/setpoint/raised
  *
  *   cat /dev/setpoint          the skin setpoint, e.g. "35.0"
- *   echo 36.5 > /dev/setpoint  set it, within SETPOINT_MIN..MAX (30-39 C)
+ *   echo 36.5 > /dev/setpoint  set it, within 34.0-37.5 C
+ *   cat /dev/setpoint/high     "on" while above 37.5 C is allowed (up to 39.0)
+ *
+ * Above 37.5 C only on purpose (IEC 60601-2-21, as commercial warmers): at
+ * 37.5, hold UP for 3 s. UP repeats while held, so `adjust` keeps writing
+ * past the limit; HIGH_HOLD_MS of such writes, each within HIGH_GAP_MS of
+ * the last, allow up to 39.0 (the field warmer's maximum). From the shell:
+ * `echo on > /dev/setpoint/high`. Back at 37.5 or below, the limit returns.
+ * ledwire blinks the small display while it's above 37.5.
  *   cat /dev/setpoint/raised   how many times it was raised by RAISE_C (2 C)
  *                              or more
  *
@@ -16,15 +24,22 @@
 #include "pico/stdlib.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
-#define SETPOINT_MIN     30.0f
-#define SETPOINT_MAX     39.0f
-#define SETPOINT_DEF     35.0f
+#define SETPOINT_MIN     34.0f
+#define SETPOINT_NORMAL  37.5f   // the limit ...
+#define SETPOINT_MAX     39.0f   // ... and above it, on purpose
+#define SETPOINT_DEF     35.0f   // the field warmer's
+#define HIGH_HOLD_MS     3000    // pushing past 37.5 this long ...
+#define HIGH_GAP_MS      400     // ... with writes this close together (UP's repeat: 150 ms)
 
 #define RAISE_C          2.0f
 #define EDIT_SETTLE_MS   5000
 
 static float setpoint = SETPOINT_DEF;
+static bool  high;               // above SETPOINT_NORMAL allowed
+static bool  pushing;            // writes past the limit, close together
+static absolute_time_t push_start, push_last;
 
 static bool  editing;            // a session of changes, not settled yet
 static float before_edit;
@@ -40,8 +55,28 @@ static void settle(void)
 
 static void clamp(void)
 {
+    if (setpoint > SETPOINT_NORMAL && !high) {
+        absolute_time_t now = get_absolute_time();
+        if (!pushing || absolute_time_diff_us(push_last, now) > (int64_t)HIGH_GAP_MS * 1000) {
+            pushing = true;
+            push_start = now;
+        } else if (absolute_time_diff_us(push_start, now) >= (int64_t)HIGH_HOLD_MS * 1000) {
+            high = true;
+        }
+        push_last = now;
+    }
     if (setpoint < SETPOINT_MIN) setpoint = SETPOINT_MIN;
-    if (setpoint > SETPOINT_MAX) setpoint = SETPOINT_MAX;
+    if (setpoint > (high ? SETPOINT_MAX : SETPOINT_NORMAL)) setpoint = high ? SETPOINT_MAX : SETPOINT_NORMAL;
+    if (setpoint <= SETPOINT_NORMAL) { high = false; if (setpoint < SETPOINT_NORMAL) pushing = false; }
+}
+
+static int high_read(char *buf, int len) { return snprintf(buf, len, high ? "on\n" : "off\n"); }
+static int high_write(const char *buf, int len)
+{
+    if (len >= 2 && strncmp(buf, "on", 2) == 0)       high = true;
+    else if (len >= 3 && strncmp(buf, "off", 3) == 0) { high = false; clamp(); }
+    else return -1;
+    return len;
 }
 
 static int setpoint_read(char *buf, int len)
@@ -75,6 +110,7 @@ static int raised_read(char *buf, int len)
 }
 
 static const device_t dev_raised = { "/dev/setpoint/raised", 0, 0, raised_read, 0 };
+static const device_t dev_high   = { "/dev/setpoint/high",   0, 0, high_read,   high_write };
 
 static const device_t dev_setpoint = {
     "/dev/setpoint",
@@ -88,4 +124,5 @@ void dev_setpoint_register(void)
 {
     fs_register(&dev_setpoint);
     fs_register(&dev_raised);
+    fs_register(&dev_high);
 }

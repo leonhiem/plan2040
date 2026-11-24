@@ -8,7 +8,8 @@
  *   fail  /dev/alarm/heater
  *
  * and the big display: blinking while the guard says safe (the reading is
- * shown but not trusted), blank in none (no reading). One job, not seven:
+ * shown but not trusted), blank in none (no reading); the small display
+ * blinks while the setpoint is above 37.5 C (/dev/setpoint/high). One job, not seven:
  * this is simply what the front panel means, nothing to rewire.
  */
 #include "kernel/prog.h"
@@ -56,6 +57,8 @@ static int ledwire_run(const char *in, int inlen, int argc, char **argv, char *o
     bool guard_none = dev_is("/dev/guard", "none");
     set_led("/dev/leds/chk", !guard_ok);
     set_led("/dev/seg7big/blink", !guard_ok && !guard_none);
+    // The small display blinks the setpoint while it is above 37.5 C.
+    set_led("/dev/seg7small/blink", auto_mode && dev_is("/dev/setpoint/high", "on"));
     if (guard_none) set_led("/dev/seg7big", false);      // "off": no digits = blank
 
     set_led("/dev/leds/low",  dev_is("/dev/alarm/templow",  "on") || dev_is("/dev/alarm/templow",  "warn"));
