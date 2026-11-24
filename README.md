@@ -297,7 +297,7 @@ The control, as devices that hold values and programs that run as jobs
 | `/dev/pid/integral`, `ff` | read | What `warmer` uses now: the integral and the feed-forward for the room (30 % at 24 °C; the room sensor down: the last value for 10 minutes, then 30 %). |
 | `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `warmer`). |
 | `/dev/autopower` | read/write | The power auto mode asks for (from `select`; in safe, what the guard heats with). |
-| `/dev/alarm/heater`, `temphigh`, `templow`, `sensor`, `check` | read/write | The alarm conditions (written by the guard): `on`/`off`. `check` is manual mode's "check the baby" (below). `heater`, `sensor` and `check` give their reason too: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
+| `/dev/alarm/heater`, `temphigh`, `templow`, `sensor`, `check` | read/write | The alarm conditions (written by the guard): `off`, `warn: <why>` (the LEDs and the TFT show it, no buzzer) or `on: <why>` (the buzzer too). `temphigh`/`templow`: the skin 1 °C off the setpoint warns, 2 °C alarms (below). `check` is manual mode's "check the baby". Reasons, e.g.: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
 | `/dev/guard` | read | The guard's verdict on the skin reading, with the reason: `ok`, `safe: <why>`, `none: <why>` (see "The guard" below). |
 | `/dev/heater/limit` | read | The guard's say over the heater: `cap 100.0` (the jobs' power, at most that) or `set 39.0` (the guard's own power, whatever the jobs ask). |
 
@@ -354,8 +354,12 @@ baby, press MUTE"); 3 more minutes unanswered switch the heater off
 until MUTE, which also restarts the timer (lowering the power to 25 %
 or less, or auto mode, stop it); and it writes `/dev/alarm/sensor` (also when only the room sensor
 is down: the PID then runs on the last feed-forward). The temperature
-alarms are the field warmer's: high when the skin is more than 2 °C
-above the setpoint, low when it is more than 2 °C below the room. Each change is said once on the
+alarms follow the setpoint (IEC 60601-2-21, as the GE Panda warmer): in
+auto with a trusted reading, the skin 1 °C off lights LOW or HIGH, 2 °C
+off sounds the buzzer too (both clear 0.2 °C inside, so a reading on
+the border doesn't flicker); LOW is quiet during a warm-up (until the
+skin first comes within 1 °C) and for 10 minutes after the setpoint
+changed; in manual, HIGH above 39 °C only. Each change is said once on the
 console: `guard: safe: skin 24.0 C, more than 3 C below the setpoint for
 20 s (sensor off the baby?), heating 39 % from the room (24.0 C)`.
 Deliberately no cleverer plausibility checks (Leon: too many false
@@ -1611,6 +1615,10 @@ element safe to run, or disconnected.
 | MANUAL held for 3 s | pending: switches once, never back and forth |
 | Manual at 30 % for 12 min | pending: buzzer, `cat /dev/alarm/check`: `on: manual 30 % for 12 min: check the baby, press MUTE`; 3 min more: heater off (`cat /dev/heater/limit`: `set 0.0`); MUTE: heater back, quiet |
 | Manual at 20 % | pending: no check alarm, however long |
+| Skin 1 °C over / under the setpoint in pid (a lamp, a fan) | pending: HIGH / LOW LED, no buzzer; `cat /dev/alarm/temphigh`: `warn: skin 37.1 C, 1.1 C above the setpoint` |
+| ... 2 °C off | pending: the buzzer too; MUTE: quiet for a minute |
+| Warm-up from cold, and a setpoint raised by 1 °C | pending: no LOW during the warm-up, nor for 10 min after the change |
+| Manual, skin above 39 °C | pending: HIGH and the buzzer |
 | MANUAL | pending: auto on: small display shows the setpoint, `cat /dev/state` = `boost`, heater 80 %, AUT LED |
 | `watch 1000 monitor` | pending: one line per second through boost, coast, pid |
 | Warm the NTC by hand above 40 °C | pending: `/dev/alarm/temphigh` on, buzzer; MUTE silences it for a minute |

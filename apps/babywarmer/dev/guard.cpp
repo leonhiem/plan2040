@@ -22,7 +22,8 @@
  * Why safe (the field warmer's watchdogs and numbers, plus the hardware):
  *   - the sensor falls off a warm baby: the skin falls > 0.08 C/s for 3 s
  *     while more than 2 C below the setpoint, or stays more than 3 C below
- *     it for 20 s;
+ *     it for 20 s (not during the boost and the coast after it, 0 % on
+ *     purpose, WARMUP_COAST_S);
  *   - the sensor is out from the start: less than 0.3 C rise in 5 minutes
  *     of warm-up (auto switched on, or the setpoint raised 2 C or more with
  *     the skin more than 3 C below it). The April 2026 field logs: the
@@ -49,9 +50,15 @@
  * than 3 C above the setpoint, on when heating); the heater current against
  * the SSR's real state; a stuck SSR (relay held off until `echo off >
  * /dev/alarm/heater` or a reboot). And the alarm files the jobs alarm,
- * ledwire, tftwire show: heater, temphigh (skin > setpoint + 2 C), templow
- * (skin < room - 2 C), sensor (the level's reason, or the room sensor down:
- * the PID then runs on the last feed-forward, then 30 %).
+ * ledwire, tftwire show: heater; sensor (the level's reason, or the room
+ * sensor down: the PID then runs on the last feed-forward, then 30 %);
+ * check (manual's timer); and the deviation from the setpoint (IEC
+ * 60601-2-21, as the GE Panda warmer), in auto with a trusted reading:
+ * temphigh / templow "warn" at 1 C off (LED), "on" at 2 C off (buzzer).
+ * templow is quiet during a warm-up (until the skin first comes within
+ * 1 C of the setpoint) and for 10 minutes after the setpoint was changed,
+ * while the skin climbs. In manual, where the setpoint means
+ * nothing: temphigh "on" above 39 C only.
  *
  * Each change of level is said once on the console:
  *   guard: safe: skin fell 2.4 C in 3 s (sensor off the baby?), heating 39 % from the room (24.0 C)
@@ -95,8 +102,11 @@
 
 // The hardware safety.
 #define OVERTEMP_MARGIN       3.0f   // skin > setpoint + this -> relay off
-#define TEMPHIGH_MARGIN       2.0f   // skin > setpoint + this: alarm (warmer.cpp)
-#define TEMPLOW_MARGIN        2.0f   // skin < room - this: alarm (warmer.cpp)
+#define DEV_WARN_C            1.0f   // skin this far off the setpoint: LOW/HIGH LED
+#define DEV_ALARM_C           2.0f   // ... this far: the buzzer too
+#define LOW_QUIET_S           600    // no LOW for 10 min after a setpoint change
+#define MANUAL_HIGH_C         39.0f  // manual: HIGH above this
+#define DEV_HYST_C            0.2f   // a level clears this much inside its threshold
 #define CURRENT_FAIL_THRESHOLD 50    // raw ADC counts
 #define SETTLE_MS             500    // SSR state settled this long before judging
 #define CONFIRM_S             3      // seconds in a row before a current verdict
@@ -116,8 +126,13 @@ static float warm_start_skin;
 static float prev_skin;
 static bool  have_prev;
 static int   drop_s, low_s, recover_s, back_s;
+static int   coast_left;                   // after the boost: the coast, no drop checks
 static bool  last_auto;
 static int   raised_seen = -1;             // /dev/setpoint/raised
+static bool  reached;                      // the skin came within DEV_WARN_C since the warm-up began
+static float last_sp;
+static int   high_lv, low_lv;              // 0 off, 1 warn, 2 on (with hysteresis)
+static int   sp_same_s;                    // seconds since the setpoint changed
 
 static int   check_s;                      // manual above CHECK_POWER this long
 static bool  check_off;                    // unanswered: the heater off
@@ -186,6 +201,7 @@ static void say_level(void)
 static void start_warmup(float skin)
 {
     warming = true;
+    reached = false;
     warm_s = 0;
     warm_start_skin = skin;
     drop_s = low_s = 0;
@@ -246,6 +262,45 @@ static void manual_check(bool manual)
         check_off = true;
         printf("guard: check not answered for 3 min: heater off until MUTE\n");
     }
+}
+
+// ---- the deviation from the setpoint ------------------------------------
+
+// The level for being `over` beyond the setpoint, from the level before.
+static int dev_level(float over, int was)
+{
+    if (over > DEV_ALARM_C || (was == 2 && over > DEV_ALARM_C - DEV_HYST_C)) return 2;
+    if (over > DEV_WARN_C  || (was >= 1 && over > DEV_WARN_C - DEV_HYST_C))  return 1;
+    return 0;
+}
+
+static void deviation(bool autom, bool skin_ok, float skin, float sp, char *s, int slen,
+                      char *a_high, int hlen, char *a_low, int llen)
+{
+    if (sp != last_sp) { last_sp = sp; sp_same_s = 0; }
+    else if (sp_same_s < LOW_QUIET_S) sp_same_s++;
+    float d = skin - sp;
+    if (skin_ok && d >= -DEV_WARN_C) reached = true;
+
+    // HIGH: in auto with a trusted reading, 1 C over warns, 2 C alarms; in
+    // manual (any reading) above MANUAL_HIGH_C. LOW: auto, a trusted
+    // reading, the skin once within 1 C since the warm-up began (the boost
+    // ends 3 C below; the last degrees take minutes), the setpoint steady
+    // for 10 minutes. A level clears DEV_HYST_C inside its threshold, so
+    // a reading on the border doesn't flicker.
+    bool trusted = autom && level == G_OK && skin_ok;
+    high_lv = trusted ? dev_level(d, high_lv) : 0;
+    bool quiet = !trusted || !reached || sp_same_s < LOW_QUIET_S;
+    low_lv = quiet ? 0 : dev_level(-d, low_lv);
+
+    if (high_lv)                                  snprintf(s, slen, "%s: skin %.1f C, %.1f C above the setpoint", high_lv == 2 ? "on" : "warn", skin, d);
+    else if (!autom && skin_ok && skin > MANUAL_HIGH_C) snprintf(s, slen, "on: skin %.1f C, above %.0f C (manual)", skin, MANUAL_HIGH_C);
+    else                                          snprintf(s, slen, "off");
+    alarm_set("/dev/alarm/temphigh", a_high, hlen, s);
+
+    if (low_lv) snprintf(s, slen, "%s: skin %.1f C, %.1f C below the setpoint", low_lv == 2 ? "on" : "warn", skin, -d);
+    else        snprintf(s, slen, "off");
+    alarm_set("/dev/alarm/templow", a_low, llen, s);
 }
 
 // ---- the heater current ------------------------------------------------
@@ -337,13 +392,16 @@ static void guard_task(void)
             if (reboost && !warming && skin < sp - WARMUP_EXIT_C) start_warmup(skin);   // warmer boosts again
             if (warming) {
                 warm_s++;
-                if (skin >= sp - WARMUP_EXIT_C) warming = false;
+                if (skin >= sp - WARMUP_EXIT_C) { warming = false; coast_left = WARMUP_COAST_S; }
                 else if (warm_s >= NO_RISE_S) {
                     if (skin - warm_start_skin < NO_RISE_MIN_DELTA)
                         set_level(G_SAFE, C_SENSOR, "skin rose only %.1f C in 5 min of warm-up (sensor off the baby?)",
                                   skin - warm_start_skin);
                     else { warm_start_skin = skin; warm_s = 0; }
                 }
+            } else if (coast_left > 0) {
+                coast_left--;                                // 0 % on purpose: the skin may fall
+                drop_s = low_s = 0;
             } else {
                 if (have_prev && prev_skin - skin > DROP_RATE && skin < sp - DROP_DELTA) {
                     if (++drop_s >= DROP_S)
@@ -377,13 +435,12 @@ static void guard_task(void)
     else if (heater_get_power() > 0.0f && !stuck) write_str("/dev/relay", "on");
     current_check(overtemp);
 
-    static char a_heater[100] = "off", a_high[8] = "off", a_low[8] = "off", a_sensor[128] = "off";
+    static char a_heater[100] = "off", a_high[100] = "off", a_low[100] = "off", a_sensor[128] = "off";
     alarm_set("/dev/alarm/heater", a_heater, sizeof(a_heater),
               stuck ? "on: current while switched off (SSR stuck on?), relay held off"
               : nocurrent ? "on: no current while switched on (element, fuse or SSR?)" : "off");
-    alarm_set("/dev/alarm/temphigh", a_high, sizeof(a_high), skin_ok && skin > sp + TEMPHIGH_MARGIN ? "on" : "off");
-    alarm_set("/dev/alarm/templow",  a_low,  sizeof(a_low),  skin_ok && room_ok && skin < room - TEMPLOW_MARGIN ? "on" : "off");
     char s[sizeof(a_sensor)];
+    deviation(autom && !forced_manual, skin_ok, skin, sp, s, sizeof(s), a_high, sizeof(a_high), a_low, sizeof(a_low));
     if (level != G_OK) snprintf(s, sizeof(s), "on: %s", why);
     else if (!room_ok && autom) snprintf(s, sizeof(s), "on: %.90s", room_err);
     else snprintf(s, sizeof(s), "off");

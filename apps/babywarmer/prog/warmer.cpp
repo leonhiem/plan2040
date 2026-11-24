@@ -42,7 +42,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#define COAST_S           45
 #define COAST_SEED        3.0f      // the integral after coast, on top of ff
 #define DT                1.0f      // seconds per step
 #define FF_FRESH_S        600       // keep the last feed-forward this long
@@ -173,7 +172,7 @@ static void step(void)
         break;
     case COAST:
         power = 0.0f;
-        if (++coast_s >= COAST_S && skin_ok) {
+        if (++coast_s >= WARMUP_COAST_S && skin_ok) {
             integral = COAST_SEED;
             prev_skin = skin;
             set_state(PID);

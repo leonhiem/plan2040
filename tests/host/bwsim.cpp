@@ -38,6 +38,15 @@
 // 110:00  MANUAL -> manual, UP to 30 %: the check timer (IEC gap b): at
 //         12 min "check the baby", 3 min later unanswered -> heater off;
 //         127:00 MUTE answers -> heater back; 130:00 DOWN to 20 %: no timer
+// Gap c, the deviation from the setpoint: 22:00-26:00 a phototherapy lamp
+// (HIGH warns at 1 C over, alarms at 2 C, the relay drops at 3 C);
+// 44:00-49:00 a draught (LOW warns at 1 C under, alarms at 2 C).
+//
+// A known limit of this model: it has no mattress storing heat, so the
+// skin falls during the 45 s coast at 0 %; after it the PID starts more
+// than 3 C below the setpoint and the guard calls "safe" (93:07).
+// On the real warmer the skin keeps rising through the coast (the April
+// 2026 field logs: 33.0 -> 33.9 C, 32.0 -> 33.1 C in 30 s).
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -72,6 +81,7 @@ int getchar_timeout_us(uint32_t) { return typed_pos < typed_len ? (unsigned char
 static const float ROOM = 24.0f, LOSS = 0.0020f, GAIN = LOSS * 12.0f / 39.0f; // 39 % -> room + 12 C = 36 C
 static float skin = 24.0f;       // what's under the sensor
 static bool sensor_on_baby = false, adc_dead = false, room_dead = false;
+static float draught = 1.0f, lamp = 0.0f;   // more heat loss; an extra heat source (C/s)
 static bool element_broken = false, ssr_stuck = false;   // heater faults
 static float heater_now(void)
 {
@@ -160,7 +170,7 @@ static void status(int sec)
     rd("/dev/guard", gd, sizeof gd); { char *c = strchr(gd, ':'); if (c) *c = 0; }
     rd("/dev/alarm/heater", ah, sizeof ah); rd("/dev/alarm/temphigh", th, sizeof th); rd("/dev/alarm/templow", tl, sizeof tl);
     char *al[] = { ah, th, tl };
-    for (char *a : al) if (!strncmp(a, "on", 2)) a[2] = 0;   // the reason is logged separately
+    for (char *a : al) { char *c = strchr(a, ':'); if (c) *c = 0; }   // the reason is logged separately
     char big[8], small[8], blink[8], chk[8];
     decode(seg_all, big, small);
     rd("/dev/seg7big/blink", blink, sizeof blink); rd("/dev/leds/chk", chk, sizeof chk);
@@ -209,16 +219,20 @@ int main()
         if (fake_now < next_sec) continue;
         next_sec += 1000000; sec++;
         // the world, once a second
-        skin += heater_now() * GAIN - (skin - ROOM) * LOSS;
+        skin += heater_now() * GAIN - (skin - ROOM) * LOSS * draught + lamp;
         if (sec == 60)       { SAY("--- 1:00 press MANUAL (-> auto); the skin sensor is not on the baby\n"); button[BUTTON_MANUAL] = true; }
         if (sec == 14 * 60)  { SAY("--- 14:00 the skin sensor goes on the baby\n"); sensor_on_baby = true; }
         if (sec == 20 * 60)  SAY("--- 20:00 press UP 10 times (0.1 C each: setpoint 36.0)\n");
         if (sec >= 20 * 60 && sec < 20 * 60 + 10) button[BUTTON_UP] = true;
+        if (sec == 22 * 60)  { SAY("--- 22:00 a phototherapy lamp over the baby: more heat than the PID can take away\n"); lamp = 0.035f; }
+        if (sec == 26 * 60)  { SAY("--- 26:00 the lamp off\n"); lamp = 0.0f; }
         if (sec == 29 * 60)  { SAY("--- 29:00 type `monitor` (the field warmer's telemetry line)\n"); type("monitor\n"); }
         if (sec == 30 * 60)  { SAY("--- 30:00 the skin sensor falls off the baby (reads the room)\n"); sensor_on_baby = false; }
         if (sec == 33 * 60)  { SAY("--- 33:00 the skin sensor back on the baby\n"); sensor_on_baby = true; }
         if (sec == 40 * 60)  { SAY("--- 40:00 type `kill 5` (follow ... /dev/heater: the job that sets the power)\n"); type("kill 5\n"); }
         if (sec == 43 * 60)  { SAY("--- 43:00 start it again\n"); type("follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &\n"); }
+        if (sec == 44 * 60)  { SAY("--- 44:00 a draught: heat loss x1.8 (the PID's part tops out at +25 %%)\n"); draught = 1.8f; }
+        if (sec == 49 * 60)  { SAY("--- 49:00 the draught stops\n"); draught = 1.0f; }
         if (sec == 50 * 60)  { SAY("--- 50:00 press START (APGAR clock); type `run tftmon`\n"); button[BUTTON_START] = true; type("run tftmon\n"); }
         if (sec == 52 * 60)  { SAY("--- 52:00 type `echo graphical > /dev/tft/mode`\n"); type("echo graphical > /dev/tft/mode\n"); }
         if (sec == 55 * 60)  { SAY("--- 55:00 the heater element breaks (no current)\n"); element_broken = true; }
@@ -242,6 +256,13 @@ int main()
             static char last[120] = "off", lastg[120] = "ok";
             char now[120]; rd("/dev/alarm/heater", now, sizeof now);
             if (strcmp(now, last)) { SAY("%7d:%02d  /dev/alarm/heater: %s (relay %d)\n", sec / 60, sec % 60, now, fake_gpio[PIN_HEATERSAFE]); strcpy(last, now); }
+            static char lasth[120] = "off", lastl[120] = "off";
+            // temphigh/templow: logged when the level changes (off, warn, on),
+            // not every 0.1 C of the reason
+            rd("/dev/alarm/temphigh", now, sizeof now);
+            if (strncmp(now, lasth, 2)) { SAY("%7d:%02d  /dev/alarm/temphigh: %s\n", sec / 60, sec % 60, now); strcpy(lasth, now); }
+            rd("/dev/alarm/templow", now, sizeof now);
+            if (strncmp(now, lastl, 2)) { SAY("%7d:%02d  /dev/alarm/templow: %s\n", sec / 60, sec % 60, now); strcpy(lastl, now); }
             static char lastc[120] = "off";
             rd("/dev/alarm/check", now, sizeof now);
             if (strcmp(now, lastc)) { SAY("%7d:%02d  /dev/alarm/check: %s (heater %.1f)\n", sec / 60, sec % 60, now, heater_now()); strcpy(lastc, now); }

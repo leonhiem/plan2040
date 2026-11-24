@@ -4,7 +4,7 @@
  *
  *   aut   auto mode (/dev/heaterauto on)     man   manual mode
  *   warm  boost (/dev/state)                 chk   the guard not ok
- *   low   /dev/alarm/templow                 high  /dev/alarm/temphigh
+ *   low   /dev/alarm/templow (warn or on)    high  /dev/alarm/temphigh (warn or on)
  *   fail  /dev/alarm/heater
  *
  * and the big display: blinking while the guard says safe (the reading is
@@ -58,8 +58,8 @@ static int ledwire_run(const char *in, int inlen, int argc, char **argv, char *o
     set_led("/dev/seg7big/blink", !guard_ok && !guard_none);
     if (guard_none) set_led("/dev/seg7big", false);      // "off": no digits = blank
 
-    set_led("/dev/leds/low",  dev_is("/dev/alarm/templow",  "on"));
-    set_led("/dev/leds/high", dev_is("/dev/alarm/temphigh", "on"));
+    set_led("/dev/leds/low",  dev_is("/dev/alarm/templow",  "on") || dev_is("/dev/alarm/templow",  "warn"));
+    set_led("/dev/leds/high", dev_is("/dev/alarm/temphigh", "on") || dev_is("/dev/alarm/temphigh", "warn"));
     set_led("/dev/leds/fail", dev_is("/dev/alarm/heater",   "on"));
 
     return snprintf(out, outlen, "ok\n");

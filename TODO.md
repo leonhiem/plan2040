@@ -799,6 +799,20 @@ Order, one commit each, tested on the PC and then the board:
     guard counts presses, drivers/buttons.h button_presses[], without
     taking them from the `alarm` job); 25 % or less, or auto, stop it.
     bwsim 110:00-135:00.
+    **Gap (c) done 2026-11-24 (Leon):** the deviation from the setpoint
+    in the guard: auto with a trusted reading, 1 C off -> "warn" (LOW or
+    HIGH LED, TFT), 2 C off -> "on" (the buzzer too), 0.2 C hysteresis;
+    LOW quiet during a warm-up (until the skin first comes within 1 C)
+    and for 10 min after a setpoint change; manual: HIGH above 39 C only.
+    The alarm files now have three levels: off, warn: <why>, on: <why>.
+    Found on the way, fixed: the guard judged drops during the coast
+    after a boost (0 % on purpose); the field warmer only did in the PID
+    phase. Now it waits WARMUP_COAST_S (warmup.h). bwsim: a lamp at 22:00
+    (HIGH), a draught at 44:00 (LOW). Known model limit, documented in
+    bwsim: no mattress storing heat, so the skin falls during the coast
+    and the guard calls safe at 93:07; the April field logs show the
+    real skin rising through the coast (33.0 -> 33.9 C in 30 s). A
+    two-node model (heater -> mattress -> skin) would fix the model.
     **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
     (b) a manual-mode check timer; (c) deviation alarms relative to the
     setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on

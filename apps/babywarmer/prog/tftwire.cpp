@@ -51,8 +51,8 @@ static int tftwire_run(const char *in, int inlen, int argc, char **argv, char *o
 
     set_tft("/dev/tft/chk", !dev_is("/dev/guard", "ok"));   // safe or none
 
-    set_tft("/dev/tft/low",  dev_is("/dev/alarm/templow",  "on"));
-    set_tft("/dev/tft/high", dev_is("/dev/alarm/temphigh", "on"));
+    set_tft("/dev/tft/low",  dev_is("/dev/alarm/templow",  "on") || dev_is("/dev/alarm/templow",  "warn"));
+    set_tft("/dev/tft/high", dev_is("/dev/alarm/temphigh", "on") || dev_is("/dev/alarm/temphigh", "warn"));
     set_tft("/dev/tft/fail", dev_is("/dev/alarm/heater",   "on"));
 
     int fd = fs_open("/dev/heater");
