@@ -16,7 +16,7 @@
 //         "no rise" after 5 min -> safe, heating from the room (39 %)
 //  14:00  the sensor goes on the baby -> ok after 2 min plausible, warmer's pid
 //         (feed-forward 30 % + the PID's correction, step 5)
-//  20:00  UP twice -> setpoint 36.0 (+1.0: no re-boost)
+//  20:00  UP 10 times -> setpoint 36.0 (+1.0: no re-boost)
 //  29:00  `monitor`: the field warmer's telemetry line
 //  30:00  scenario (1): the sensor falls off while warm -> safe; 33:00 back
 //  40:00  `kill 5` (follow, the job that writes /dev/heater): control dead
@@ -24,7 +24,7 @@
 //  50:00  START (APGAR), `run tftmon`; 52:00 back to the warmer screen
 //  55:00  the heater element breaks; 57:00 works again
 //  60:00  the SSR sticks on -> relay held off; 62:00 replaced; 63:00 released
-//  66:00  UP four times -> setpoint 38.0 (+2.0), the skin within 3 C of
+//  66:00  UP 20 times -> setpoint 38.0 (+2.0), the skin within 3 C of
 //         it: no re-boost, the PID climbs with its integrator (step 5;
 //         the field rule coasted 45 s at 0 % here, the skin fell ~1 C)
 //  75:00  the room NTC opens: /dev/alarm/sensor says so, the PID runs on
@@ -207,8 +207,8 @@ int main()
         skin += heater_now() * GAIN - (skin - ROOM) * LOSS;
         if (sec == 60)       { SAY("--- 1:00 press MANUAL (-> auto); the skin sensor is not on the baby\n"); button[BUTTON_MANUAL] = true; }
         if (sec == 14 * 60)  { SAY("--- 14:00 the skin sensor goes on the baby\n"); sensor_on_baby = true; }
-        if (sec == 20 * 60)  { SAY("--- 20:00 press UP twice\n"); button[BUTTON_UP] = true; }
-        if (sec == 20 * 60 + 1) button[BUTTON_UP] = true;
+        if (sec == 20 * 60)  SAY("--- 20:00 press UP 10 times (0.1 C each: setpoint 36.0)\n");
+        if (sec >= 20 * 60 && sec < 20 * 60 + 10) button[BUTTON_UP] = true;
         if (sec == 29 * 60)  { SAY("--- 29:00 type `monitor` (the field warmer's telemetry line)\n"); type("monitor\n"); }
         if (sec == 30 * 60)  { SAY("--- 30:00 the skin sensor falls off the baby (reads the room)\n"); sensor_on_baby = false; }
         if (sec == 33 * 60)  { SAY("--- 33:00 the skin sensor back on the baby\n"); sensor_on_baby = true; }
@@ -221,8 +221,8 @@ int main()
         if (sec == 60 * 60)  { SAY("--- 60:00 the SSR sticks on (conducts while switched off)\n"); ssr_stuck = true; }
         if (sec == 62 * 60)  { SAY("--- 62:00 the SSR is replaced\n"); ssr_stuck = false; }
         if (sec == 63 * 60)  { SAY("--- 63:00 type `echo off > /dev/alarm/heater` (release the latch)\n"); type("echo off > /dev/alarm/heater\n"); }
-        if (sec == 66 * 60)  { SAY("--- 66:00 press UP four times (setpoint +2.0, skin within 3 C: the PID climbs)\n"); button[BUTTON_UP] = true; }
-        if (sec == 66 * 60 + 1 || sec == 66 * 60 + 2 || sec == 66 * 60 + 3) button[BUTTON_UP] = true;
+        if (sec == 66 * 60)  SAY("--- 66:00 press UP 20 times (setpoint +2.0, skin within 3 C: the PID climbs)\n");
+        if (sec >= 66 * 60 && sec < 66 * 60 + 20) button[BUTTON_UP] = true;
         if (sec == 75 * 60)  { SAY("--- 75:00 the room NTC opens (the skin sensor still works)\n"); room_dead = true; }
         if (sec == 88 * 60)  { SAY("--- 88:00 the room NTC works again\n"); room_dead = false; }
         if (sec == 90 * 60)  { SAY("--- 90:00 press MANUAL (-> manual: 10 %%)\n"); button[BUTTON_MANUAL] = true; }

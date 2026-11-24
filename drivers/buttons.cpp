@@ -8,7 +8,10 @@
 #include "board.h"
 #include "pico/stdlib.h"
 
-#define DEBOUNCE_SHORT 5 // timer ticks (5ms each) ignored after an edge
+#define DEBOUNCE_SHORT   5     // timer ticks (5ms each) ignored after an edge
+#define TICK_MS          5
+#define REPEAT_DELAY_MS  500   // UP/DOWN held this long start repeating ...
+#define REPEAT_EVERY_MS  150   // ... a press this often
 
 static const uint button_pin[BUTTON_COUNT] = { BUTTON_PIN_UP,
                                                BUTTON_PIN_DOWN,
@@ -20,6 +23,7 @@ static const uint button_pin[BUTTON_COUNT] = { BUTTON_PIN_UP,
 volatile bool button[BUTTON_COUNT];
 static volatile bool button_pressed[BUTTON_COUNT];
 static volatile int  button_cnt[BUTTON_COUNT];
+static int held_ms[BUTTON_COUNT];
 
 static bool repeating_timer_callback(struct repeating_timer *t)
 {
@@ -30,6 +34,15 @@ static bool repeating_timer_callback(struct repeating_timer *t)
         } else if((gpio_get(button_pin[i]) == true) && button_pressed[i]==true && button_cnt[i]==0) {
             button_pressed[i]=false; button_cnt[i]=DEBOUNCE_SHORT;
         } else if(button_cnt[i]>0) button_cnt[i]--;
+
+        // Repeat while held: UP and DOWN only.
+        if (button_pressed[i] && (i == BUTTON_UP || i == BUTTON_DOWN)) {
+            held_ms[i] += TICK_MS;
+            if (held_ms[i] >= REPEAT_DELAY_MS + REPEAT_EVERY_MS) {
+                button[i] = true;
+                held_ms[i] = REPEAT_DELAY_MS;
+            }
+        } else held_ms[i] = 0;
     }
     return true;
 }

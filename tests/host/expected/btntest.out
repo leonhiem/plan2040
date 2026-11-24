@@ -1,0 +1,8 @@
+UP, a short press (0.1 s)     1 steps: 35.0 -> 35.1 C
+UP, held 0.4 s                1 steps: 35.0 -> 35.1 C
+UP, held 1 s                  4 steps: 35.0 -> 35.4 C
+UP, held 3 s                 17 steps: 35.0 -> 36.7 C
+DOWN, held 3 s               17 steps: 35.0 -> 33.3 C
+MANUAL, held 3 s              1 press
+MUTE, held 3 s                1 press
+exit 0

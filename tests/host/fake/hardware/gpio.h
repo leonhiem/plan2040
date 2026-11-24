@@ -12,5 +12,6 @@ enum gpio_function { GPIO_FUNC_SPI = 1, GPIO_FUNC_I2C = 3, GPIO_FUNC_PWM = 4, GP
 static inline void gpio_put(uint pin, bool v) { fake_gpio[pin] = v; if (fake_gpio_hook) fake_gpio_hook(pin, v); }
 static inline bool gpio_get(uint pin) { return fake_gpio[pin]; }
 static inline void gpio_init(uint) {}
+static inline void gpio_pull_up(uint) {}
 static inline void gpio_set_dir(uint, bool) {}
 static inline void gpio_set_function(uint, enum gpio_function) {}

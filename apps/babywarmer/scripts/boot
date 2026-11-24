@@ -13,9 +13,10 @@ date
 toggle /dev/buttons/lamp /dev/lamp &
 
 # The buttons: MANUAL switches auto/manual; UP/DOWN step the setpoint by
-# 0.5 C (auto) or the manual power by 5 % (manual).
+# 0.1 C (auto; IEC 60601-2-21: at most 0.2 C) or the manual power by 5 %
+# (manual), and repeat while held.
 toggle /dev/buttons/manual /dev/heaterauto &
-adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 5 &
+adjust /dev/heaterauto /dev/setpoint /dev/percent 0.1 5 &
 
 # The control: warmer (the field-tested warmer's state machine: boost,
 # coast, feed-forward + PID) sets /dev/state and the auto power once a

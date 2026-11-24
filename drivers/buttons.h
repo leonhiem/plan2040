@@ -4,6 +4,12 @@
  * A 5ms repeating timer samples every button; a press sets that
  * button's sticky button[] flag, which stays set until a consumer
  * (dev/buttons.cpp's devices, prog/adjust.cpp) reads and clears it.
+ *
+ * UP and DOWN repeat while held: after REPEAT_DELAY_MS (0.5 s), a press
+ * every REPEAT_EVERY_MS (0.15 s), so a setpoint in 0.1 C steps (IEC
+ * 60601-2-21 wants steps of at most 0.2 C) moves 2 C in ~3 s. The other
+ * buttons never repeat: a held MANUAL must not flip the mode back and
+ * forth.
  */
 #pragma once
 

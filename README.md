@@ -376,7 +376,7 @@ warmer is back on skin control by itself (or MANUAL, to take over). A
 text line on the TFT's warmer screen comes later, in the st7735 repo.
 
 **The boot script** (`apps/babywarmer/scripts/boot`) wires the control
-together, 14 lines: MANUAL toggles auto/manual, UP/DOWN adjust the
+together: MANUAL toggles auto/manual, UP/DOWN adjust the
 setpoint or the manual percent, `warmer` computes the auto power and
 `follow` sends it or the manual power to `/dev/heater`, the displays
 follow, `alarm` and `ledwire` show the alarms, and `tftwire` feeds the
@@ -555,7 +555,7 @@ the LAMP button to the lamp output, as on babywarmer
 | `thresh` | `thresh <n or path>` | Piped number `>=` threshold → `on`, else `off`. |
 | `hyst` | `hyst <n or path> <band>` | Like `thresh` with a hysteresis band, heating polarity (`on` when below). |
 | `toggle` | `toggle <button> <target>` | If the button was pressed, flip the target `on`/`off`. Run with `&`. |
-| `adjust` | `adjust <gate> <on-target> <off-target> <step>` | UP/DOWN steps whichever target the gate selects. Run with `&`. |
+| `adjust` | `adjust <gate> <on-target> <off-target> <step> [<off-step>]` | UP/DOWN steps whichever target the gate selects (by `<off-step>` for the off-target, if given). UP/DOWN repeat while held (after 0.5 s, every 0.15 s). Run with `&`. |
 | `follow` | `follow <gate> <on-source> <off-source> <target>` | Copy whichever source the gate selects to the target. Run with `&`. |
 | `select` | `select <state> <label>=<source> ...` | Output the source whose label matches the state device's value. |
 | `ls` | `ls [-l] /fram` | List the files on a mount (`-l`: with sizes). |
@@ -1601,7 +1601,9 @@ element safe to run, or disconnected.
 | Test | Result |
 |---|---|
 | Boot | pending: the babywarmer boot runs, `jobs` shows 14 jobs (13 before the TFT); small display shows `10` (manual percent), big display the skin temperature |
-| UP/DOWN in manual | pending: percent changes in steps of 0.5 (small display) |
+| UP/DOWN in manual | pending: percent changes in steps of 5 (small display), at most 80 |
+| UP/DOWN in auto | pending: setpoint in steps of 0.1 °C; held: repeats after 0.5 s (2 °C in ~3 s) |
+| MANUAL held for 3 s | pending: switches once, never back and forth |
 | MANUAL | pending: auto on: small display shows the setpoint, `cat /dev/state` = `boost`, heater 80 %, AUT LED |
 | `watch 1000 monitor` | pending: one line per second through boost, coast, pid |
 | Warm the NTC by hand above 40 °C | pending: `/dev/alarm/temphigh` on, buzzer; MUTE silences it for a minute |

@@ -788,6 +788,10 @@ Order, one commit each, tested on the PC and then the board:
     makes its NTC table itself (no PC needed to calibrate, the built-in
     table needs the code anyway, no file transfer exists for a finished
     table). The review is done.
+    **Gap (a) done 2026-11-24 (Leon):** the setpoint in **0.1 C** steps
+    (`adjust ... 0.1 5`), and **UP/DOWN repeat while held** (drivers/
+    buttons.cpp: after 0.5 s, every 0.15 s; 2 C in ~3 s; MANUAL, MUTE,
+    START, LAMP never repeat). tests/host/btntest.
     **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
     (b) a manual-mode check timer; (c) deviation alarms relative to the
     setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on
