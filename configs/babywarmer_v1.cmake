@@ -37,11 +37,11 @@ set(PLAN2040_DEVS
     relay        # /dev/relay: the mechanical safety relay, on/off
     alarm        # /dev/alarm: buzzer + alarm LED (GPIO0, GPIO1): on | muted | off
     seg7         # /dev/seg7big, /dev/seg7small, /dev/leds + /dev/leds/<name>; lamp test at boot
-    setpoint     # /dev/setpoint: 30.0-39.0 C, default 35.0
+    setpoint     # /dev/setpoint: 30.0-39.0 C, default 35.0; /dev/setpoint/raised
     heaterauto   # /dev/heaterauto: on = auto (PID), off = manual
-    percent      # /dev/percent: manual heater power, default 10
-    pid          # /dev/pid/{kp,ti,td,dt,integral,prevmeas}, /dev/pidout
-    phase        # /dev/state, /dev/autopower, /dev/safepower
+    percent      # /dev/percent: manual heater power 0-80, default 10
+    pid          # /dev/pid/{kp,ti,td,dt,integral,prevmeas,min,max,outmax,bias}, /dev/pidout
+    phase        # /dev/state, /dev/autopower, /dev/safepower, /dev/ffpower
     alarmcheck   # /dev/alarm/{heater,temphigh,templow,sensor}: the alarm conditions
     guard        # /dev/guard: all heater safety, an unkillable kernel task (after alarmcheck)
     tft          # /dev/tft/<name>: the ST7735 screen, 12 files; the "tftflush" task
@@ -51,7 +51,7 @@ set(PLAN2040_PROGS
     cat echo label thresh hyst toggle adjust follow select date uptime
     wc grep headtail tee hexdump remember cpmv rm fsck mkfs df ls
     # babywarmer (apps/babywarmer/prog/)
-    pid phase safelut alarm ledwire monitor tftwire
+    pid phase safelut fftable alarm ledwire monitor tftwire
 )
 
 # Built-in scripts: scripts/<name> (or the app's), "boot" runs at power-up
@@ -60,8 +60,8 @@ set(PLAN2040_SCRIPTS boot tftmon)
 
 set(PLAN2040_FS      framfs hours)
 set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons at24c ads1115)
-set(PLAN2040_APP_SRC ntclut.cpp ntcadc.cpp heater.cpp seg7.cpp safelut.cpp  # apps/babywarmer/: NTC table + sampling,
-    # TPO, 74HC595, the room table,
+set(PLAN2040_APP_SRC ntclut.cpp ntcadc.cpp heater.cpp seg7.cpp safelut.cpp fftable.cpp  # apps/babywarmer/: NTC
+    # table + sampling, TPO, 74HC595, the room tables (safe, feed-forward),
     tft/st7735.c tft/gfx.c tft/icons.c tft/baby.c    # and the TFT (a blackbox copy of the
     tft/heat_indicator.c tft/apgar_timer.c          # st7735 repo, see tft/README.md)
     tft/text_console.c tft/cue_icons.c tft/display.c)

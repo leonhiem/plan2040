@@ -625,7 +625,12 @@ Order, one commit each, tested on the PC and then the board:
        - `phase`'s seeds include the FF: the coast seed of 3 % is the
          integrator on top of it again, and the bumpless handover from
          safe seeds `integral = power in use - ff - P - D`.
-    2. Caps: 75 % in auto (the guard's cap in ok), 80 % in manual.
+    2. Caps (decided 2026-11-24, Leon): **75 % in `pid`'s formula only**
+       (the PID phase, as `DUTY_MAX` in the field); **boost stays a fixed
+       80 %**, never capped (40 % was too little, 100 % overshot ~1 C
+       from the heat stored in the mattress); the **guard's backstop in
+       auto: 80 %** (the most auto ever asks; it only stops a broken or
+       edited job); **manual at most 80 %** (`/dev/percent`).
     3. Manual: 5 % per step; back to 10 % on every switch to manual.
     4. Re-boost when the setpoint goes up by 2 C or more.
     5. Alarms: high at setpoint+2, low at room-2, as in the field.
@@ -635,6 +640,27 @@ Order, one commit each, tested on the PC and then the board:
     7. The field's telemetry line, as an option, so new logs compare
        side by side with the April logs.
     8. Then board and bench tests; the 39 % bench check confirms.
+    **Built 2026-11-24** (items 1-7), board test pending (README Test
+    log): `fftable.{h,cpp}` + `prog/fftable`, `/dev/ffpower` (last value
+    10 min, then 30 %), `pid`'s bias and `/dev/pid/{min,max,outmax,bias}`,
+    `phase`'s re-boost and FF-aware bumpless seed, `/dev/setpoint/raised`,
+    `/dev/percent` 0-80, the switch to manual at 10 %, `adjust`'s own step
+    for the off-target (5 %), the guard's 80 % cap in auto, no-rise 10 min,
+    the field alarms, the room-sensor alarm, `monitor` as the field line.
+    bwsim: the false "safe" at 108:58 is gone. Two things it showed, **to
+    discuss**:
+    - **A +2..3 C re-boost is a 45 s pause.** As in the field code: boost
+      ends when the skin is within 3 C of the setpoint, so after +2 C it
+      goes straight to coast (0 % for 45 s) and pid starts again from the
+      3 % seed, dropping the converged integrator. In bwsim's light model
+      the skin falls ~1 C meanwhile. Perhaps re-boost only when the skin
+      is more than 3 C below the new setpoint, and otherwise let the PID
+      climb.
+    - **10 minutes of no-rise is 10 minutes of 80 % open loop** when the
+      sensor is out of the bed: in bwsim's light model (~8 min time
+      constant) the baby reaches 41 C before safe (5 min: ~34 C). A real
+      baby and mattress are slower; the hardware test should log how far
+      the skin under the heater rises in 5 and 10 minutes of boost.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

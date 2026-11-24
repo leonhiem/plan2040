@@ -22,14 +22,18 @@
 #   guard.cpp) is a kernel task: the safety relay, the alarm conditions,
 #   and the fallback power when the skin sensor can't be trusted, whether
 #   or not these jobs run (picoos's `alarmcheck &` was a job, 2026-11-24).
+#   Step 5 (2026-11-24), the field-tested warmer.cpp's control back: the
+#   PID runs on the feed-forward for the room (fftable -> /dev/ffpower),
+#   UP/DOWN step the manual power by 5 %.
 date
 toggle /dev/buttons/lamp /dev/lamp &
 select /dev/state idle=/dev/percent boost=/dev/setpoint coast=/dev/setpoint pid=/dev/setpoint safe=/dev/heater > /dev/seg7small &
 toggle /dev/buttons/manual /dev/heaterauto &
-adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 &
+adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 5 &
 phase &
 select /dev/state boost=80 coast=0 pid=/dev/pidout safe=/dev/safepower > /dev/autopower &
-cat /dev/skintemp | pid /dev/state pid /dev/setpoint > /dev/pidout &
+cat /dev/ambient | fftable > /dev/ffpower &
+cat /dev/skintemp | pid /dev/state pid /dev/setpoint /dev/ffpower > /dev/pidout &
 cat /dev/ambient | safelut > /dev/safepower &
 follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
 cat /dev/skintemp > /dev/seg7big &

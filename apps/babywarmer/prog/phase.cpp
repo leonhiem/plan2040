@@ -11,7 +11,10 @@
  *   coast  0 % for COAST_TICKS seconds (lets the current settle after the
  *          big power step), then pid, seeding /dev/pid/integral at
  *          COAST_INTEGRAL_SEED (babywarmer's documented head-start)
- *   pid    prog/pid.cpp controls the skin temperature
+ *   pid    prog/pid.cpp controls the skin temperature (feed-forward + PID);
+ *          back to boost when the setpoint is raised by 2 C or more
+ *          (/dev/setpoint/raised; warmer.cpp 2026-04-27: "large upward
+ *          step -- skin needs active warmup")
  *   safe   shown while the guard (dev/guard.cpp) says the skin reading
  *          can't be trusted (safe or none); the guard heats by itself then.
  *          When it says ok again: pid, bumpless (the integral seeded so the
@@ -39,6 +42,7 @@ static bool have_next_step = false;
 static absolute_time_t next_step;
 
 static int   coast_ticks = 0;
+static int   raised_seen = -1;     // /dev/setpoint/raised last seen
 
 static float read_dev(const char *path, float fallback)
 {
@@ -114,6 +118,11 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
     bool auto_mode = gate_on("/dev/heaterauto");
     float skin      = read_dev("/dev/skintemp", 0.0f);
     float setpoint  = read_dev("/dev/setpoint", 35.0f);
+    // Read every second, whatever the state: only a raise that settles
+    // while in pid re-boosts (as warmer.cpp).
+    int raised = (int)read_dev("/dev/setpoint/raised", 0.0f);
+    bool reboost = raised_seen >= 0 && raised != raised_seen;
+    raised_seen = raised;
 
     if (!auto_mode) {
         set_state("idle");
@@ -153,7 +162,13 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
         return snprintf(out, outlen, "coast\n");
     }
 
-    if (state_is("pid")) return snprintf(out, outlen, "pid\n");
+    if (state_is("pid")) {
+        if (reboost) {
+            set_state("boost");
+            return snprintf(out, outlen, "-> boost (setpoint raised to %.1f)\n", setpoint);
+        }
+        return snprintf(out, outlen, "pid\n");
+    }
 
     if (state_is("safe")) {
         // The guard said ok again (checked above): back to the PID,
@@ -163,13 +178,18 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
         // cold start"); bwsim showed the cost: the power dropped from 39 %
         // to ~3 %, the baby cooled, and after a few minutes the guard
         // called it "sensor off the baby" again, every ~10 minutes.
-        // output = Kp * (setpoint - skin) + integral (+ D, 0 with
-        // prevmeas = skin), so integral = power - Kp * (setpoint - skin).
+        // output = bias + Kp * (setpoint - skin) + integral (+ D, 0 with
+        // prevmeas = skin), so integral = power - bias - Kp * (setpoint -
+        // skin), within the PID part's limits. The bias is the
+        // feed-forward pid used (/dev/pid/bias, 0 without one).
         float power = read_dev("/dev/heater", 0.0f);
         float kp    = read_dev("/dev/pid/kp", 3.0f);
-        float integral = power - kp * (setpoint - skin);
-        if (integral < 0.0f)   integral = 0.0f;
-        if (integral > 100.0f) integral = 100.0f;
+        float bias  = read_dev("/dev/pid/bias", 0.0f);
+        float lo    = bias > 0.0f ? read_dev("/dev/pid/min", -35.0f) : 0.0f;
+        float hi    = bias > 0.0f ? read_dev("/dev/pid/max", 25.0f) : 100.0f;
+        float integral = power - bias - kp * (setpoint - skin);
+        if (integral < lo) integral = lo;
+        if (integral > hi) integral = hi;
         seed_pid(integral, skin);
         set_state("pid");
         return snprintf(out, outlen, "-> pid (recovered, from %.0f %%)\n", power);

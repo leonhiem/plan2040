@@ -34,10 +34,26 @@ static int heaterauto_read(char *buf, int len)
     return snprintf(buf, len, auto_mode ? "on\n" : "off\n");
 }
 
+// Every switch to manual starts at 10 %, no memory of an earlier value:
+// the field warmer's customer request (warmer.cpp, SETPOINT_PCT_DEF;
+// plan2040 2026-11-24, step 5). Whoever sets another manual power (the
+// guard in none) writes /dev/percent after switching.
+static void manual_default(void)
+{
+    int fd = fs_open("/dev/percent");
+    if (fd < 0) return;
+    fs_write(fd, "10", 2);
+    fs_close(fd);
+}
+
 static int heaterauto_write(const char *buf, int len)
 {
     if (len >= 2 && strncmp(buf, "on", 2) == 0)  { auto_mode = true;  return len; }
-    if (len >= 3 && strncmp(buf, "off", 3) == 0) { auto_mode = false; return len; }
+    if (len >= 3 && strncmp(buf, "off", 3) == 0) {
+        if (auto_mode) manual_default();
+        auto_mode = false;
+        return len;
+    }
     return -1;
 }
 

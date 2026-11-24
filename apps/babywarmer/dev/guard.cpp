@@ -29,11 +29,15 @@
  *     a baby can (> 0.08 C/s for 3 s, more than 2 C below the setpoint), or
  *     stays more than 3 C below the setpoint for 20 s;
  *   - the sensor is out from the start: during warm-up the skin rises less
- *     than 0.3 C in 5 minutes;
+ *     than 0.3 C in 10 minutes (Leon 2026-11-24: the field warmer's code
+ *     meant 5, but a tick bug made it 50; 10 until the hardware tests
+ *     show the real rise at 80 %); a warm-up is auto switching on, or the
+ *     setpoint raised by 2 C or more (/dev/setpoint/raised);
  *   - the skin reading fails (ADS1115 or NTC);
  *   - the control jobs are gone: in auto mode nothing has written /dev/heater
  *     for 10 s.
- * The first three are picoos's prog/phase.cpp watchdogs, same numbers.
+ * The first three are picoos's prog/phase.cpp watchdogs, the field
+ * warmer's numbers (no-rise: see above).
  * Deliberately no cleverer "plausibility" checks (Leon: too many false
  * alarms, e.g. a ceiling fan makes the heater work harder). Known limit: a
  * sensor lying on the mattress under the heater warms up and isn't caught.
@@ -43,7 +47,8 @@
  * the reading or the control has been back for 5 s.
  *
  * The guard's decision acts where the hardware is: heater_guard() (heater.h),
- * applied by tpo_apply() within 100 ms. In ok it's a cap of 100 % (none);
+ * applied by tpo_apply() within 100 ms. In ok it's a cap: AUTO_CAP (80 %,
+ * the most auto ever asks: boost; 2026-11-24) in auto, none in manual;
  * in safe and none the guard's own power. Manual mode (the nurse's choice):
  * hardware safety only, no power of the guard's own.
  *
@@ -53,6 +58,10 @@
  * stuck SSR (relay held off until `echo off > /dev/alarm/heater` or a
  * reboot: Leon's exception), and the alarm files /dev/alarm/{heater,
  * temphigh,templow,sensor}, which the jobs alarm, ledwire, tftwire show.
+ * The temperature alarms are the field warmer's (2026-11-24): high when
+ * the skin is more than 2 C above the setpoint, low when it is more than
+ * 2 C below the room. /dev/alarm/sensor also says when the room sensor is
+ * down in ok (the PID then runs on the last feed-forward, then 30 %).
  * Now every second (alarmcheck: temperatures every 15 s).
  *
  * Each change of level is said once on the console:
@@ -75,7 +84,7 @@
 
 // The watchdogs: picoos prog/phase.cpp's numbers.
 #define WARMUP_EXIT_MARGIN    3.0f   // warm-up ends when skin >= setpoint - this (phase's boost exit)
-#define NO_RISE_S             300    // 5 minutes of warm-up ...
+#define NO_RISE_S             600    // 10 minutes of warm-up ...
 #define NO_RISE_MIN_DELTA     0.3f   // ... must raise the skin at least this
 #define DROP_RATE             0.08f  // C per second
 #define DROP_DELTA            2.0f   // ... and this far below the setpoint
@@ -87,11 +96,12 @@
 #define HW_RECOVER_S          5      // a reading or the control back this long
 #define CONTROL_DEAD_S        10     // auto mode, nobody writes /dev/heater
 #define NONE_DEFAULT_PERCENT  10.0f  // no room temperature ever seen
+#define AUTO_CAP              80.0f  // the backstop in auto: boost's 80 %, the most auto asks
 
 // picoos prog/alarmcheck.cpp's numbers.
 #define OVERTEMP_MARGIN       3.0f   // skin > setpoint + this -> relay off
-#define TEMPHIGH_C            40.0f  // Leon's fixed testing thresholds
-#define TEMPLOW_C             23.0f  // (just above the NTC table's 22.9 C floor)
+#define TEMPHIGH_MARGIN       2.0f   // skin > setpoint + this: alarm (warmer.cpp)
+#define TEMPLOW_MARGIN        2.0f   // skin < room - this: alarm (warmer.cpp)
 #define CURRENT_FAIL_THRESHOLD 50    // raw ADC counts
 #define SETTLE_MS             500    // SSR state settled this long before judging
 #define CONFIRM_S             3      // seconds in a row before a current verdict
@@ -112,6 +122,7 @@ static float prev_skin;
 static bool  have_prev;
 static int   drop_s, low_s, recover_s, back_s;
 static bool  last_auto;
+static int   raised_seen = -1;             // /dev/setpoint/raised
 
 static int   nocurrent_s, stuck_s;
 static bool  nocurrent, stuck;
@@ -209,7 +220,7 @@ static void power(void)
     } else if (level == G_SAFE && last_auto) {
         heater_guard(HEATER_GUARD_SET, have_room ? safelut_power(last_room) : NONE_DEFAULT_PERCENT);
     } else {
-        heater_guard(HEATER_GUARD_CAP, 100.0f);
+        heater_guard(HEATER_GUARD_CAP, last_auto ? AUTO_CAP : 100.0f);
     }
 }
 
@@ -252,10 +263,16 @@ static void guard_task(void)
     char skin_err[ERRMAX] = "";
     bool skin_ok = read_float("/dev/skintemp", &skin);
     if (!skin_ok) snprintf(skin_err, sizeof(skin_err), "%s", errstr()[0] ? errstr() : "/dev/skintemp: no reading");
+    char room_err[ERRMAX] = "";
     bool room_ok = read_float("/dev/ambient", &room);
     if (room_ok) { last_room = room; have_room = true; }
+    else snprintf(room_err, sizeof(room_err), "%s", errstr()[0] ? errstr() : "/dev/ambient: no reading");
     read_float("/dev/setpoint", &sp);
     bool autom = read_on("/dev/heaterauto");
+    float r;
+    int raised = read_float("/dev/setpoint/raised", &r) ? (int)r : 0;
+    bool reboost = raised_seen >= 0 && raised != raised_seen;
+    raised_seen = raised;
 
     if (autom && !last_auto && !forced_manual) {        // auto just switched on
         last_auto = true;
@@ -279,8 +296,8 @@ static void guard_task(void)
         if (!skin_ok && !room_ok) {
             char pct[16];
             snprintf(pct, sizeof(pct), "%.0f", have_room ? safelut_power(last_room) : NONE_DEFAULT_PERCENT);
+            write_str("/dev/heaterauto", "off");     // first: switching to manual resets /dev/percent to 10
             write_str("/dev/percent", pct);
-            write_str("/dev/heaterauto", "off");
             forced_manual = true;
             set_level(G_NONE, C_HARDWARE, "no temperature sensors (%s)", skin_err);
         } else if (!skin_ok) {
@@ -293,12 +310,13 @@ static void guard_task(void)
         } else if (level == G_SAFE && cause == C_CONTROL) {
             if (++back_s >= HW_RECOVER_S) set_level(G_OK, C_SENSOR, "control jobs running again");
         } else if (level == G_OK) {
+            if (reboost && !warming) start_warmup(skin);   // phase boosts again
             if (warming) {
                 warm_s++;
                 if (skin >= sp - WARMUP_EXIT_MARGIN) warming = false;
                 else if (warm_s >= NO_RISE_S) {
                     if (skin - warm_start_skin < NO_RISE_MIN_DELTA)
-                        set_level(G_SAFE, C_SENSOR, "skin rose only %.1f C in 5 min of warm-up (sensor off the baby?)",
+                        set_level(G_SAFE, C_SENSOR, "skin rose only %.1f C in 10 min of warm-up (sensor off the baby?)",
                                   skin - warm_start_skin);
                     else { warm_start_skin = skin; warm_s = 0; }
                 }
@@ -334,15 +352,16 @@ static void guard_task(void)
     else if (heater_get_power() > 0.0f && !stuck) write_str("/dev/relay", "on");
     current_check(overtemp);
 
-    static char a_heater[100] = "off", a_high[8] = "off", a_low[8] = "off", a_sensor[110] = "off";
+    static char a_heater[100] = "off", a_high[8] = "off", a_low[8] = "off", a_sensor[128] = "off";
     alarm_set("/dev/alarm/heater", a_heater, sizeof(a_heater),
               stuck ? "on: current while switched off (SSR stuck on?), relay held off"
               : nocurrent ? "on: no current while switched on (element, fuse or SSR?)" : "off");
-    alarm_set("/dev/alarm/temphigh", a_high, sizeof(a_high), skin_ok && skin > TEMPHIGH_C ? "on" : "off");
-    alarm_set("/dev/alarm/templow",  a_low,  sizeof(a_low),  skin_ok && skin < TEMPLOW_C  ? "on" : "off");
+    alarm_set("/dev/alarm/temphigh", a_high, sizeof(a_high), skin_ok && skin > sp + TEMPHIGH_MARGIN ? "on" : "off");
+    alarm_set("/dev/alarm/templow",  a_low,  sizeof(a_low),  skin_ok && room_ok && skin < room - TEMPLOW_MARGIN ? "on" : "off");
     char s[sizeof(a_sensor)];
-    if (level == G_OK) snprintf(s, sizeof(s), "off");
-    else snprintf(s, sizeof(s), "on: %s", why);
+    if (level != G_OK) snprintf(s, sizeof(s), "on: %s", why);
+    else if (!room_ok && autom) snprintf(s, sizeof(s), "on: %.90s", room_err);
+    else snprintf(s, sizeof(s), "off");
     alarm_set("/dev/alarm/sensor", a_sensor, sizeof(a_sensor), s);
 }
 

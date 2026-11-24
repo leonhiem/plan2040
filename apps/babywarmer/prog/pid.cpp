@@ -1,5 +1,18 @@
 /**
- * apps/babywarmer/prog/pid.cpp — pid <gate-device> <gate-value> <setpoint-device-or-literal>
+ * apps/babywarmer/prog/pid.cpp — pid <gate-device> <gate-value> <setpoint-device-or-literal> [<bias-device>]
+ *
+ * With a bias (2026-11-24, TODO.md idea 3 step 5): the field-tested
+ * warmer's formula (../warmer/warmer.cpp, LH20260427), feed-forward + PID:
+ *
+ *   part   = P + I + D, clamped to /dev/pid/min../dev/pid/max (-35..+25 %),
+ *            the anti-windup on this clamp
+ *   output = bias + part, clamped to 0../dev/pid/outmax (75 %)
+ *
+ * The bias is the feed-forward for the room (`/dev/ffpower`, fftable.h):
+ * it carries the steady load, the PID only corrects. picoos had cut the
+ * feed-forward ("PID alone", below); without it the integrator must carry
+ * the whole ~30 % by itself, ~1800 C s of error at Kp/Ti = 0.015. Without
+ * a bias, pid works as before (output = P + I + D, 0..100).
  *
  * PID control, recovered from babywarmer's pid_update() (before the
  * fork ripped the whole control loop out) with two deliberate cuts:
@@ -107,6 +120,9 @@ static int pid_run(const char *in, int inlen, int argc, char **argv, char *out, 
     const char *gate         = argv[0];
     const char *gate_value   = argv[1];
     const char *setpoint_arg = argv[2];
+    bool  with_bias = argc >= 4;
+    float bias = with_bias ? read_value(argv[3], 0.0f) : 0.0f;
+    write_dev("/dev/pid/bias", bias);   // always: phase's bumpless seed needs it before pid runs
 
     int gfd = fs_open(gate);
     if (gfd < 0) return -1;
@@ -148,17 +164,28 @@ static int pid_run(const char *in, int inlen, int argc, char **argv, char *out, 
     float integral  = read_value("/dev/pid/integral", 0.0f);
     float prev_meas = read_value("/dev/pid/prevmeas", measurement);
 
+    float lo = 0.0f, hi = 100.0f, outmax = 100.0f;
+    if (with_bias) {
+        lo     = read_value("/dev/pid/min", -35.0f);
+        hi     = read_value("/dev/pid/max", 25.0f);
+        outmax = read_value("/dev/pid/outmax", 75.0f);
+    }
+
     float error  = setpoint - measurement;
     float p_term = kp * error;
     float d_term = -kp * td * (measurement - prev_meas) / dt;
     float i_new  = integral + (kp / ti) * error * dt;
     float output = p_term + i_new + d_term;
 
-    float out_clamped = output;
-    if (out_clamped > 100.0f) out_clamped = 100.0f;
-    if (out_clamped < 0.0f)   out_clamped = 0.0f;
+    float part = output;
+    if (part > hi) part = hi;
+    if (part < lo) part = lo;
 
-    if (output >= 0.0f && output <= 100.0f) integral = i_new; // else: frozen, stays at previous value
+    if (output >= lo && output <= hi) integral = i_new; // else: frozen, stays at previous value
+
+    float out_clamped = bias + part;
+    if (out_clamped > outmax) out_clamped = outmax;
+    if (out_clamped < 0.0f)   out_clamped = 0.0f;
 
     write_dev("/dev/pid/integral", integral);
     write_dev("/dev/pid/prevmeas", measurement);

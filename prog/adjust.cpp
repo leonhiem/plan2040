@@ -1,5 +1,5 @@
 /**
- * prog/adjust.cpp — adjust <gate-device> <target-if-on> <target-if-off> <step>
+ * prog/adjust.cpp — adjust <gate-device> <target-if-on> <target-if-off> <step> [<step-if-off>]
  *
  * Reads UP/DOWN; if either was pressed since the last check, reads
  * <gate-device>'s on/off state to pick a target (on -> target-if-on,
@@ -55,7 +55,9 @@ static int adjust_run(const char *in, int inlen, int argc, char **argv, char *ou
     bool gate_on = (gn >= 2 && strncmp(gbuf, "on", 2) == 0);
     const char *target = gate_on ? argv[1] : argv[2];
 
-    float step = strtof(argv[3], 0);
+    // A step of its own for the off-target (2026-11-24): the babywarmer's
+    // setpoint goes by 0.5 C, its manual power by 5 %.
+    float step = strtof(argv[(!gate_on && argc >= 5) ? 4 : 3], 0);
 
     int tfd = fs_open(target);
     if (tfd < 0) return -1;

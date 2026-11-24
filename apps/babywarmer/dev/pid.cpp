@@ -38,6 +38,14 @@
  * fs_write) -- nothing stops a human from writing it directly too,
  * which is harmless (follow only reads it once a second at most).
  *
+ * min, max, outmax, bias (2026-11-24, TODO.md idea 3 step 5, the field
+ * warmer's formula back): with a feed-forward (`pid ... /dev/ffpower`)
+ * the PID's own part is clamped to min..max (-35..+25 %, warmer.cpp's
+ * PID_OUT_MIN/MAX; the anti-windup works on that clamp), and the total,
+ * bias + part, to 0..outmax (75 %, warmer.cpp's DUTY_MAX). bias is the
+ * feed-forward pid used last (0 without one), for prog/phase.cpp's
+ * bumpless seed.
+ *
  * From picoos @ 89c16e5 (dev/pid.cpp), unchanged apart from the includes
  * and the register function's name (2026-11-22).
  */
@@ -60,6 +68,7 @@ static float dt = DT_DEF;
 static float integral = 0.0f;
 static float prevmeas = 0.0f;
 static float pidout = 0.0f;
+static float pmin = -35.0f, pmax = 25.0f, outmax = 75.0f, bias = 0.0f;
 
 static int write_float(const char *buf, int len, float *dst, float lo, float hi)
 {
@@ -99,6 +108,15 @@ static int prevmeas_write(const char *buf, int len) { return write_float(buf, le
 static int pidout_read(char *buf, int len)        { return snprintf(buf, len, "%.1f\n", pidout); }
 static int pidout_write(const char *buf, int len) { return write_float(buf, len, &pidout, 0.0f, 100.0f); }
 
+static int min_read(char *buf, int len)           { return snprintf(buf, len, "%.1f\n", pmin); }
+static int min_write(const char *buf, int len)     { return write_float(buf, len, &pmin, -100.0f, 0.0f); }
+static int max_read(char *buf, int len)           { return snprintf(buf, len, "%.1f\n", pmax); }
+static int max_write(const char *buf, int len)     { return write_float(buf, len, &pmax, 0.0f, 100.0f); }
+static int outmax_read(char *buf, int len)        { return snprintf(buf, len, "%.1f\n", outmax); }
+static int outmax_write(const char *buf, int len)  { return write_float(buf, len, &outmax, 0.0f, 100.0f); }
+static int bias_read(char *buf, int len)          { return snprintf(buf, len, "%.1f\n", bias); }
+static int bias_write(const char *buf, int len)    { return write_float(buf, len, &bias, 0.0f, 100.0f); }
+
 static const device_t dev_kp       = { "/dev/pid/kp",       0, 0, kp_read,       kp_write };
 static const device_t dev_ti       = { "/dev/pid/ti",       0, 0, ti_read,       ti_write };
 static const device_t dev_td       = { "/dev/pid/td",       0, 0, td_read,       td_write };
@@ -106,6 +124,10 @@ static const device_t dev_dt       = { "/dev/pid/dt",       0, 0, dt_read,      
 static const device_t dev_integral = { "/dev/pid/integral", 0, 0, integral_read, integral_write };
 static const device_t dev_prevmeas = { "/dev/pid/prevmeas", 0, 0, prevmeas_read, prevmeas_write };
 static const device_t dev_pidout   = { "/dev/pidout",       0, 0, pidout_read,   pidout_write };
+static const device_t dev_min      = { "/dev/pid/min",      0, 0, min_read,      min_write };
+static const device_t dev_max      = { "/dev/pid/max",      0, 0, max_read,      max_write };
+static const device_t dev_outmax   = { "/dev/pid/outmax",   0, 0, outmax_read,   outmax_write };
+static const device_t dev_bias     = { "/dev/pid/bias",     0, 0, bias_read,     bias_write };
 
 void dev_pid_register(void)
 {
@@ -116,4 +138,8 @@ void dev_pid_register(void)
     fs_register(&dev_integral);
     fs_register(&dev_prevmeas);
     fs_register(&dev_pidout);
+    fs_register(&dev_min);
+    fs_register(&dev_max);
+    fs_register(&dev_outmax);
+    fs_register(&dev_bias);
 }

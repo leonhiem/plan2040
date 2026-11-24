@@ -12,6 +12,12 @@
  *
  *   watch 1000 monitor
  *
+ * Since 2026-11-24 (TODO.md idea 3, step 5) the line is the field-tested
+ * warmer.cpp's, column for column (state setp skin amb heat low high curr
+ * fail warn pid_i pid_pm), plus ff (the feed-forward) at the end, so new
+ * logs compare side by side with Leon's April 2026 field logs. warn is
+ * the guard not ok (warmer.cpp: safe mode).
+ *
  * Deliberately not a generic "print N devices" program -- like hyst's
  * heating-only polarity, this is specifically a warmer status line,
  * with its own fixed columns and a repeated header, same shape as the
@@ -67,6 +73,25 @@ static void read_dev_str(const char *path, char *out, int outlen)
     out[m] = '\0';
 }
 
+static bool is_on(const char *path)
+{
+    char b[8];
+    read_dev_str(path, b, sizeof(b));
+    return strncmp(b, "on", 2) == 0;
+}
+
+// The field warmer's state names (warmer.cpp's state_str).
+static const char *field_state(bool auto_mode, const char *phase)
+{
+    if (!auto_mode) return "man";
+    if (strncmp(phase, "idle", 4) == 0)  return "idl";
+    if (strncmp(phase, "boost", 5) == 0) return "p1A";
+    if (strncmp(phase, "coast", 5) == 0) return "coa";
+    if (strncmp(phase, "pid", 3) == 0)   return "pid";
+    if (strncmp(phase, "safe", 4) == 0)  return "saf";
+    return "?";
+}
+
 static int monitor_run(const char *in, int inlen, int argc, char **argv, char *out, int outlen)
 {
     (void)in;
@@ -86,23 +111,31 @@ static int monitor_run(const char *in, int inlen, int argc, char **argv, char *o
     float amb      = read_dev("/dev/ambient");
     float heat     = read_dev("/dev/heater");
     float curr     = read_dev("/dev/current");
-    float pidout   = read_dev("/dev/pidout");
-    float percent  = read_dev("/dev/percent");
     float integral = read_dev("/dev/pid/integral");
+    float prevmeas = read_dev("/dev/pid/prevmeas");
+    float ff       = read_dev("/dev/pid/bias");
+    char guard[4];
+    read_dev_str("/dev/guard", guard, sizeof(guard));
 
     int pos = 0;
     if (line_idx % 10 == 0) {
         int avail = outlen - pos;
         int n = snprintf(out + pos, avail,
-            "mode   phase setp  skin  amb   heat  curr  pidout percent integral\n");
+            "state setp skin amb  heat  low  high  curr fail warn pid_i  pid_pm  ff\n");
         if (n >= 0 && n < avail) pos += n;
     }
     line_idx++;
 
+    // The same columns and format as warmer.cpp's line (LH20260427), so a
+    // log compares side by side with the April 2026 field logs; ff added
+    // at the end (the feed-forward pid used).
     int avail = outlen - pos;
     int n = snprintf(out + pos, avail,
-        "%-6s %-5s %5.1f %5.1f %5.1f %5.1f %6.0f %6.1f %7.1f %+8.3f\n",
-        auto_mode ? "auto" : "manual", phase, setp, skin, amb, heat, curr, pidout, percent, integral);
+        "[%s] %.1f %.1f %.1f %.1f   %d     %d   %d   %d   %d   %+.2f  %.2f  %.1f\n",
+        field_state(auto_mode, phase), setp, skin, amb, heat,
+        is_on("/dev/alarm/templow"), is_on("/dev/alarm/temphigh"), (int)curr,
+        is_on("/dev/alarm/heater"), strncmp(guard, "ok", 2) != 0,
+        integral, prevmeas, ff);
     if (n >= 0 && n < avail) pos += n;
 
     return pos;

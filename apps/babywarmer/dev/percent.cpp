@@ -1,8 +1,8 @@
 /**
- * apps/babywarmer/dev/percent.cpp — /dev/percent: read/write, manual heater power 0-100
+ * apps/babywarmer/dev/percent.cpp — /dev/percent: read/write, manual heater power 0-80
  *
  * cat /dev/percent          -> current value, e.g. "10.0\n"
- * echo 25 > /dev/percent    -> set directly, clamped to [0, 100]
+ * echo 25 > /dev/percent    -> set directly, clamped to [0, 80] (the field warmer's manual maximum)
  *
  * The manual-mode counterpart to /dev/setpoint -- same shape, same
  * "doesn't know what's driving it" philosophy. Meant to be adjusted by
@@ -22,13 +22,14 @@
 #include <cstdlib>
 
 #define PERCENT_DEF 10.0f // matches the original warmer's manual-mode default
+#define PERCENT_MAX 80.0f // the field warmer's manual maximum (2026-11-24, step 5)
 
 static float percent = PERCENT_DEF;
 
 static void clamp(void)
 {
     if (percent < 0.0f)   percent = 0.0f;
-    if (percent > 100.0f) percent = 100.0f;
+    if (percent > PERCENT_MAX) percent = PERCENT_MAX;
 }
 
 static int percent_read(char *buf, int len)
