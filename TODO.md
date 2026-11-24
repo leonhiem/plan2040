@@ -837,6 +837,15 @@ Order, one commit each, tested on the PC and then the board:
     purpose?); (e) a power-fail alarm (hardware); (f) measure irradiance
     and uniformity on the heater; (g) the instructions-for-use list.
     The standard itself is needed for (b)-(d)'s exact numbers.
+    **Gap (g) drafted 2026-11-24:** `apps/babywarmer/IFU.md`, the
+    instructions for use in English: the warnings a)-n), the controls,
+    the sensor, auto and manual, every alarm with what to do, a map from
+    each IEC item to its section. TODO there: the heater-mattress
+    distance, loads, the applied part type, accuracy, irradiance (f),
+    cleaning, and a clinician's review of the sensor placement. Found
+    while writing it: after a power cut the warmer starts in manual at
+    10 % with the setpoint 35.0, so auto mode is lost silently: a reason
+    for (e), or for remembering the mode in FRAM (to discuss).
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
