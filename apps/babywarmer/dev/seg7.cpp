@@ -1,38 +1,15 @@
 /**
- * apps/babywarmer/dev/seg7.cpp — /dev/leds, /dev/seg7big, /dev/seg7small
+ * apps/babywarmer/dev/seg7.cpp — the 7-segment displays and front-panel LEDs
  *
- * /dev/leds, /dev/seg7big, /dev/seg7small are write-only; the per-LED
- * siblings further down (/dev/leds/<name>) are read/write. All of it
- * lives in one file on purpose: the
- * 7-segment digits and front-panel LEDs are one physical 74HC595 shift
- * register chain (seg7.cpp's update_7seg()) -- a single call shifts
- * all 56 bits at once, so there's no way to update just the LEDs
- * without also re-sending *something* for the digits. Each device
- * updates its own slice of shared shadow state, then a full 56-bit
- * shift-out follows every write, using whatever the other two devices
- * last set.
+ *   echo 36.5 > /dev/seg7big      up to 3 digits, right-aligned; a '.' lights
+ *   echo 35.0 > /dev/seg7small    the dot (only after the middle digit exists)
+ *   echo on > /dev/seg7big/blink  blink 0.5 s on / 0.5 s off (the "seg7" task)
+ *   echo "chk on" > /dev/leds     or echo on > /dev/leds/chk; the seven LEDs:
+ *                                 aut warm low high fail chk man
  *
- * /dev/leds:      write "<name> on|off", one of: aut warm low high
- *                 fail chk man (led_t's 7 named bits -- the hardware
- *                 has 7 wired positions, not 6; worth checking against
- *                 the real board if that doesn't match what's expected).
- *                 See also /dev/leds/<name> further down -- seven
- *                 independent read/write siblings, one per bit, same
- *                 idea as /dev/buttons/<name> alongside /dev/buttons.
- * /dev/seg7big:   write a number, e.g. "36.5" or "365" or "7" --
- *                 up to 3 digits, right-aligned, blank-padded on the
- *                 left. A literal '.' turns the dot on; because of how
- *                 the shift register is wired, the dot can only ever
- *                 appear after the middle digit (byte 6's comment in
- *                 update_7seg() calls it out) -- "1.23" and "12.3" are
- *                 physically the same display, not two different ones.
- * /dev/seg7small: same digit format, the small (setpoint-style) display.
- *
- * From picoos @ 89c16e5 (dev/seg7.cpp). plan2040 (2026-11-21): one
- * register function for all ten devices, in picoos's order, and it does
- * the boot lamp test (init_seg7(): everything lit for 1 s, then blank),
- * which picoos's main() did; and /dev/seg7big/blink (2026-11-24, with
- * the "seg7" task that blinks it). The rest unchanged.
+ * All of it is one 74HC595 chain of 56 bits (seg7.cpp), so every write
+ * shifts out everything, from the shared state. Registering does the lamp
+ * test: everything lit for 1 s, then blank.
  */
 #include "board.h"
 #include "seg7.h"
@@ -47,10 +24,7 @@ static uint8_t small_d[3] = {SEG_BLANK, SEG_BLANK, SEG_BLANK};
 static uint8_t small_dot  = 0;
 static led_t   leds       = {0,0,0,0,0,0,0};
 
-// /dev/seg7big/blink (plan2040, 2026-11-24): the big display blinks its
-// value, 0.5 s on / 0.5 s off, e.g. while the guard doesn't trust the skin
-// reading (ledwire writes it from /dev/guard). The "seg7" task below does
-// the blinking; it costs nothing while nothing blinks.
+// /dev/seg7big/blink: the "seg7" task below blinks; nothing while off.
 #define BLINK_MS 500
 static bool big_blink  = false;
 static bool blink_dark = false;   // in the dark half of a blink
@@ -62,12 +36,8 @@ static void flush(void)
                     small_d[2], small_d[1], small_d[0], small_dot, leds);
         return;
     }
-    // update_7seg()'s own header comment claims digl3/digs3 are the
-    // most-significant digit -- they're not, going by the original
-    // (hardware-validated) caller: digl1/digs1 is most-significant,
-    // digl3/digs3 least-significant. big_d[0]/small_d[0] here are our
-    // most-significant digit (parse_digits() fills them left to right),
-    // so they go in the *third* argument slot, not the first.
+    // update_7seg()'s digl1/digs1 is the most significant digit (as the
+    // field warmer called it), so our leftmost digit goes in the third slot.
     update_7seg(big_d[2], big_d[1], big_d[0], big_dot,
                 small_d[2], small_d[1], small_d[0], small_dot, leds);
 }

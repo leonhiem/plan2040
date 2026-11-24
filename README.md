@@ -296,7 +296,7 @@ The control, as devices that hold values and programs that run as jobs
 | `/dev/pid/min`, `max`, `outmax`, `bias` | read/write | With a feed-forward: the PID's own part within `min`..`max` (-35..+25 %), the total within 0..`outmax` (75 %); `bias` is the feed-forward it used last. |
 | `/dev/ffpower` | read/write | The feed-forward for the room (from `fftable`); without a new value for 10 minutes (room sensor down) it reads 30 %. |
 | `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `phase`). |
-| `/dev/autopower`, `/dev/safepower` | read/write | Auto mode's power; safe mode's power (from `safelut`). |
+| `/dev/autopower` | read/write | The power auto mode asks for (from `select`; in safe, what the guard heats with). |
 | `/dev/alarm/heater`, `temphigh`, `templow`, `sensor` | read/write | The alarm conditions (written by the guard): `on`/`off`. `heater` and `sensor` give their reason too: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
 | `/dev/guard` | read | The guard's verdict on the skin reading, with the reason: `ok`, `safe: <why>`, `none: <why>` (see "The guard" below). |
 | `/dev/heater/limit` | read | The guard's say over the heater: `cap 100.0` (the jobs' power, at most that) or `set 39.0` (the guard's own power, whatever the jobs ask). |
@@ -305,7 +305,7 @@ The control, as devices that hold values and programs that run as jobs
 |---|---|
 | `phase` | once a second: idle (manual) → boost (80 %) → coast (0 %) → pid, and back to boost when the setpoint is raised by 2 °C or more and the skin is more than 3 °C below it; shows `safe` while the guard says so, and hands back to the PID bumpless (the PID starts from the power in use) |
 | `pid <gate> <state> <setpoint> [<bias>]` | the PID on the skin temperature, while `/dev/state` is `pid`; with a bias (the boot script: `/dev/ffpower`) the field warmer's formula: feed-forward + PID(-35..+25), at most 75 % |
-| `safelut` | room temperature → a fixed heater power, for safe mode |
+| `safelut` | room temperature → the safe mode's power, for a look from the shell (the guard uses the table itself) |
 | `fftable` | room temperature → the feed-forward power for the PID (the field warmer's `ff_table`) |
 | `alarm <cond...>` | buzzer + alarm LED from the conditions; MUTE silences the buzzer for a minute |
 | `ledwire` | the front-panel LEDs from mode, phase and alarms |
@@ -348,7 +348,7 @@ Back to `ok` by itself: 2 minutes after the skin is within 2 °C of the
 setpoint again (sensor causes), 5 s after a reading or the control is
 back (hardware causes); from `none`, back to auto. Manual mode (the
 nurse's choice): hardware safety only. The guard also owns what
-`alarmcheck` did (that job is gone): the relay (off on overtemp, on when
+picoos's `alarmcheck` job did: the relay (off on overtemp, on when
 heating), the temperature alarms, the heater-current check, the stuck
 SSR; and it writes `/dev/alarm/sensor` (also when only the room sensor
 is down: the PID then runs on the last feed-forward). The temperature

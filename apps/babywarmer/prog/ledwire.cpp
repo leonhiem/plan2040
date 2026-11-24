@@ -1,41 +1,15 @@
 /**
- * apps/babywarmer/prog/ledwire.cpp — ledwire: drives all 7 front-panel LEDs from
- * their condition sources, in one job
+ * apps/babywarmer/prog/ledwire.cpp — ledwire: the seven front-panel LEDs and
+ * the big display's blink, in one job
  *
- * Leon's own call: one combined job here rather than seven independent
- * small ones. Each LED's condition is a fixed, trivial device-value
- * check with no real "which pieces would I want to mix and match"
- * need the way pid/select/follow's compose-from-the-shell model exists
- * for -- these seven mappings are simply what the front panel means,
- * not something to be rewired differently on any given boot. Same call
- * prog/monitor.cpp already made for reading many devices into one
- * status line; this is the writing-side equivalent, one job driving
- * seven fixed targets instead of composing seven independent
- * pipelines for a fixed, known wiring.
+ *   aut   auto mode (/dev/heaterauto on)     man   manual mode
+ *   warm  boost (/dev/state)                 chk   the guard not ok
+ *   low   /dev/alarm/templow                 high  /dev/alarm/temphigh
+ *   fail  /dev/alarm/heater
  *
- * Mapping (Leon's own definitions):
- *   aut  -- /dev/heaterauto reads "on"
- *   man  -- /dev/heaterauto reads "off"
- *   warm -- /dev/state reads "boost"
- *   chk  -- /dev/state reads "safe"
- *   low  -- /dev/alarm/templow reads "on"
- *   high -- /dev/alarm/temphigh reads "on"
- *   fail -- /dev/alarm/heater reads "on"
- *
- * Writes the seven independent /dev/leds/<name> devices directly
- * (plain "on"/"off", no name-prefix formatting needed) rather than the
- * combined /dev/leds device.
- *
- * No args -- every source and target here is fixed, same as monitor
- * taking none. Runs at the normal ~150ms job cadence, un-self-paced --
- * these are plain device reads, the same cost follow/adjust/select
- * already pay every tick.
- *
- * From picoos @ 89c16e5 (prog/ledwire.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
- *
- * Changed 2026-11-24 (plan2040): CHK, the big display's blink and blank
- * follow the guard (/dev/guard) instead of /dev/state, see ledwire_run().
+ * and the big display: blinking while the guard says safe (the reading is
+ * shown but not trusted), blank in none (no reading). One job, not seven:
+ * this is simply what the front panel means, nothing to rewire.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
@@ -75,10 +49,9 @@ static int ledwire_run(const char *in, int inlen, int argc, char **argv, char *o
     set_led("/dev/leds/man", !auto_mode);
 
     set_led("/dev/leds/warm", dev_is("/dev/state", "boost"));
-    // From the guard (2026-11-24): CHK whenever it doesn't trust the skin
-    // reading (safe or none), in auto and manual; the big display blinks
-    // the reading in safe (shown, not trusted: it may be the room) and is
-    // blank in none (there's no reading). Leon's decision, TODO step 4.
+    // CHK whenever the guard doesn't trust the skin reading, in auto and
+    // manual; the big display blinks in safe (the reading may be the room)
+    // and is blank in none (there is no reading).
     bool guard_ok   = dev_is("/dev/guard", "ok");
     bool guard_none = dev_is("/dev/guard", "none");
     set_led("/dev/leds/chk", !guard_ok);

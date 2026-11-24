@@ -1,44 +1,15 @@
 /**
- * apps/babywarmer/prog/tftwire.cpp — tftwire: drives /dev/tft/<name> from the same condition
- * sources bin/ledwire already drives into /dev/leds/<name>, in one job
+ * apps/babywarmer/prog/tftwire.cpp — tftwire: the TFT's fields from the
+ * warmer's devices, in one job (as ledwire does for the LEDs)
  *
- * The ST7735 display is a second, independent consumer of the same
- * underlying signals ledwire already wires up -- "a great addition", a
- * nicer front panel running alongside the LEDs, not a replacement for
- * them (see tft-picoos-integration-spec.md). Same call as ledwire's own
- * header comment: one combined job here rather than seven independent
- * ones, since every source and target is fixed, not something to mix
- * and match across boots.
+ *   aut, man   /dev/heaterauto              chk   the guard not ok
+ *   low, high  /dev/alarm/templow, temphigh fail  /dev/alarm/heater
+ *   heater     /dev/heater (0-100)
+ *   apgar      the START button's one-shot ("1" for one tick): the display
+ *              starts its APGAR clock on the rising edge
  *
- * Mapping:
- *   aut  -- /dev/heaterauto reads "on"
- *   man  -- /dev/heaterauto reads "off"
- *   chk  -- /dev/guard isn't "ok" (safe or none; until 2026-11-24:
- *           /dev/state reads "safe")
- *   low  -- /dev/alarm/templow reads "on"
- *   high -- /dev/alarm/temphigh reads "on"
- *   fail -- /dev/alarm/heater reads "on"
- *   heater -- /dev/heater's numeric value, passed through as-is
- *   apgar  -- /dev/buttons/start's read-and-clear "1"/"0", forwarded
- *             as-is (added 2026-08-28, for the display's new APGAR
- *             clock -- see dev/tft.cpp). Nothing computed here: the
- *             button read already gives a one-shot pulse (auto-clears
- *             after being seen), so one job tick sees "1" -> writes
- *             /dev/tft/apgar on, the next tick reads "0" again ->
- *             writes off. display.c does its own rising-edge detection
- *             on that on/off transition.
- *
- * (ledwire's `warm` has no /dev/tft equivalent -- redundant with
- * heater's own color on the display, confirmed in the integration spec.)
- *
- * No args -- every source and target here is fixed, same as ledwire and
- * monitor taking none. Runs at the normal ~150ms job cadence,
- * un-self-paced -- plain device reads, same cost every other wiring job
- * already pays every tick. The display's own redraw/animation rate is
- * unrelated to this cadence -- see dev/tft.cpp's tft_flush_task, a
- * kernel task, not a job. *
- * From picoos @ 89c16e5 (prog/tftwire.cpp), unchanged apart from the
- * register function's name (2026-11-23).
+ * (No warm: the heater bar's colour shows it.) The redrawing is the
+ * "tftflush" kernel task's (dev/tft.cpp), not this job's.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
@@ -78,7 +49,7 @@ static int tftwire_run(const char *in, int inlen, int argc, char **argv, char *o
     set_tft("/dev/tft/aut", auto_mode);
     set_tft("/dev/tft/man", !auto_mode);
 
-    set_tft("/dev/tft/chk", !dev_is("/dev/guard", "ok"));   // the guard (2026-11-24): safe or none
+    set_tft("/dev/tft/chk", !dev_is("/dev/guard", "ok"));   // safe or none
 
     set_tft("/dev/tft/low",  dev_is("/dev/alarm/templow",  "on"));
     set_tft("/dev/tft/high", dev_is("/dev/alarm/temphigh", "on"));

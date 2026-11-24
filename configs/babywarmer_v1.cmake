@@ -35,15 +35,14 @@ set(PLAN2040_DEVS
     current      # /dev/current: heater current sense, ADC0 (raw counts)
     heater       # /dev/heater: 0-100 %, time-proportional SSR + bargraph; the "tpo" task
     relay        # /dev/relay: the mechanical safety relay, on/off
-    alarm        # /dev/alarm: buzzer + alarm LED (GPIO0, GPIO1): on | muted | off
+    alarm        # /dev/alarm: buzzer + alarm LED (on | muted | off); /dev/alarm/{heater,temphigh,templow,sensor}
     seg7         # /dev/seg7big, /dev/seg7small, /dev/leds + /dev/leds/<name>; lamp test at boot
     setpoint     # /dev/setpoint: 30.0-39.0 C, default 35.0; /dev/setpoint/raised
     heaterauto   # /dev/heaterauto: on = auto (PID), off = manual
     percent      # /dev/percent: manual heater power 0-80, default 10
     pid          # /dev/pid/{kp,ti,td,dt,integral,prevmeas,min,max,outmax,bias}, /dev/pidout
-    phase        # /dev/state, /dev/autopower, /dev/safepower, /dev/ffpower
-    alarmcheck   # /dev/alarm/{heater,temphigh,templow,sensor}: the alarm conditions
-    guard        # /dev/guard: all heater safety, an unkillable kernel task (after alarmcheck)
+    phase        # /dev/state, /dev/autopower, /dev/ffpower
+    guard        # /dev/guard: all heater safety, an unkillable kernel task
     tft          # /dev/tft/<name>: the ST7735 screen, 12 files; the "tftflush" task
 )
 

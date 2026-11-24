@@ -1,16 +1,11 @@
 /**
- * apps/babywarmer/dev/current.cpp — /dev/current: read-only, the heater
- * current sense (RP2040 ADC0, GPIO26)
+ * apps/babywarmer/dev/current.cpp — /dev/current: the heater current sense
  *
- * From picoos @ 89c16e5 (dev/current.cpp). cat /dev/current -> raw ADC
- * counts, 0..4095, the average of 8 samples taken in the one read (no
- * conversion to amps is documented for this circuit, so raw counts it
- * is). prog/alarmcheck compares it with the heater's state.
+ *   cat /dev/current          raw ADC counts 0-4095 (ADC0), the average of 8
  *
- * Changed for plan2040 (2026-11-21): the pin comes from board.h, and the
- * device sets up its own pin (picoos did it in setup_gpios()). The ADC
- * block is started only if nothing has yet: adc_init() resets it, which
- * would switch off the temperature sensor /dev/cputemp turned on.
+ * Raw counts: the circuit has no documented conversion to amps. The guard
+ * compares it with the SSR's state. The ADC block is started only if
+ * nothing did yet: adc_init() would switch off /dev/cputemp's sensor.
  */
 #include "board.h"
 #include "kernel/fs.h"

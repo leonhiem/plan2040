@@ -1,5 +1,5 @@
-// apps/babywarmer/safelut.cpp — see safelut.h. The table and lookup()
-// from picoos @ 89c16e5 (prog/safelut.cpp), unchanged.
+// apps/babywarmer/safelut.cpp — see safelut.h. The table is the field
+// warmer's safe_ff_table, unchanged.
 #include "safelut.h"
 
 static const room_point_t safe_ff_table[] = {

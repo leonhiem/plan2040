@@ -1,75 +1,28 @@
 /**
- * apps/babywarmer/prog/pid.cpp — pid <gate-device> <gate-value> <setpoint-device-or-literal> [<bias-device>]
+ * apps/babywarmer/prog/pid.cpp — pid <gate> <gate-value> <setpoint> [<bias>]
  *
- * With a bias (2026-11-24, TODO.md idea 3 step 5): the field-tested
- * warmer's formula (../warmer/warmer.cpp, LH20260427), feed-forward + PID:
+ *   cat /dev/skintemp | pid /dev/state pid /dev/setpoint /dev/ffpower > /dev/pidout &
  *
- *   part   = P + I + D, clamped to /dev/pid/min../dev/pid/max (-35..+25 %),
- *            the anti-windup on this clamp
- *   output = bias + part, clamped to 0../dev/pid/outmax (75 %)
+ * A PID on the piped measurement, while <gate> reads <gate-value>. Once
+ * every /dev/pid/dt seconds (the job runs every 150 ms; in between it
+ * repeats /dev/pidout):
  *
- * The bias is the feed-forward for the room (`/dev/ffpower`, fftable.h):
- * it carries the steady load, the PID only corrects. picoos had cut the
- * feed-forward ("PID alone", below); without it the integrator must carry
- * the whole ~30 % by itself, ~1800 C s of error at Kp/Ti = 0.015. Without
- * a bias, pid works as before (output = P + I + D, 0..100).
+ *   error  = setpoint - measurement
+ *   part   = Kp*error + integral + Kp*Td*(-d measurement/dt)   derivative on
+ *            the measurement: no kick when the setpoint changes
+ *   output = bias + part
  *
- * PID control, recovered from babywarmer's pid_update() (before the
- * fork ripped the whole control loop out) with two deliberate cuts:
- * no feed-forward table (this is PID alone, per Leon's "small pieces,
- * do each right" -- feed-forward was babywarmer's, not this), and no
- * state machine of its own (that's prog/phase.cpp's job, see below).
- * Same formula otherwise:
+ * With a <bias> (the feed-forward for the room, /dev/ffpower) the formula
+ * is the field-tested warmer.cpp's: part within /dev/pid/min..max (-35..
+ * +25 %), output within 0../dev/pid/outmax (75 %): the feed-forward
+ * carries the steady load, the PID corrects. Without one, part is the
+ * output, within 0..100. Anti-windup: the integral only moves while part
+ * is within its limits.
  *
- *   error   = setpoint - measurement
- *   p_term  = Kp * error
- *   d_term  = -Kp * TD * (measurement - prev_meas) / DT   (derivative
- *             on measurement, not error -- avoids a kick from a
- *             setpoint step; sign flips because dError/dt = -dMeas/dt)
- *   i_new   = integral + (Kp / TI) * error * DT
- *   output  = clamp(p_term + i_new + d_term, 0, 100)
- *   -- conditional anti-windup: integral only advances to i_new when
- *      the unclamped output wasn't saturating; otherwise it freezes.
- *
- * Kp/TI/TD/DT live in /dev/pid/{kp,ti,td,dt} (dev/pid.cpp), read live
- * every step, same "tunable while running" pattern as /dev/setpoint.
- * integral and prev_meas both live in /dev/pid/{integral,prevmeas} --
- * also devices, not C statics, specifically so `cat` shows live windup
- * behavior and, more importantly now, so prog/phase.cpp can seed them
- * itself at the moment it transitions /dev/state -- see below.
- *
- * Self-paced DT, same resumable-timer idea as shell.cpp's sleep/
- * run_step: a background job's poll cadence (JOB_POLL_MS, 150ms) has
- * nothing to do with the control law's own sample period, so pid only
- * performs a real step once /dev/pid/dt seconds have actually passed
- * since the last one; every other tick it just re-reads and re-echoes
- * /dev/pidout unchanged (also doubling as the "hold last output"
- * cache, so no separate C buffer is needed for that either).
- *
- * gate-device/gate-value: generic on purpose (revised from an earlier
- * hardcoded gate-reads-"on" version) -- <gate-device>'s reading is
- * compared against the literal <gate-value>, so this works against
- * /dev/heaterauto directly (`pid /dev/heaterauto on /dev/setpoint`,
- * the original wiring) or against /dev/state (`pid /dev/state pid
- * /dev/setpoint`, what prog/phase.cpp's richer machine actually uses).
- *
- * No seeding logic here anymore -- an earlier version reseeded
- * prev_meas/integral itself on the first tick the gate matched
- * (bumpless start). That was a workaround for not having an external
- * owner of "what should PID start from"; now prog/phase.cpp genuinely
- * is that owner, and needs *different* seed values on different
- * transitions (+3.0 integral head-start from coast, 0.0 from a safe-
- * mode recovery) that one hardcoded reseed-on-activation could never
- * express correctly anyway. pid.cpp's only remaining state is a timer
- * re-arm on the gate's inactive->active edge, so a long-idle gate
- * doesn't cause an immediately-due, stale-timed first step.
- *
- * setpoint-device-or-literal follows thresh/hyst's own convention:
- * tried as a device path first (read live), a literal number if
- * that fails.
- *
- * From picoos @ 89c16e5 (prog/pid.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * Kp, Ti, Td, dt, the integral and the last measurement are devices
+ * (dev/pid.cpp): tunable while running, visible with cat, and seeded by
+ * prog/phase.cpp when it starts the PID (after coast, or back from safe).
+ * <setpoint> and <bias> are device paths or numbers.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"

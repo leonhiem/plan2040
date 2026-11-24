@@ -1,19 +1,12 @@
 /**
- * apps/babywarmer/dev/relay.cpp — /dev/relay: read/write, the mechanical safety relay
+ * apps/babywarmer/dev/relay.cpp — /dev/relay: the mechanical safety relay
  *
- * write /dev/relay on   -> PIN_HEATERSAFE energized
- * write /dev/relay off  -> PIN_HEATERSAFE released
+ *   echo on > /dev/relay      energized: the heater can heat
+ *   echo off > /dev/relay     released (also at boot, board_pins_init())
  *
- * PIN_HEATERSAFE was the safety cutoff in babywarmer's original
- * heater_check_task -- recovered as prog/alarmcheck.cpp, which writes
- * here through this same write() like any other consumer, not by
- * reaching around it. Still a bare manual toggle as far as this device
- * itself is concerned -- it doesn't know or care who's writing it,
- * same deliberately-raw spirit as /dev/heater.
- *
- * From picoos @ 89c16e5 (dev/relay.cpp), unchanged apart from the
- * includes and the register name, and readable (2026-11-23). Released at
- * boot (board_pins_init()).
+ * The guard (dev/guard.cpp) switches it: off on overtemperature and on a
+ * stuck SSR, on when heating. Readable, because "no current" only means
+ * something with the relay on.
  */
 #include "board.h"
 #include "kernel/fs.h"
@@ -34,8 +27,6 @@ static int relay_write(const char *buf, int len)
     return -1;
 }
 
-// Readable since 2026-11-23 (plan2040): the heater-current check has to
-// know the relay is energized before "no current" means anything.
 static int relay_read(char *buf, int len)
 {
     return snprintf(buf, len, gpio_get(PIN_HEATERSAFE) ? "on\n" : "off\n");

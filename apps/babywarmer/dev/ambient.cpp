@@ -1,15 +1,9 @@
 /**
- * apps/babywarmer/dev/ambient.cpp — /dev/ambient: read-only, the room
- * NTC via the same ADS1115 (channels 2-3, differential)
+ * apps/babywarmer/dev/ambient.cpp — /dev/ambient: the room temperature
  *
- * From picoos @ 89c16e5 (dev/ambient.cpp): the same as /dev/skintemp,
- * the other channel, the same NTC table (dev/ntc.cpp); both come from the
- * one "adc" task (ntcadc.cpp). prog/safelut (safe mode) is what reads
- * it: the heater power for a given room temperature.
- *
- * Changed for plan2040: as /dev/skintemp (2026-11-21 bus and address
- * from board.h, errors instead of a hang; 2026-11-23 background sampling,
- * ntcadc.cpp, answered at once).
+ * As /dev/skintemp, on the ADS1115's channels 2-3, through the same NTC
+ * table. Read by fftable (the feed-forward) and the guard (the safe
+ * mode's power).
  */
 #include "board.h"
 #include "kernel/fs.h"

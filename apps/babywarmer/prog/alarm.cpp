@@ -1,42 +1,14 @@
 /**
- * apps/babywarmer/prog/alarm.cpp — alarm <cond-device> [<cond-device> ...]: combine
- * alarm conditions, drive the buzzer/LED, honor the mute button
+ * apps/babywarmer/prog/alarm.cpp — alarm <condition> [<condition> ...]
  *
- * Recovered from babywarmer's task_alarm(), split into its own program
- * running at the shell's normal ~150ms job cadence -- deliberately
- * NOT self-paced like alarmcheck's 15s. A mute button press needs to
- * register close to instantly (babywarmer ran task_alarm at 160ms for
- * exactly this reason), while alarmcheck's conditions change slowly
- * (temperature, current-sense). Same "small pieces, do them right"
- * reasoning that gave each program its own appropriate cadence instead
- * of forcing one interval on both.
+ *   alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow /dev/alarm/sensor &
  *
- * Reads every <cond-device> given and ORs them: any reading "on" means
- * the alarm condition is active. Meant to run as:
- *
- *   alarm /dev/alarm/heater /dev/alarm/temphigh /dev/alarm/templow &
- *
- * While active: lights the alarm LED unconditionally (mute silences
- * the *buzzer* only, never the LED -- always a visible indication,
- * even snoozed, same as the original) and sounds the buzzer unless
- * currently muted. Reads button[BUTTON_MUTE] directly and clears it,
- * same as adjust.cpp/toggle.cpp already do for their own buttons --
- * not through /dev/buttons/mute, whose read() returns "1"/"0" (see
- * dev/buttons.cpp), a different vocabulary than the "on"/"off" this
- * program reads from its condition devices; going straight to the raw
- * flag sidesteps that mismatch the same way adjust/toggle already
- * sidestep /dev/buttons's own all-or-nothing aggregate read. Arms a
- * MUTE_MS snooze whenever pressed, regardless of whether the alarm is
- * active yet -- matches the original, which let a mute press pre-arm
- * before a condition even trips. Mute auto-clears once the timer
- * elapses, and is force-cleared the moment the condition itself clears
- * -- a mute doesn't carry over to a future, unrelated alarm event.
- *
- * Drives /dev/alarm's three-state write() (see dev/alarm.cpp): "on"
- * (LED+buzzer), "muted" (LED only), "off" (neither).
- *
- * From picoos @ 89c16e5 (prog/alarm.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * Any condition reading "on" sounds the buzzer and lights the alarm LED
+ * (/dev/alarm on). MUTE silences the buzzer for MUTE_MS (1 minute), never
+ * the LED (/dev/alarm muted). A press arms the mute even before an alarm;
+ * it ends when its minute is up or the alarm clears, so it never carries
+ * over to the next alarm. Every job tick (150 ms), so MUTE answers at once.
+ * Reads the MUTE button's flag directly, as adjust and toggle do.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
@@ -80,9 +52,7 @@ static int alarmctl_run(const char *in, int inlen, int argc, char **argv, char *
         if (read_on(argv[i])) { active = true; break; }
     }
 
-    // Mute button: read-and-clear the raw flag, arms regardless of
-    // `active` -- matches the original, a pre-arm before a condition
-    // trips is harmless.
+    // MUTE: read and clear the flag; it arms even before an alarm.
     if (button[BUTTON_MUTE]) {
         button[BUTTON_MUTE] = false;
         muted = true;

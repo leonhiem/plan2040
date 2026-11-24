@@ -2,11 +2,7 @@
  * apps/babywarmer/seg7.h — the front panel's 74HC595 chain: two 3-digit
  * 7-segment displays and 7 LEDs, 56 bits in one shift-out
  *
- * From picoos @ 89c16e5 (display.cpp + the led_t / SEG_* parts of
- * warmer.h), unchanged. Pins from board.h (PIN_SEG_SER/SCK/LATCH).
- * dev/seg7.cpp is the only user: the devices /dev/seg7big, /dev/seg7small
- * and /dev/leds keep the shadow state and call update_7seg() on every
- * write.
+ * dev/seg7.cpp is the only user. Pins from board.h (PIN_SEG_SER/SCK/LATCH).
  */
 #pragma once
 #include <stdint.h>

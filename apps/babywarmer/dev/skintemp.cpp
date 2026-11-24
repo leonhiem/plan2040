@@ -1,17 +1,14 @@
 /**
- * apps/babywarmer/dev/skintemp.cpp — /dev/skintemp: read-only, the skin
- * NTC via the ADS1115 (channels 0-1, differential)
+ * apps/babywarmer/dev/skintemp.cpp — /dev/skintemp: the skin temperature
  *
- * From picoos @ 89c16e5 (dev/skintemp.cpp). cat /dev/skintemp -> the
- * skin temperature, e.g. "36.5\n": the latest reading (at most ~100 ms
- * old) taken by the "adc" task in the background (ntcadc.h), answered at
- * once: no waiting for a conversion.
+ *   cat /dev/skintemp         e.g. "36.5"
  *
- * Changed for plan2040: 2026-11-21 the bus and address from board.h, and
- * errors instead of a hang; 2026-11-23 our own ADS1115 driver and the
- * background sampling (ntcadc.cpp): picoos converted on every read and
- * waited ~8 ms for it. When there's no fresh reading, read() fails with
- * the reason: "ADS1115 (0x48, header bus) not answering".
+ * The ADS1115's channels 0-1 (differential) through the NTC table
+ * (dev/ntc.cpp). The "adc" task samples in the background (ntcadc.h), so a
+ * read answers at once with the latest reading (at most ~100 ms old). With
+ * no fresh reading it fails with the reason: "ADS1115 (0x48, header bus)
+ * not answering", or "code ... is outside the calibrated range (open or
+ * shorted?)".
  */
 #include "board.h"
 #include "kernel/fs.h"

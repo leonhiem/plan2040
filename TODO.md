@@ -752,6 +752,15 @@ Order, one commit each, tested on the PC and then the board:
     - power failure alarm, battery-backed (ours: none; hardware);
     - system failure: heater off, alarm that can't be silenced;
     - accuracy +-0.3 C at 30-42 C (ours: to measure after calibration).
+    **Points 3 and 4 done 2026-11-24:** `/dev/safepower` and the
+    `safelut` job gone (the program stays, for a look from the shell);
+    in safe, `select` asks for what the guard heats with
+    (`safe=/dev/heater`), which keeps the bumpless handover (bwsim showed
+    that the job wasn't dead weight after all: without an ask the PID
+    restarted from 3.5 %). dev/alarmcheck.cpp merged into dev/alarm.cpp.
+    The boot script rewritten as a readable guide. Comments trimmed to
+    what and why, the history left to git: the app went from 4219 to 3557
+    lines, the code unchanged (bwsim the same to 0.01 C).
     **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
     (b) a manual-mode check timer; (c) deviation alarms relative to the
     setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on

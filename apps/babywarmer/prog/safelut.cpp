@@ -1,29 +1,12 @@
 /**
- * apps/babywarmer/prog/safelut.cpp — safelut: ambient-temp lookup table, safe-mode's
- * open-loop power source
+ * apps/babywarmer/prog/safelut.cpp — safelut: the room temperature in, the
+ * safe mode's power out (safelut.h)
  *
- * Reads ambient temp from piped input (e.g. `cat /dev/ambient |
- * safelut`), linearly interpolates babywarmer's own safe_ff_table
- * (recovered verbatim from heater.cpp's safe_feedforward()/
- * feedforward_lookup()), clamps to DUTY_SAFE_CAP (55%), outputs the
- * result. Meant to feed /dev/safepower:
+ *   cat /dev/ambient | safelut
  *
- *   cat /dev/ambient | safelut > /dev/safepower &
- *
- * Stateless and ungated on purpose, unlike prog/pid.cpp -- a table
- * lookup has no windup/derivative concerns, so there's nothing to
- * freeze while safe mode isn't active. Always computing is harmless,
- * same reasoning as thresh/hyst always evaluating regardless of
- * whether their output is currently the one prog/select.cpp forwards.
- *
- * The table and its cap are hardcoded here, same as hyst's heating-
- * only polarity is hardcoded -- this is specifically this warmer's
- * safe-mode curve, not a generic interpolator. Worth a tunable device
- * later if commissioning ever needs to adjust it live; not built now.
- *
- * From picoos @ 89c16e5 (prog/safelut.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22); the table moved to
- * safelut.cpp (2026-11-24), shared with the guard.
+ * What the guard heats with when the skin reading can't be trusted, for a
+ * look from the shell. The warmer doesn't run it as a job: the guard uses
+ * the table itself.
  */
 #include "kernel/prog.h"
 #include <cstdio>

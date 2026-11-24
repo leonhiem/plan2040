@@ -19,7 +19,7 @@
 //  20:00  UP twice -> setpoint 36.0 (+1.0: no re-boost)
 //  29:00  `monitor`: the field warmer's telemetry line
 //  30:00  scenario (1): the sensor falls off while warm -> safe; 33:00 back
-//  40:00  `kill 10` (follow, the job that writes /dev/heater): control dead
+//  40:00  `kill 8` (follow, the job that writes /dev/heater): control dead
 //         -> safe after 10 s; 43:00 the job started again -> ok
 //  50:00  START (APGAR), `run tftmon`; 52:00 back to the warmer screen
 //  55:00  the heater element breaks; 57:00 works again
@@ -101,7 +101,7 @@ static const program_t p_date = {"date", date_run};
 void task_shell(void); void jobs_init(void);
 #define D(n) void dev_##n##_register(void);
 #define P(n) void prog_##n##_register(void);
-D(lamp) D(buttons) D(heater) D(relay) D(alarm) D(seg7) D(setpoint) D(heaterauto) D(percent) D(pid) D(phase) D(alarmcheck) D(guard) D(tft)
+D(lamp) D(buttons) D(heater) D(relay) D(alarm) D(seg7) D(setpoint) D(heaterauto) D(percent) D(pid) D(phase) D(guard) D(tft)
 P(cat) P(echo) P(label) P(follow) P(toggle) P(adjust) P(select) P(pid) P(phase) P(safelut) P(fftable) P(alarm) P(ledwire) P(monitor) P(tftwire)
 
 // The sim's own lines go to `out` (the real stdout); what the shell and
@@ -186,7 +186,7 @@ int main()
     fs_register(&d_skin); fs_register(&d_amb); fs_register(&d_cur);
     dev_lamp_register(); dev_buttons_register(); dev_heater_register(); dev_relay_register(); dev_alarm_register();
     dev_seg7_register(); dev_setpoint_register(); dev_heaterauto_register(); dev_percent_register();
-    dev_pid_register(); dev_phase_register(); dev_alarmcheck_register(); dev_guard_register(); dev_tft_register();
+    dev_pid_register(); dev_phase_register(); dev_guard_register(); dev_tft_register();
     prog_register(&p_date);
     prog_cat_register(); prog_echo_register(); prog_follow_register(); prog_toggle_register(); prog_adjust_register();
     prog_select_register(); prog_pid_register(); prog_phase_register(); prog_safelut_register(); prog_fftable_register();
@@ -212,7 +212,7 @@ int main()
         if (sec == 29 * 60)  { SAY("--- 29:00 type `monitor` (the field warmer's telemetry line)\n"); type("monitor\n"); }
         if (sec == 30 * 60)  { SAY("--- 30:00 the skin sensor falls off the baby (reads the room)\n"); sensor_on_baby = false; }
         if (sec == 33 * 60)  { SAY("--- 33:00 the skin sensor back on the baby\n"); sensor_on_baby = true; }
-        if (sec == 40 * 60)  { SAY("--- 40:00 type `kill 10` (follow ... /dev/heater: the job that sets the power)\n"); type("kill 10\n"); }
+        if (sec == 40 * 60)  { SAY("--- 40:00 type `kill 8` (follow ... /dev/heater: the job that sets the power)\n"); type("kill 8\n"); }
         if (sec == 43 * 60)  { SAY("--- 43:00 start it again\n"); type("follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &\n"); }
         if (sec == 50 * 60)  { SAY("--- 50:00 press START (APGAR clock); type `run tftmon`\n"); button[BUTTON_START] = true; type("run tftmon\n"); }
         if (sec == 52 * 60)  { SAY("--- 52:00 type `echo graphical > /dev/tft/mode`\n"); type("echo graphical > /dev/tft/mode\n"); }

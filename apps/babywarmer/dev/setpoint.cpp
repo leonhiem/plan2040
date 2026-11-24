@@ -1,32 +1,16 @@
 /**
- * apps/babywarmer/dev/setpoint.cpp — /dev/setpoint: read/write, the temperature setpoint
+ * apps/babywarmer/dev/setpoint.cpp — /dev/setpoint, /dev/setpoint/raised
  *
- * cat /dev/setpoint          -> current value, e.g. "35.0\n"
- * echo 36.5 > /dev/setpoint  -> set directly, clamped to [SETPOINT_MIN, SETPOINT_MAX]
+ *   cat /dev/setpoint          the skin setpoint, e.g. "35.0"
+ *   echo 36.5 > /dev/setpoint  set it, within SETPOINT_MIN..MAX (30-39 C)
+ *   cat /dev/setpoint/raised   how many times it was raised by RAISE_C (2 C)
+ *                              or more
  *
- * No longer wired to the UP/DOWN buttons directly -- that used to be a
- * dedicated task_setpoint_buttons registered from main(), hardcoding
- * "UP/DOWN always adjusts the setpoint." Replaced by prog/adjust.cpp,
- * a generic program you run from the command line to decide what
- * UP/DOWN adjusts and under what condition, e.g.:
- *
- *   adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 &
- *
- * This device now only stores and clamps the value; it doesn't know or
- * care what's driving it.
- *
- * /dev/setpoint/raised (2026-11-24, TODO.md idea 3 step 5, from the
- * field-tested warmer.cpp, 2026-04-27): how many times the setpoint has
- * been raised by RAISE_C or more, counted when the nurse stops pressing
- * (EDIT_SETTLE_MS after the last change; one session of presses counts
- * as one change, from the value before the first). A raise that large
- * needs a real warm-up, not the PID's slow climb: prog/phase.cpp goes
- * back to boost, and the guard (dev/guard.cpp) watches it as a warm-up
- * again. A counter, not a flag, so both can see each raise without
- * taking it from the other.
- *
- * From picoos @ 89c16e5 (dev/setpoint.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * A raise counts when the presses stop (EDIT_SETTLE_MS, 5 s, after the
+ * last change), from the value before the first press. phase boosts again
+ * on it when the skin is far below, and the guard then watches the
+ * warm-up. A counter, so both see each raise without taking it from the
+ * other. UP/DOWN reach the setpoint through `adjust` in the boot script.
  */
 #include "kernel/fs.h"
 #include "pico/stdlib.h"

@@ -1,36 +1,16 @@
 /**
- * apps/babywarmer/dev/heater.cpp — /dev/heater: read/write, TPO heater power 0-100
+ * apps/babywarmer/dev/heater.cpp — /dev/heater: the heater power, 0-100 %
  *
- * write /dev/heater 25   -> heater_set_power(25.0), clamped [0,100]
- * write /dev/heater on   -> heater_set_power(100)   (alias)
- * write /dev/heater off  -> heater_set_power(0)      (alias)
- * cat /dev/heater        -> the power applied, e.g. "25.0\n" (since
- *                           2026-11-24 within the guard's say, see
- *                           /dev/heater/limit; before: the last write)
+ *   echo 25 > /dev/heater      ask for 25 % (on = 100, off = 0)
+ *   cat /dev/heater            the power applied: what was asked, within
+ *                              the guard's say (/dev/heater/limit)
+ *   cat /dev/heater/ssr        the SSR now and for how long: "on 1300"
+ *   cat /dev/heater/limit      "cap 80.0" (the jobs' power, at most that)
+ *                              or "set 39.0" (the guard's own power)
  *
- * on/off are just two more accepted spellings of the same 0-100 power
- * value (100 and 0), not a second mode -- still one write(), no side
- * channel -- so thresh/hyst's "on"/"off" output can drive this device
- * directly, same as it drives /dev/lamp/alarm/relay.
- *
- * This drives a real SSR and real heat output via tpo_apply() (heater.cpp),
- * which main() registers as a task on its own schedule -- writing here
- * takes effect on tpo_apply()'s next tick, not instantly. No safety
- * interlock beyond the 0-100 clamp: deliberately raw, matching the
- * rest of this experimental line.
- *
- * read() added so prog/monitor.cpp can show the actually-applied value
- * (heater_get_power(), heater.cpp) rather than /dev/pidout/percent's
- * own value -- those are what a *source* is computing, this is what's
- * really reaching the SSR right now, which can matter if a wiring
- * mistake leaves the two disagreeing.
- *
- * From picoos @ 89c16e5 (dev/heater.cpp). plan2040 (2026-11-21):
- * dev_heater_register() also sets up the bargraph PWM and registers the
- * "tpo" kernel task (100 ms) that applies the power, which picoos's
- * main() did; and /dev/heater/ssr (2026-11-23, see below); the rest
- * unchanged. The heater only really heats with the safety relay
- * energized too (/dev/relay on).
+ * The "tpo" kernel task (heater.cpp, every 100 ms) switches the SSR over a
+ * 15 s window and drives the bargraph. The heater only heats with the
+ * safety relay on too (/dev/relay, the guard's).
  */
 #include "board.h"
 #include "heater.h"
@@ -63,9 +43,7 @@ static int heater_write(const char *buf, int len)
     return len;
 }
 
-// /dev/heater/ssr (plan2040, 2026-11-23): read-only, the SSR right now and
-// how long it has been so, in ms: "on 1300" / "off 200". What the
-// heater-current check needs to judge a settled state (prog/alarmcheck).
+// /dev/heater/ssr: the guard's current check judges only a settled state.
 static int ssr_read(char *buf, int len)
 {
     uint32_t ms;
@@ -74,9 +52,7 @@ static int ssr_read(char *buf, int len)
 }
 static const device_t dev_heater_ssr = { "/dev/heater/ssr", 0, 0, ssr_read, 0 };
 
-// /dev/heater/limit (plan2040, 2026-11-24): read-only, the guard's say
-// (dev/guard.cpp): "cap 100.0" (the jobs' power, at most that), or
-// "set 39.0" (the guard's own power, whatever the jobs ask).
+// /dev/heater/limit: the guard's say.
 static int limit_read(char *buf, int len)
 {
     float v;

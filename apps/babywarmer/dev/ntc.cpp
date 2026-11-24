@@ -1,9 +1,8 @@
 /**
  * apps/babywarmer/dev/ntc.cpp — the NTC table in use, and /dev/ntc/
  *
- * Step 3g, decided with Leon 2026-11-24 (TODO.md idea 3). One table for
- * both NTCs (same sensor, same bridge), from ADS1115 code to temperature
- * (ntclut.h): /dev/skintemp and /dev/ambient look up there.
+ * One table for both NTCs (same sensor, same bridge), from ADS1115 code to
+ * temperature (ntclut.h): /dev/skintemp and /dev/ambient look up there.
  *
  *   /dev/ntc/lut     write: a calibration text (points, a bridge, an ntc
  *                    line, see ntclut.h), e.g. `cp /fram/ntc.pts /dev/ntc/lut`:
@@ -22,8 +21,8 @@
  * At boot it's loaded from the EEPROM (~6 KB, ~0.3 s, checksums checked);
  * when the EEPROM holds no valid table (empty, damaged, a write cut off,
  * or no EEPROM on the board), the built-in table is made from
- * NTCLUT_BUILTIN (the bridge and the MF58 datasheet curve): Leon's flash
- * fallback, said once on the console.
+ * NTCLUT_BUILTIN (the bridge and the MF58 datasheet curve), said once on
+ * the console.
  *
  * The EEPROM (24C512), from address 0:
  *     0  header, 64 bytes: "NTCL", version, step, entries, text length,

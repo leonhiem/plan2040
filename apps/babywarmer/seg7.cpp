@@ -1,8 +1,5 @@
 /**
- * apps/babywarmer/seg7.cpp — 7-segment/LED shift-register primitives
- *
- * From picoos @ 89c16e5 (display.cpp), unchanged apart from the
- * includes: pins from board.h, led_t and SEG_* from seg7.h.
+ * apps/babywarmer/seg7.cpp — the 74HC595 chain's shift-out (seg7.h)
  */
 #include "seg7.h"
 #include "board.h"
@@ -19,12 +16,6 @@
      byte 3 : digit_s3  (small display, least-significant digit)
      byte 2 : digit_s2  (small display, middle digit + dot)
      byte 1 : digit_s1  (small display, most-significant digit)
-
-   (Corrected 2026-08-15: this comment previously had significance
-   backwards -- caught when dev/seg7.cpp trusted it and displayed every
-   number reversed. The digl3/digs3-first argument order was always
-   correct on real hardware; only the "most/least-significant" labels
-   were swapped.)
 
    Timing: no sleep_ms() — gpio_put() on RP2040 takes ~50–100 ns
    through the SIO bus, well above the HC595's 25 ns data-setup
@@ -51,12 +42,9 @@ void update_7seg(uint8_t digl3, uint8_t digl2, uint8_t digl1, uint8_t dotl,
         ((uint64_t)(segs_lut[digs2]|dots)<< 16) |
         ((uint64_t)segs_lut[digs1]       <<  8);
 
-    /* Clock out 56 bits, MSB first.
-     * HC595s replaced 2026-08-10: counterfeit open-collector ICs swapped for
-     * genuine totem-pole parts, which no longer add their own inversion —
-     * so the bit is sent as-is now (was: !(...) to compensate for the
-     * counterfeits). This covers dotl/dots too, since they're packed into
-     * reg_seg above rather than going through segl_lut/segs_lut. */
+    /* Clock out 56 bits, MSB first, as-is: genuine totem-pole 74HC595s
+     * (the counterfeit open-collector ones fitted before 2026-08-10
+     * inverted, and warmer.cpp sends !bit for them). */
     for (int i = 0; i < 56; i++) {
         gpio_put(PIN_SEG_SER, (reg_seg & 0x8000000000000000ULL) != 0);
         reg_seg <<= 1;

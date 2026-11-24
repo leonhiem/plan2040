@@ -1,71 +1,52 @@
 /**
- * apps/babywarmer/dev/guard.cpp — the guard: all of the babywarmer's heater
- * safety in one kernel task, and /dev/guard
+ * apps/babywarmer/dev/guard.cpp — the guard: all of the heater's safety in
+ * one kernel task, and /dev/guard
  *
- * Decided with Leon 2026-11-24 (TODO.md idea 3, step 4). The control (the
- * warm-up phases, the PID, which power goes to the heater) stays in jobs:
- * visible, adjustable, replaceable from /fram/boot. The safety doesn't: it
- * is a kernel task, once a second, registered by this device itself, so
- * `kill` can't stop it and no boot script can leave it out.
+ * The control (phases, PID, which power goes to the heater) is jobs:
+ * visible, adjustable, replaceable from /fram/boot. The safety is this
+ * kernel task, once a second, registered by the device itself: `kill`
+ * can't stop it and no boot script can leave it out. It trusts only
+ * hardware facts and the user's intent (/dev/skintemp, ambient, current,
+ * heater/ssr, relay, setpoint, heaterauto, percent), never what a job
+ * computed (/dev/state, /dev/pidout): that is what it guards.
  *
- * It trusts only hardware facts and the user's intent: /dev/skintemp,
- * /dev/ambient, /dev/current, /dev/heater/ssr, /dev/relay, /dev/setpoint,
- * /dev/heaterauto, /dev/percent. Never what a job computed (/dev/state,
- * /dev/pidout): those are what it guards.
+ * /dev/guard, how far the skin reading can be trusted, with the reason:
  *
- * How much the skin reading can be trusted, in /dev/guard with the reason:
+ *   ok           the jobs' power, at most AUTO_CAP (80 %, boost's) in auto
+ *   safe: <why>  auto mode, the skin reading not usable: the guard heats
+ *                from the room temperature itself (safelut.h)
+ *   none: <why>  skin and room unreadable: manual at the room table's power
+ *                for the last room seen (else 10 %), UP/DOWN adjust it;
+ *                back to auto by itself when the sensors answer
  *
- *   ok                  the skin reading is used: the jobs' PID power, as asked
- *   safe: <why>         the skin reading isn't usable; the guard heats from the
- *                       room temperature itself (safelut.h), whatever the jobs
- *                       ask
- *   none: <why>         no temperature at all (skin and room both unreadable):
- *                       manual mode at a conservative % (the room table for the
- *                       last room temperature seen, else 10 %), UP/DOWN adjust
- *                       it; back to auto by itself when the sensors answer
- *
- * Why "safe" (auto mode only), Leon's two scenarios plus the hardware:
- *   - the sensor falls out while the baby is warm: the skin falls faster than
- *     a baby can (> 0.08 C/s for 3 s, more than 2 C below the setpoint), or
- *     stays more than 3 C below the setpoint for 20 s;
- *   - the sensor is out from the start: during warm-up the skin rises less
- *     than 0.3 C in 5 minutes (the field warmer's code meant 5, but a tick
- *     bug made it 50; Leon 2026-11-24, from the April field logs: at 100 %
- *     boost the 0.3 C came after ~2.5-3 min and a whole warm-up took
- *     3.5-5.5 min, so a longer window means more open-loop heat with the
- *     sensor out of the bed); a warm-up is auto switching on, or the
- *     setpoint raised by 2 C or more (/dev/setpoint/raised) with the skin
- *     more than 3 C below it (as phase boosts again);
+ * Why safe (the field warmer's watchdogs and numbers, plus the hardware):
+ *   - the sensor falls off a warm baby: the skin falls > 0.08 C/s for 3 s
+ *     while more than 2 C below the setpoint, or stays more than 3 C below
+ *     it for 20 s;
+ *   - the sensor is out from the start: less than 0.3 C rise in 5 minutes
+ *     of warm-up (auto switched on, or the setpoint raised 2 C or more with
+ *     the skin more than 3 C below it). The April 2026 field logs: the
+ *     0.3 C came after 2.5-3 min at 100 %; a longer window means more heat
+ *     with nothing watching the baby;
  *   - the skin reading fails (ADS1115 or NTC);
- *   - the control jobs are gone: in auto mode nothing has written /dev/heater
- *     for 10 s.
- * The first three are picoos's prog/phase.cpp watchdogs, the field
- * warmer's numbers (no-rise: see above).
- * Deliberately no cleverer "plausibility" checks (Leon: too many false
- * alarms, e.g. a ceiling fan makes the heater work harder). Known limit: a
- * sensor lying on the mattress under the heater warms up and isn't caught.
+ *   - the control jobs are gone: nothing wrote /dev/heater for 10 s.
+ * No cleverer plausibility checks: too many false alarms (a ceiling fan
+ * makes the heater work harder). Known limit: a sensor on the mattress
+ * under the heater warms up and isn't caught.
+ * Back to ok by itself: 2 minutes with the skin within 2 C of the setpoint
+ * (sensor causes), 5 s after the reading or the control is back (others).
  *
- * Back to ok by itself: after a sensor cause, when the skin has been within
- * 2 C of the setpoint for 2 minutes; after a hardware or control cause, when
- * the reading or the control has been back for 5 s.
+ * The decision acts at the heater: heater_guard() (heater.h), applied by
+ * tpo_apply() within 100 ms. Manual mode is the nurse's choice: hardware
+ * safety only.
  *
- * The guard's decision acts where the hardware is: heater_guard() (heater.h),
- * applied by tpo_apply() within 100 ms. In ok it's a cap: AUTO_CAP (80 %,
- * the most auto ever asks: boost; 2026-11-24) in auto, none in manual;
- * in safe and none the guard's own power. Manual mode (the nurse's choice):
- * hardware safety only, no power of the guard's own.
- *
- * Also here, from picoos's prog/alarmcheck.cpp (that job is gone): the
- * safety relay (off on overtemp, on when heating), the temperature alarms,
- * the heater-current check against the SSR's real state (2026-11-23), the
- * stuck SSR (relay held off until `echo off > /dev/alarm/heater` or a
- * reboot: Leon's exception), and the alarm files /dev/alarm/{heater,
- * temphigh,templow,sensor}, which the jobs alarm, ledwire, tftwire show.
- * The temperature alarms are the field warmer's (2026-11-24): high when
- * the skin is more than 2 C above the setpoint, low when it is more than
- * 2 C below the room. /dev/alarm/sensor also says when the room sensor is
- * down in ok (the PID then runs on the last feed-forward, then 30 %).
- * Now every second (alarmcheck: temperatures every 15 s).
+ * The hardware safety, in any mode: the relay (off when the skin is more
+ * than 3 C above the setpoint, on when heating); the heater current against
+ * the SSR's real state; a stuck SSR (relay held off until `echo off >
+ * /dev/alarm/heater` or a reboot). And the alarm files the jobs alarm,
+ * ledwire, tftwire show: heater, temphigh (skin > setpoint + 2 C), templow
+ * (skin < room - 2 C), sensor (the level's reason, or the room sensor down:
+ * the PID then runs on the last feed-forward, then 30 %).
  *
  * Each change of level is said once on the console:
  *   guard: safe: skin fell 2.4 C in 3 s (sensor off the baby?), heating 39 % from the room (24.0 C)
@@ -85,7 +66,7 @@
 
 #define GUARD_MS              1000
 
-// The watchdogs: picoos prog/phase.cpp's numbers.
+// The watchdogs (the field warmer's numbers).
 #define WARMUP_EXIT_MARGIN    3.0f   // warm-up ends when skin >= setpoint - this (phase's boost exit)
 #define NO_RISE_S             300    // 5 minutes of warm-up ...
 #define NO_RISE_MIN_DELTA     0.3f   // ... must raise the skin at least this
@@ -95,13 +76,13 @@
 #define LOW_MARGIN            3.0f   // more than this below the setpoint ...
 #define LOW_S                 20     // ... for this long
 #define RECOVER_MARGIN        2.0f   // back: within this of the setpoint ...
-#define RECOVER_S             120    // ... for 2 minutes (Leon, 2026-11-24)
+#define RECOVER_S             120    // ... for 2 minutes
 #define HW_RECOVER_S          5      // a reading or the control back this long
 #define CONTROL_DEAD_S        10     // auto mode, nobody writes /dev/heater
 #define NONE_DEFAULT_PERCENT  10.0f  // no room temperature ever seen
 #define AUTO_CAP              80.0f  // the backstop in auto: boost's 80 %, the most auto asks
 
-// picoos prog/alarmcheck.cpp's numbers.
+// The hardware safety.
 #define OVERTEMP_MARGIN       3.0f   // skin > setpoint + this -> relay off
 #define TEMPHIGH_MARGIN       2.0f   // skin > setpoint + this: alarm (warmer.cpp)
 #define TEMPLOW_MARGIN        2.0f   // skin < room - this: alarm (warmer.cpp)
@@ -227,7 +208,7 @@ static void power(void)
     }
 }
 
-// ---- the heater current (from alarmcheck, 2026-11-23) -----------------
+// ---- the heater current ------------------------------------------------
 
 static void current_check(bool overtemp)
 {
@@ -349,7 +330,7 @@ static void guard_task(void)
     have_prev = skin_ok;
     power();                                              // e.g. /dev/percent changed in none
 
-    // -- hardware safety (alarmcheck's) --
+    // -- hardware safety --
     bool overtemp = skin_ok && skin > sp + OVERTEMP_MARGIN;
     if (overtemp) write_str("/dev/relay", "off");
     else if (heater_get_power() > 0.0f && !stuck) write_str("/dev/relay", "on");

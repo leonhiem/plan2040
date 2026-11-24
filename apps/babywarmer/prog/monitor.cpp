@@ -1,40 +1,13 @@
 /**
- * apps/babywarmer/prog/monitor.cpp — monitor: one status line combining several
- * /dev/<name> readings, with a repeated column header every 10 lines
- *
- * A direct descendant of babywarmer's own hardcoded debug printf --
- * same idea (one glance at everything that matters), rebuilt as one
- * more program reading the same devices anyone else can `cat`,
- * instead of a printf wired straight to internal C structs. Meant to
- * run under the `watch` shell builtin (see shell.cpp), not
- * backgrounded with `&` -- a monitor is something you watch and then
- * stop watching, not a job left running unattended:
+ * apps/babywarmer/prog/monitor.cpp — monitor: the warmer's status in one line
  *
  *   watch 1000 monitor
  *
- * Since 2026-11-24 (TODO.md idea 3, step 5) the line is the field-tested
- * warmer.cpp's, column for column (state setp skin amb heat low high curr
- * fail warn pid_i pid_pm), plus ff (the feed-forward) at the end, so new
- * logs compare side by side with Leon's April 2026 field logs. warn is
- * the guard not ok (warmer.cpp: safe mode).
- *
- * Deliberately not a generic "print N devices" program -- like hyst's
- * heating-only polarity, this is specifically a warmer status line,
- * with its own fixed columns and a repeated header, same shape as the
- * babywarmer line it replaces. templow/temphigh/curr-fail/warn columns
- * from that original line are still gone -- there's no equivalent
- * device for any of them yet. phase/ambient/heat came back once
- * /dev/state, /dev/ambient, and a readable /dev/heater existed to
- * read them from. prev_meas stays gone -- it's still prog/pid.cpp's
- * private static, not a device (see its own header comment).
- *
- * Column header repeats every 10 lines (matches the original's
- * line_idx % 10), tracked as one more static counter -- same
- * documented "programs are supposed to be stateless filters, this one
- * deliberately isn't" exception as hyst's/pid's own state.
- *
- * From picoos @ 89c16e5 (prog/monitor.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * The field-tested warmer.cpp's telemetry line, column for column (state
+ * setp skin amb heat low high curr fail warn pid_i pid_pm), with ff (the
+ * feed-forward) added at the end, so logs compare side by side with the
+ * April 2026 field logs. warn is the guard not ok. The header line
+ * repeats every 10 lines, as warmer.cpp's did.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
@@ -126,9 +99,6 @@ static int monitor_run(const char *in, int inlen, int argc, char **argv, char *o
     }
     line_idx++;
 
-    // The same columns and format as warmer.cpp's line (LH20260427), so a
-    // log compares side by side with the April 2026 field logs; ff added
-    // at the end (the feed-forward pid used).
     int avail = outlen - pos;
     int n = snprintf(out + pos, avail,
         "[%s] %.1f %.1f %.1f %.1f   %d     %d   %d   %d   %d   %+.2f  %.2f  %.1f\n",

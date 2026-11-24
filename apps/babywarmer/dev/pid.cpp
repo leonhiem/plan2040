@@ -1,53 +1,18 @@
 /**
- * apps/babywarmer/dev/pid.cpp — /dev/pid/{kp,ti,td,dt,integral} and /dev/pidout
+ * apps/babywarmer/dev/pid.cpp — the PID's devices (prog/pid.cpp)
  *
- * The tunable parameters for prog/pid.cpp's control law, plus
- * /dev/pidout -- the device pid writes its computed output to (kept
- * separate from /dev/heater itself; see prog/follow.cpp for how
- * /dev/heaterauto picks whether pidout or /dev/percent actually
- * reaches the heater). Bundled in one file for the same reason
- * dev/seg7.cpp bundles /dev/leds with both seg7 displays: these are
- * one logical unit (one control loop's tunables), even though each is
- * its own device -- "different device names for different
- * functionality, not ioctl()."
+ *   /dev/pid/kp, ti, td, dt    tuning: 3.0 %/C, 200 s, 5 s, 1 s (warmer.cpp's,
+ *                              tuned in the field); ti and dt are kept > 0
+ *   /dev/pid/min, max, outmax  with a feed-forward: the PID's part within
+ *                              -35..+25 %, the total within 0..75 %
+ *   /dev/pid/integral          the integral term: watch it with cat;
+ *                              `echo 0 > /dev/pid/integral` resets windup
+ *   /dev/pid/prevmeas          the last measurement (for the derivative)
+ *   /dev/pid/bias              the feed-forward pid used last
+ *   /dev/pidout                pid's output, 0-100
  *
- * kp/ti/td/dt: read/write, same "just stores and clamps, doesn't know
- * what's driving it" shape as /dev/setpoint. Defaults are babywarmer's
- * hardware-tuned values (Kp=3.0 %/°C, TI=200s, TD=5s, DT=1s) -- see
- * prog/pid.cpp for the formula these feed. ti/dt are floored above
- * zero (not just clamped to it) because both land in a divisor in
- * that formula -- a literal 0 would blow up, not just misbehave.
- *
- * integral: read/write, exposes prog/pid.cpp's live integral term.
- * Useful for watching windup while tuning gains on real hardware, and
- * `echo 0 > /dev/pid/integral` is a genuine, useful "reset windup"
- * operation during tuning -- not a debug backdoor, just this state
- * living in the same namespace as everything else, same as any other
- * device.
- *
- * prevmeas: read/write, derivative-on-measurement's last-measurement
- * tracking. Promoted from a private C static in prog/pid.cpp to a real
- * device specifically because prog/phase.cpp's transition engine needs
- * to seed it (bumpless start into PID mode) at exactly the moment it
- * changes /dev/state -- state only pid.cpp itself used to touch, now
- * genuinely shared between the two, so it has to be a device, not a
- * hidden static one file can't reach from another.
- *
- * pidout: read/write, holds the PID's last computed output (0-100).
- * Written by prog/pid.cpp exactly like any other device write (plain
- * fs_write) -- nothing stops a human from writing it directly too,
- * which is harmless (follow only reads it once a second at most).
- *
- * min, max, outmax, bias (2026-11-24, TODO.md idea 3 step 5, the field
- * warmer's formula back): with a feed-forward (`pid ... /dev/ffpower`)
- * the PID's own part is clamped to min..max (-35..+25 %, warmer.cpp's
- * PID_OUT_MIN/MAX; the anti-windup works on that clamp), and the total,
- * bias + part, to 0..outmax (75 %, warmer.cpp's DUTY_MAX). bias is the
- * feed-forward pid used last (0 without one), for prog/phase.cpp's
- * bumpless seed.
- *
- * From picoos @ 89c16e5 (dev/pid.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * integral, prevmeas and bias are devices so prog/phase.cpp can seed the
+ * PID when it starts it.
  */
 #include "kernel/fs.h"
 #include <cstdio>
@@ -58,8 +23,8 @@
 #define TD_DEF   5.0f
 #define DT_DEF   1.0f
 
-#define TI_MIN   1.0f   // floor, not just a clamp -- Kp/TI divides by this
-#define DT_MIN   0.1f   // floor, not just a clamp -- .../DT divides by this
+#define TI_MIN   1.0f   // Kp/Ti divides by it
+#define DT_MIN   0.1f   // .../dt divides by it
 
 static float kp = KP_DEF;
 static float ti = TI_DEF;

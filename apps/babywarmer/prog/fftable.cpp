@@ -7,7 +7,7 @@
  * The twin of safelut, stateless and ungated the same way. When the room
  * sensor fails, `cat` fails and nothing is written: /dev/ffpower then
  * keeps the last value for 10 minutes, and gives 30 % after that
- * (dev/phase.cpp). Added 2026-11-24 (TODO.md idea 3, step 5).
+ * (dev/phase.cpp).
  */
 #include "kernel/prog.h"
 #include "kernel/errstr.h"

@@ -9,13 +9,13 @@
  * every 100 ms: ~1.3 % of the CPU in I2C transfers (tests/host/adctest).
  *
  * When the chip doesn't answer, the task waits 1 s before trying again
- * (so a broken bus can't slow the buttons, displays or console: Leon's
- * rule, 2026-11-23), and remembers why. A reading counts as fresh for
+ * (so a broken bus can't slow the buttons, displays or console), and
+ * remembers why. A reading counts as fresh for
  * 1.5 s, so one glitch never shows, and a dead chip shows within 1.5 s:
  * ntcadc_get() then fails, with the reason in errstr(). When the chip
  * answers again, readings are fresh within ~100 ms.
  *
- * Same conversion as picoos: differential, +-1.024 V, 128 SPS, one
+ * The conversion: differential, +-1.024 V, 128 SPS, one
  * conversion per value.
  */
 #pragma once

@@ -1,35 +1,23 @@
 /**
- * apps/babywarmer/prog/phase.cpp — phase: the warm-up sequence
+ * apps/babywarmer/prog/phase.cpp — phase: the warm-up sequence, in /dev/state
  *
- * Recovered in picoos from babywarmer's task_pidctrl() (the ControlState
- * switch statement), onto /dev/state instead of a C enum global. Once a
- * second (self-paced, like prog/pid.cpp):
+ * Once a second (the job runs every 150 ms):
  *
- *   idle   manual mode (/dev/heaterauto off); the moment auto is on: boost
- *   boost  80 % (the number lives in the boot script's `select`), until the
- *          skin reaches setpoint - BOOST_EXIT_MARGIN
- *   coast  0 % for COAST_TICKS seconds (lets the current settle after the
- *          big power step), then pid, seeding /dev/pid/integral at
- *          COAST_INTEGRAL_SEED (babywarmer's documented head-start)
- *   pid    prog/pid.cpp controls the skin temperature (feed-forward + PID);
- *          back to boost when the setpoint is raised by 2 C or more
- *          (/dev/setpoint/raised; warmer.cpp 2026-04-27: "large upward
- *          step -- skin needs active warmup") and the skin is more than
- *          BOOST_EXIT_MARGIN below the new setpoint (Leon, 2026-11-24:
- *          otherwise the field rule boosted not at all, only coasted 45 s
- *          at 0 % and restarted the PID from 3 %; now the PID keeps its
- *          integrator and climbs)
- *   safe   shown while the guard (dev/guard.cpp) says the skin reading
- *          can't be trusted (safe or none); the guard heats by itself then.
- *          When it says ok again: pid, bumpless (the integral seeded so the
- *          PID starts from the power in use; 2026-11-24, see below).
+ *   idle   manual mode; when auto goes on: boost
+ *   boost  80 % (the boot script's `select`) until the skin is within
+ *          BOOST_EXIT_MARGIN (3 C) of the setpoint, then coast
+ *   coast  0 % for COAST_TICKS (45 s), so the heat stored in the mattress
+ *          shows, then pid with the integral seeded at COAST_INTEGRAL_SEED
+ *          (3 %, on top of the feed-forward)
+ *   pid    the PID controls the skin. Back to boost when the setpoint is
+ *          raised by 2 C or more (/dev/setpoint/raised) and the skin is
+ *          more than 3 C below it; a smaller step the PID climbs itself.
+ *   safe   while the guard says the skin reading can't be trusted (it then
+ *          heats by itself). When it says ok: pid, seeded so the PID starts
+ *          from the power in use (bumpless).
  *
- * Changed 2026-11-24 (plan2040, TODO.md idea 3 step 4): the watchdogs that
- * decided "safe" (no rise in boost, a fast or sustained drop in pid, the
- * recovery margin) moved into the guard, a kernel task that can't be
- * killed; picoos had them here, in a job. This program now only sequences
- * the warm-up. From picoos @ 89c16e5 (prog/phase.cpp); the includes and
- * the register function's name changed 2026-11-22.
+ * The numbers are the field-tested warmer.cpp's. Whether the skin reading
+ * can be trusted is the guard's decision (dev/guard.cpp), not this job's.
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
@@ -134,9 +122,8 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
         return snprintf(out, outlen, "idle\n");
     }
 
-    // The guard (dev/guard.cpp) decides whether the skin reading can be
-    // trusted; while it says safe or none, /dev/state shows "safe" (the
-    // guard heats by itself meanwhile, whatever select/follow send).
+    // While the guard says safe or none, /dev/state shows "safe"; the
+    // guard heats by itself meanwhile.
     if (!guard_ok()) {
         set_state("safe");
         return snprintf(out, outlen, "safe (guard)\n");
@@ -175,17 +162,11 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
     }
 
     if (state_is("safe")) {
-        // The guard said ok again (checked above): back to the PID,
-        // bumpless (Leon, 2026-11-24): the integral is seeded so the PID's
-        // first output is the power heating the baby right now (the room
-        // table's, in safe), not 0. picoos seeded 0.0 ("a recovery, not a
-        // cold start"); bwsim showed the cost: the power dropped from 39 %
-        // to ~3 %, the baby cooled, and after a few minutes the guard
-        // called it "sensor off the baby" again, every ~10 minutes.
-        // output = bias + Kp * (setpoint - skin) + integral (+ D, 0 with
-        // prevmeas = skin), so integral = power - bias - Kp * (setpoint -
-        // skin), within the PID part's limits. The bias is the
-        // feed-forward pid used (/dev/pid/bias, 0 without one).
+        // The guard said ok again: back to the PID, bumpless. Its first
+        // output must be the power heating the baby now (seeding 0 let the
+        // baby cool and the guard call "sensor off" again). output = bias
+        // + Kp*(setpoint - skin) + integral (D is 0 with prevmeas = skin),
+        // so integral = power - bias - Kp*(setpoint - skin).
         float power = read_dev("/dev/heater", 0.0f);
         float kp    = read_dev("/dev/pid/kp", 3.0f);
         float bias  = read_dev("/dev/pid/bias", 0.0f);
@@ -199,9 +180,7 @@ static int phase_run(const char *in, int inlen, int argc, char **argv, char *out
         return snprintf(out, outlen, "-> pid (recovered, from %.0f %%)\n", power);
     }
 
-    // Unrecognized /dev/state content -- shouldn't happen (its own
-    // write() rejects anything outside the vocabulary), but land
-    // somewhere safe rather than getting stuck doing nothing.
+    // /dev/state refuses other words, so this can't happen; land in idle.
     set_state("idle");
     return snprintf(out, outlen, "-> idle (unknown state)\n");
 }

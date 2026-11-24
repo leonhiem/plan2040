@@ -1,95 +1,35 @@
 /**
- * apps/babywarmer/dev/tft.cpp — /dev/tft/<name>: ST7735 front-panel display
+ * apps/babywarmer/dev/tft.cpp — /dev/tft/<name>: the ST7735 front-panel display
  *
- * Mirrors dev/seg7.cpp's /dev/leds/<name> shape: independent
- * read/write devices sharing one piece of shadow state. Unlike
- * dev/seg7.cpp's shift register though, there's no shiftregister here
- * and no hardware reason to push a frame out synchronously on every
- * write -- /dev/tft/<name> writes here just land in the shadow fields below.
- * The display itself needs *continuous* redraws regardless of whether
- * anything changed (blink timing), so that's handled separately by
- * tft_flush_task(), registered directly with kernel/task.h in
- * dev_tft_register() (task_register("tftflush", ...), not a killable job slot)
- * -- see the header comment there for why it has to be a task and not
- * a job.
+ * Each device is a field of the screen's state; a write only stores it.
+ * The "tftflush" kernel task redraws every 20 ms (blinking needs redraws
+ * whether or not anything changed); a task, not a job, so `kill` can't
+ * freeze the screen. tftwire (a job) fills the fields from the warmer's
+ * devices.
  *
- * Same seven conditions bin/ledwire already drives into /dev/leds/<name>,
- * with `warm` dropped (redundant with heater's own color -- see
- * tft-picoos-integration-spec.md) and `heater` added (0-100, a
- * continuous value with no LED equivalent):
+ *   aut, man       auto / manual mode
+ *   chk            the guard not ok: SENSOR and warning icons blink
+ *   low, high, fail  the alarm conditions: warning and ALARM icons blink;
+ *                  fail also blinks the heater bar red/grey
+ *   heater         the heater bar, 0-100
+ *   apgar          on (re)starts the APGAR clock (the display edge-detects it)
+ *   mode           graphical (the warmer screen) or text (a 21x16 console)
+ *   seek           text mode: put the cursor on row 0-15
+ *   text           text mode: a line at the cursor, which then moves down
+ *                  (`echo Heater: 42 % > /dev/tft/text`)
+ *   clear          text mode: clear the screen, cursor home
  *
- *   aut/man  -- mirrors /dev/heaterauto (on/off)
- *   chk      -- on during /dev/state == safe
- *   low/high -- mirrors /dev/alarm/{templow,temphigh}
- *   fail     -- mirrors /dev/alarm/heater
- *   heater   -- mirrors /dev/heater (0-100)
- *
- * Plus one more, added 2026-08-28 alongside the display's new APGAR
- * clock:
- *
- *   apgar    -- raw forward of /dev/buttons/start (via prog/tftwire),
- *               not derived/computed here -- see the apgar_start note
- *               below.
- *
- * And four more, added 2026-08-29 alongside the display's new text
- * console mode (see tft-picoos-integration-spec.md and st7735's
- * HANDOFF.md):
- *
- *   mode  -- read/write "graphical"/"text", selects screen_mode.
- *            Persistent state, like aut/man/etc above -- not a
- *            one-shot command, so it gets a real read() (echoes the
- *            current mode) unlike the three below.
- *   seek  -- write a row number 0-15 (text_console.h's TEXT_ROWS),
- *            moves the text cursor there. write-only (0, seg7big-
- *            style), and rejected (-1) unless mode is currently
- *            "text" -- display.c already no-ops text commands in
- *            graphical mode internally (the whole TEXT_CMD_* dispatch
- *            in display_update() is gated on screen_mode==TEXT), this
- *            just makes that same rule visible at the write() call
- *            site instead of silently swallowing it one layer down.
- *   text  -- write a line; lands at the cursor row, which then
- *            auto-advances (display.c's own doing, mirrors a real
- *            file's write-advances-the-offset behavior -- seek is
- *            this device's lseek()). bin/echo already writes here via
- *            the shell's `>` redirect, e.g.
- *            `echo Heater: 42 % > /dev/tft/text`, no new plumbing
- *            needed. Same mode gating as seek.
- *   clear -- write anything, wipes the text screen and homes the
- *            cursor to row 0. Same mode gating as seek/text -- entering
- *            text mode from graphical already wipes+homes on its own
- *            (display.c), this is for clearing a stale screen without
- *            leaving text mode.
- *
- * The actual rendering lives entirely behind tft/display.h's blackbox
- * API (display_init()/display_update()) -- this file and prog/tftwire
- * are the only two picoos files that touch it, and neither ever reaches
- * past display.h into st7735.c/gfx.c/etc directly.
- *
- * fail's red<->grey rod blink: heat_indicator.c's heater_failed only
- * ever renders solid red, no blink of its own, and touching the
- * vendored driver files was deliberately avoided (see the integration
- * spec). So tft_flush_task alternates what it feeds in instead: on one
- * phase heater_failed=true (solid red), on the other heater_percent=0
- * with heater_failed=false (grey -- the same color the 0% stop already
- * uses), toggling on the same ~500ms period display.c's own
- * warning-icon blink uses internally. Approximate sync (two independent
- * timers), not pixel-exact -- good enough, per Leon. *
- * From picoos @ 89c16e5 (dev/tft.cpp). plan2040 (2026-11-23):
- * dev_tft_register() also starts the display (tft_init(): SPI, reset,
- * backlight on) and registers the "tftflush" kernel task (20 ms), which
- * picoos's main() did; the display code is apps/babywarmer/tft/ (a
- * blackbox copy of the st7735 repo, see its README); and a compile-time
- * check that st7735.h's pins are the board's. The rest unchanged.
+ * The drawing is tft/ (a blackbox copy of the st7735 repo, see its README),
+ * used only through display.h; this file and prog/tftwire are its only
+ * users. dev_tft_register() starts the display (SPI, reset, backlight)
+ * and checks at compile time that st7735.h's pins are the board's.
  */
 #include "board.h"
 #include "kernel/fs.h"
 #include "kernel/task.h"
 extern "C" {
 #include "tft/st7735.h"  // only for the pin check below
-#include "tft/display.h" // vendored C driver -- see tft/README.md; this
-                          // extern "C" is pure interop boilerplate (the
-                          // .c files link with C names, this file is
-                          // C++), not a change to the driver itself.
+#include "tft/display.h" // C, hence extern "C"
 }
 #include "pico/time.h"
 #include <cstdio>
@@ -106,16 +46,10 @@ static_assert(ST7735_SCK_PIN  == PIN_TFT_SCK  && ST7735_MOSI_PIN == PIN_TFT_MOSI
 static bool    aut = true, man = false, chk = false;
 static bool    low = false, high = false, fail = false;
 static uint8_t heater = 0;
-static bool    apgar = false; // raw button forward, not a condition --
-                               // display.c does its own rising-edge
-                               // detection (see tft_flush_task below),
-                               // so this can just be whatever tftwire
-                               // last wrote, on or off.
+static bool    apgar = false; // as tftwire wrote it; display.c edge-detects
 
-// Text console mode + command staging -- see the header comment's
-// mode/seek/text/clear entries. text_cmd/text_seq/text_row/text_line
-// mirror warmer_display_state_t.text's fields one-for-one (that struct
-// is anonymous in display.h, so it can't just be reused by name here).
+// The text console's pending command: the fields of display.h's (anonymous)
+// warmer_display_state_t.text, one for one.
 static display_mode_t screen_mode = DISPLAY_MODE_GRAPHICAL;
 static text_cmd_t     text_cmd    = TEXT_CMD_NONE;
 static uint32_t        text_seq   = 0;
@@ -126,14 +60,7 @@ static char             text_line[TEXT_COLS + 1] = "";
 static bool            fail_blink_phase = false;
 static absolute_time_t fail_blink_next;
 
-/* ═══════════════════════════════════════════════════
-   /dev/tft/<name> -- twelve independent devices, one per shadow field,
-   same idea (and same hand-duplication tradeoff, fine at twelve) as
-   dev/seg7.cpp's /dev/leds/<name>. mode/seek/text/clear (added
-   2026-08-29) are the odd ones out: not simple on/off/numeric fields
-   but a small state machine mirroring display.h's text_cmd_t -- see
-   the header comment above.
-   ═══════════════════════════════════════════════════ */
+// ---- the twelve devices --------------------------------------------------
 static int bool_read(bool v, char *buf, int len)
 {
     return snprintf(buf, len, v ? "on\n" : "off\n");
@@ -187,12 +114,8 @@ static int mode_write(const char *buf, int len)
     return -1;
 }
 
-// seek/text/clear are write-only commands (0 for read, seg7big-style)
-// and only make sense once mode is "text" -- display.c already no-ops
-// TEXT_CMD_* while screen_mode is graphical (the whole dispatch block
-// in display_update() is gated on it), so rejecting here just surfaces
-// that same rule at the write() call site instead of silently
-// swallowing it a layer down.
+// seek, text, clear: write-only, and refused unless mode is "text"
+// (display.c would ignore them silently).
 static int seek_write(const char *buf, int len)
 {
     if (screen_mode != DISPLAY_MODE_TEXT) return -1;
@@ -205,11 +128,7 @@ static int seek_write(const char *buf, int len)
     return len;
 }
 
-// Mirrors a real file's write-advances-the-offset behavior: the cursor
-// this lands at auto-advances afterward (display.c's doing, not
-// tracked here) -- seek above is this device's lseek(). bin/echo
-// already writes here via the shell's `>` redirect with no new
-// plumbing, e.g. `echo Heater: 42 % > /dev/tft/text`.
+// A line at the cursor; display.c moves the cursor down.
 static int text_write(const char *buf, int len)
 {
     if (screen_mode != DISPLAY_MODE_TEXT) return -1;
@@ -228,10 +147,7 @@ static int text_read(char *buf, int len)
     return snprintf(buf, len, "%s\n", text_line);
 }
 
-// Wipes the text screen and homes the cursor without leaving text mode
-// (entering text mode from graphical already does both on its own, in
-// display.c). Argument ignored -- any write fires it, same as
-// dev/seg7.cpp's whole-panel writes take a fixed shape, not a value.
+// Any write clears the text screen and homes the cursor.
 static int clear_write(const char *buf, int len)
 {
     (void)buf;
@@ -260,8 +176,7 @@ static void tft_flush_task(void);
 void dev_tft_register(void)
 {
     tft_init();
-    task_register("tftflush", tft_flush_task, 20); // redraw/blink: a task, not a job, so `kill`
-        // can't stop it (picoos's main() registered it; see the header comment)
+    task_register("tftflush", tft_flush_task, 20);   // a task: `kill` can't freeze the screen
     fs_register(&dev_tft_aut);
     fs_register(&dev_tft_man);
     fs_register(&dev_tft_chk);
@@ -276,20 +191,14 @@ void dev_tft_register(void)
     fs_register(&dev_tft_clear);
 }
 
-/* One-time hardware bring-up (SPI, GPIOs, panel init sequence) --
- * called once from dev_tft_register(), before the /dev/tft/<name>
- * devices above are ever written to. Blocks for ~0.5s (the panel reset
- * sequence) -- fine at boot. */
+// SPI, GPIOs, the panel's init sequence; ~0.5 s, at boot only.
 static void tft_init(void)
 {
     display_init();
     fail_blink_next = make_timeout_time_ms(FAIL_BLINK_MS);
 }
 
-/* Registered as a kernel task (task_register), not a job -- runs
- * unconditionally from boot, immune to `kill`, so the display keeps
- * animating even if bin/tftwire (the job that actually updates the
- * shadow state above) gets killed. */
+// Every 20 ms: hand the fields to display.c, which redraws what changed.
 static void tft_flush_task(void)
 {
     if (absolute_time_diff_us(get_absolute_time(), fail_blink_next) < 0) {
@@ -302,15 +211,11 @@ static void tft_flush_task(void)
 
     state.mode = aut ? MODE_AUTO : MODE_MANUAL;
 
-    // chk (safe-mode/sensor concern) blinks the SENSOR + FAIL(warning)
-    // icons together -- both driven off display.c's own warning-blink
-    // timer internally.
+    // chk: SENSOR and warning icons blink (display.c's blink timer).
     state.sensor_connected = !chk;
     state.warning          = chk;
 
-    // low/high/fail all read as one alarm condition to the display:
-    // FAIL(warning) + ALARM icons blink together for any of the three
-    // -- see dev/alarmcheck.cpp for how they combine upstream.
+    // low, high, fail: one alarm to the display (warning + ALARM icons).
     bool any_fault = low || high || fail;
     state.warning |= any_fault;
     state.alarm    = any_fault;
@@ -328,19 +233,11 @@ static void tft_flush_task(void)
     }
     state.heater_on = state.heater_percent > 0;
 
-    // Raw forward -- display.c owns the APGAR clock entirely (tracks
-    // elapsed time, derives MM:SS and the checkpoint-flash window
-    // itself). It does its own rising-edge detection against its
-    // last-seen apgar_start, so passing the current level here (true
-    // while tftwire has it set, false once it clears) is enough to
-    // (re)start the clock exactly once per button press.
+    // display.c owns the APGAR clock; it starts it on a rising edge.
     state.apgar_start = apgar;
 
-    // Text console: screen_mode and the four text_* fields are staged
-    // directly by mode/seek/text/clear's write() handlers above (no
-    // derived/computed values here, same "raw forward" spirit as
-    // apgar_start) -- display.c edge-detects text.seq the same way it
-    // already does apgar_start.
+    // The text console's command, as staged by the writes above;
+    // display.c acts on a new text.seq.
     state.screen_mode = screen_mode;
     state.text.cmd    = text_cmd;
     state.text.seq    = text_seq;

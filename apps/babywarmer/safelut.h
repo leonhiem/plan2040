@@ -1,12 +1,11 @@
 /**
- * apps/babywarmer/safelut.h — the heater power that keeps a baby warm at a
- * given room temperature, without a skin reading (safe mode)
+ * apps/babywarmer/safelut.h — the safe mode's heater power for a room
+ * temperature: the field warmer's safe_ff_table, interpolated, at most
+ * DUTY_SAFE_CAP (55 %)
  *
- * babywarmer's own safe_ff_table (heater.cpp's safe_feedforward(),
- * recovered verbatim in picoos's prog/safelut.cpp), interpolated
- * linearly, capped at DUTY_SAFE_CAP (55 %). Shared since 2026-11-24 by
- * the `safelut` program and the guard (dev/guard.cpp), which must not
- * depend on a job for its fallback power.
+ * Used by the guard (dev/guard.cpp) when the skin reading can't be trusted,
+ * and by the `safelut` program for a look from the shell. room_lookup() is
+ * the interpolation fftable.h uses too.
  */
 #pragma once
 

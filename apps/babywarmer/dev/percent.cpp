@@ -1,28 +1,18 @@
 /**
- * apps/babywarmer/dev/percent.cpp — /dev/percent: read/write, manual heater power 0-80
+ * apps/babywarmer/dev/percent.cpp — /dev/percent: the manual heater power
  *
- * cat /dev/percent          -> current value, e.g. "10.0\n"
- * echo 25 > /dev/percent    -> set directly, clamped to [0, 80] (the field warmer's manual maximum)
+ *   echo 25 > /dev/percent    set it, within 0-80 % (the field warmer's maximum)
  *
- * The manual-mode counterpart to /dev/setpoint -- same shape, same
- * "doesn't know what's driving it" philosophy. Meant to be adjusted by
- * UP/DOWN via prog/adjust.cpp when /dev/heaterauto is off, e.g.:
- *
- *   adjust /dev/heaterauto /dev/setpoint /dev/percent 0.5 &
- *
- * Doesn't drive /dev/heater by itself -- that wiring (manual mode ->
- * /dev/percent's value actually becomes heaterpower) is a separate,
- * later step, same as /dev/heaterauto not yet driving anything either.
- *
- * From picoos @ 89c16e5 (dev/percent.cpp), unchanged apart from the includes
- * and the register function's name (2026-11-22).
+ * 10 % at boot and on every switch to manual (dev/heaterauto.cpp). UP/DOWN
+ * step it by 5 % in manual (`adjust` in the boot script); `follow` sends it
+ * to the heater while /dev/heaterauto is off.
  */
 #include "kernel/fs.h"
 #include <cstdio>
 #include <cstdlib>
 
 #define PERCENT_DEF 10.0f // matches the original warmer's manual-mode default
-#define PERCENT_MAX 80.0f // the field warmer's manual maximum (2026-11-24, step 5)
+#define PERCENT_MAX 80.0f // the field warmer's manual maximum
 
 static float percent = PERCENT_DEF;
 
