@@ -772,6 +772,11 @@ Order, one commit each, tested on the PC and then the board:
     /dev/ffpower, /dev/pid/{dt,prevmeas,bias}. Jobs 13 -> 10; control +
     safety code 1682 -> 1446 lines. bwsim: every guard and alarm event at
     the same second as before.
+    **Point 2 done 2026-11-24:** the guard keeps its own idea of the
+    warm-up on purpose (it must not trust /dev/state, a job's), but the
+    numbers both use are in one header, `apps/babywarmer/warmup.h`: the
+    boost power (80 %, also the guard's cap in auto) and the boost exit
+    (3 C). The 2 C raise was already in one place (dev/setpoint.cpp).
     **Gaps, in order (to discuss):** (a) setpoint steps 0.1 or 0.2 C;
     (b) a manual-mode check timer; (c) deviation alarms relative to the
     setpoint (+-1 / +-2 C); (d) the setpoint range (34-37.5, more only on

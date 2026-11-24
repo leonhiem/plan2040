@@ -58,6 +58,7 @@
 #include "kernel/errstr.h"
 #include "heater.h"
 #include "safelut.h"
+#include "warmup.h"
 #include "pico/stdlib.h"
 #include <cstdarg>
 #include <cstdio>
@@ -67,7 +68,6 @@
 #define GUARD_MS              1000
 
 // The watchdogs (the field warmer's numbers).
-#define WARMUP_EXIT_MARGIN    3.0f   // warm-up ends when skin >= setpoint - this (warmer's boost exit)
 #define NO_RISE_S             300    // 5 minutes of warm-up ...
 #define NO_RISE_MIN_DELTA     0.3f   // ... must raise the skin at least this
 #define DROP_RATE             0.08f  // C per second
@@ -80,7 +80,7 @@
 #define HW_RECOVER_S          5      // a reading or the control back this long
 #define CONTROL_DEAD_S        10     // auto mode, nobody writes /dev/heater
 #define NONE_DEFAULT_PERCENT  10.0f  // no room temperature ever seen
-#define AUTO_CAP              80.0f  // the backstop in auto: boost's 80 %, the most auto asks
+#define AUTO_CAP              WARMUP_POWER  // the backstop in auto: the most auto asks
 
 // The hardware safety.
 #define OVERTEMP_MARGIN       3.0f   // skin > setpoint + this -> relay off
@@ -294,10 +294,10 @@ static void guard_task(void)
         } else if (level == G_SAFE && cause == C_CONTROL) {
             if (++back_s >= HW_RECOVER_S) set_level(G_OK, C_SENSOR, "control jobs running again");
         } else if (level == G_OK) {
-            if (reboost && !warming && skin < sp - WARMUP_EXIT_MARGIN) start_warmup(skin);   // warmer boosts again
+            if (reboost && !warming && skin < sp - WARMUP_EXIT_C) start_warmup(skin);   // warmer boosts again
             if (warming) {
                 warm_s++;
-                if (skin >= sp - WARMUP_EXIT_MARGIN) warming = false;
+                if (skin >= sp - WARMUP_EXIT_C) warming = false;
                 else if (warm_s >= NO_RISE_S) {
                     if (skin - warm_start_skin < NO_RISE_MIN_DELTA)
                         set_level(G_SAFE, C_SENSOR, "skin rose only %.1f C in 5 min of warm-up (sensor off the baby?)",

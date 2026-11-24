@@ -36,13 +36,12 @@
 #include "kernel/prog.h"
 #include "kernel/fs.h"
 #include "fftable.h"
+#include "warmup.h"
 #include "pico/stdlib.h"
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#define BOOST_POWER       80.0f
-#define BOOST_EXIT        3.0f      // boost until skin >= setpoint - this
 #define COAST_S           45
 #define COAST_SEED        3.0f      // the integral after coast, on top of ff
 #define DT                1.0f      // seconds per step
@@ -166,11 +165,11 @@ static void step(void)
     } else switch (state) {
     case IDLE:
         set_state(BOOST);
-        power = BOOST_POWER;
+        power = WARMUP_POWER;
         break;
     case BOOST:
-        if (skin_ok && skin >= sp - BOOST_EXIT) { set_state(COAST); coast_s = 0; power = 0.0f; }
-        else power = BOOST_POWER;
+        if (skin_ok && skin >= sp - WARMUP_EXIT_C) { set_state(COAST); coast_s = 0; power = 0.0f; }
+        else power = WARMUP_POWER;
         break;
     case COAST:
         power = 0.0f;
@@ -184,7 +183,7 @@ static void step(void)
         if (skin_ok) { pid_start_from(power, sp, skin, lo, hi); set_state(PID); }
         break;
     case PID:
-        if (reboost && skin_ok && skin < sp - BOOST_EXIT) { set_state(BOOST); power = BOOST_POWER; }
+        if (reboost && skin_ok && skin < sp - WARMUP_EXIT_C) { set_state(BOOST); power = WARMUP_POWER; }
         else if (skin_ok) power = pid_step(sp, skin, lo, hi, outmax);
         break;                                           // skin unreadable: power held
     }
