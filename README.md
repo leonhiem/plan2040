@@ -1948,7 +1948,7 @@ GPIOs are the tightest resource. babywarmer + TFT on this board:
 | GPIO | Use |
 |---|---|
 | 0, 1 | buzzer, alarm LED |
-| 2, 7, 8, 9, 28, 29 | buttons |
+| 2, 7, 8, 9, 10, 27 | buttons (START 10, LAMP 27; on the babywarmer PCB 28, 29) |
 | 3, 4, 5 | 7-segment shift register |
 | 6 | lamp |
 | 11, 16, 17 | SSR, bargraph PWM, safety relay |
@@ -1956,10 +1956,12 @@ GPIOs are the tightest resource. babywarmer + TFT on this board:
 | 14, 15 | RTC + FRAM I2C, local to this board, not on the headers |
 | 20–25 | TFT (LED, RST, SCK, MOSI, DC, CS) |
 | 26 | current-sense ADC |
-| **10, 18, 19, 27** | **free** |
+| 28, 29 | kept free for the 9P UART to other boards (UART0 TX 28, RX 29) |
+| **18, 19** | **free** |
 
-26 of 30 used. The pin assignments for the buttons, TFT, heater and
-7-segment stay exactly as on babywarmer: cpu_rp2040 becomes the daughter
+26 of 30 used, 28 with the UART. The pin assignments for the buttons (but START and LAMP, moved
+2026-11-25 to keep GPIO28/29 for the UART), TFT, heater and
+7-segment stay as on babywarmer: cpu_rp2040 becomes the daughter
 board of the next babywarmer PCB, which carries those parts. The
 ADS1115 gets its own bus on GPIO12/13 (exported on the headers); the
 RTC/FRAM bus on GPIO14/15 is local to this board and not exported.

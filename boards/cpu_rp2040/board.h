@@ -10,7 +10,9 @@
  * CD4093/CD4013 on/off logic (pure hardware, no GPIO involved), USB,
  * plus a PCF8563T RTC and an FM24CL64B FRAM sharing one I2C bus.
  *
- * Button and LED GPIOs match the babywarmer board (../picoos/warmer.h).
+ * Button and LED GPIOs match the babywarmer board (../picoos/warmer.h),
+ * except START and LAMP (2026-11-25): GPIO28/29 stay free for the 9P UART
+ * to other boards (UART0 TX 28, RX 29).
  */
 #pragma once
 
@@ -77,13 +79,14 @@
 #define PIN_LAMP           6
 #define PIN_LAMP_ON        0
 
-// Push buttons, active low, internal pull-ups.
+// Push buttons, active low, internal pull-ups. START and LAMP were on
+// GPIO28/29 (the babywarmer PCB's); moved for the 9P UART, which needs those.
 #define BUTTON_PIN_MUTE    2
 #define BUTTON_PIN_UP      7
 #define BUTTON_PIN_DOWN    8
 #define BUTTON_PIN_MANUAL  9
-#define BUTTON_PIN_START  28
-#define BUTTON_PIN_LAMP   29
+#define BUTTON_PIN_START  10
+#define BUTTON_PIN_LAMP   27
 
 // boards/cpu_rp2040/board.cpp. Every board has these three:
 void board_init(void);       // plan2040: board_pins_init(), board_i2c_init(), buttons_init()

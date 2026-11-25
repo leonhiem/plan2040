@@ -1199,7 +1199,8 @@ controller, 7.5× the pixels, plus a touchscreen. Doable; notes:
 
   Two clean ways, for the breadboard to settle:
   - **Touch on its own bus, SPI1**: MISO on GPIO 28 (or 8), SCK on
-    GPIO 10 (free), MOSI on GPIO 27 (free), CS and IRQ on two other
+    GPIO 10, MOSI on GPIO 27 (free then; since 2026-11-25 START and
+    LAMP, and 28/29 kept for the 9P UART: to redo), CS and IRQ on two other
     button pins. The XPT2046 wants a slow clock (~2 MHz) and the display
     a fast one (40+ MHz); separate buses mean no switching speeds
     between them, and display DMA never blocks a touch read.

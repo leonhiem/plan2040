@@ -89,10 +89,11 @@
 #define BUTTON_PIN_UP      7
 #define BUTTON_PIN_DOWN    8
 #define BUTTON_PIN_MANUAL  9
-#define BUTTON_PIN_START  28
-#define BUTTON_PIN_LAMP   29
+#define BUTTON_PIN_START  10   // was 28 on the babywarmer PCB: wired over
+#define BUTTON_PIN_LAMP   27   // was 29 on the babywarmer PCB: wired over
 
-// GPIO 10, 18, 19, 27: free.
+// GPIO 18, 19: free. GPIO 28, 29: kept free for the 9P UART to other
+// boards (UART0 TX 28, RX 29).
 
 // boards/babywarmer_v1/board.cpp
 void board_init(void);       // plan2040: board_pins_init(), board_i2c_init(), buttons_init()
