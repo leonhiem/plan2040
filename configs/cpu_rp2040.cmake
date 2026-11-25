@@ -27,6 +27,8 @@ set(PLAN2040_DEVS
     hours        # power-on hours, from the FRAM's system area
     cron         # runs /fram/crontab lines, on the RTC's minutes
     cons         # /dev/cons: write to the terminal
+    sysname      # /dev/sysname: this board's name, from /fram/sysname
+    eia          # /dev/eia0, /dev/eia0ctl: UART0, the link to another board
 )
 
 set(PLAN2040_PROGS
@@ -40,8 +42,8 @@ set(PLAN2040_SCRIPTS boot)
 
 # Other sources the devices above need.
 set(PLAN2040_FS      framfs hours)               # fs/<name>.cpp
-set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons)   # drivers/<name>.cpp
-set(PLAN2040_LIBS    hardware_i2c hardware_adc hardware_gpio)
+set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons eia)   # drivers/<name>.cpp
+set(PLAN2040_LIBS    hardware_i2c hardware_adc hardware_gpio hardware_uart pico_unique_id)
 
 # Sizes (defaults in the headers; listed here so a smaller board can
 # shrink them). RAM: job slots ~260 bytes each, pipe buffers 2 x STAGE_BUF.

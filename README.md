@@ -159,6 +159,38 @@ Two firmwares come out of one build:
 The PC tests: `make -C tests/host check` (see
 [`tests/host/README.md`](tests/host/README.md)).
 
+### Several boards on one PC: fixed names for their consoles
+
+Each board's USB serial console is `/dev/ttyACM0`, `ttyACM1`, ... in the
+order the boards come up, so after a restart two boards can swap
+numbers and the terminal talks to the wrong one (seen 2026-11-25 with
+two boards joined by `/dev/eia0`). Every board has its own USB serial
+number (the flash chip's unique ID; its last 4 hex digits are the
+board's fallback `/dev/sysname`), so:
+
+```sh
+ls -l /dev/serial/by-id/          # usb-Raspberry_Pi_Pico_<serial>-if00 -> ../../ttyACMn
+```
+
+and a udev rule gives each board a name of its own, here for the two 9P
+test boards (`alpha`, `beta`):
+
+```
+# /etc/udev/rules.d/99-plan2040.rules
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{serial}=="E665B8388773B729", SYMLINK+="alpha"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2e8a", ATTRS{serial}=="E665B83887439A27", SYMLINK+="beta"
+```
+
+```sh
+sudo udevadm control --reload-rules && sudo udevadm trigger
+minicom -D /dev/alpha             # or: tio /dev/alpha
+```
+
+`2e8a` is Raspberry Pi's USB vendor ID. In BOOTSEL mode the name is
+gone (the board is a USB drive then) and comes back when it boots.
+minicom drops the connection when a board restarts; `tio` reconnects by
+itself.
+
 ## Source tree and configs
 
 One tree for every board and every firmware (TODO.md idea 3, restructured
@@ -539,6 +571,9 @@ the LAMP button to the lamp output, as on babywarmer
 | `/dev/uptime` | read | Seconds since boot. |
 | `/dev/cputemp` | read | RP2040 die temperature, °C (rough, a few degrees). Each read averages 16 ADC samples. |
 | `/dev/reboot` | write | `now` reboots, `bootsel` reboots into the USB bootloader. |
+| `/dev/sysname` | read | This board's name: the first word of `/fram/sysname` (`echo alpha > /fram/sysname`), else `rp-` and the last 4 hex digits of the flash's unique ID (the USB serial number). Other boards will find it as `/n/<name>` over 9P. |
+| `/dev/eia0` | read/write | UART0, the link to another board (TX GPIO28, RX 29, CTS 18, RTS 19, crossed; 1 Mbaud, RTS/CTS on). Write: sends the bytes. Read: what has arrived since the last read, never waits (`cat /dev/eia0 > /dev/cons &` shows it as it comes). Plan 9's name for a serial port. |
+| `/dev/eia0ctl` | read/write | Read: `b1000000 m1 cts on rx … tx … overrun … framing … break … dropped …`. Write `b<speed>` (both boards the same) or `m1`/`m0` (flow control on/off). |
 | `/fram/<name>` | read/write | Files on the FRAM, see [Files on the FRAM](#files-on-the-fram-fram). |
 | `/dev/fram` | read | The raw FRAM chip, all 8 KB, filesystem structures included. Read-only. Use `hexdump`. |
 | `/dev/mem` | read | RP2040 memory by address (offset = address): boot ROM `0x0`, flash `0x10000000`, RAM `0x20000000`. Anything else is refused (no crash). Read-only. Use `hexdump`. |
@@ -1888,6 +1923,22 @@ collapsing, `-s`/`-n`, the `-- more:` hint, edge cases). On the board:
 | `hexdump -s 0x30000000 /dev/mem`: refused with `read error`, no crash | ok: `hexdump: read error at 0x30000000`, prompt back, board keeps running |
 | A dump too long for one screen ends with `-- more:` | ok: `hexdump -s 0x10000000 /dev/mem` stops after 58 lines (a `*` saved room) with `-- more: hexdump -s 0x100003a0 /dev/mem`. Along the way: boot2's CRC32 in its last 4 bytes (`0x100000fc`: `74 b2 4e 7a`), the vector table at `0x10000100` (same as the RAM copy), the SDK's binary-info marker `0x7188ebf2` at `0x100001d4` |
 | STAGE_BUF 1 KB → 4 KB: `ls` and friends unchanged | ok: `ls` complete (16 devices, `/fram/`, 21 programs) |
+
+**2026-11-25, the link between two boards, 9P steps 0 and 1** (branch
+`9p`, two bare cpu_rp2040 boards, `alpha` and `beta`, UART0 crossed:
+TX 28 -> RX 29, RTS 19 -> CTS 18, both ways, plus GND):
+
+| Test | Result |
+|---|---|
+| `echo alpha > /fram/sysname`, `echo beta > /fram/sysname`, then `cat /dev/sysname` on both | ok: `alpha`, `beta` |
+| `cat /dev/eia0ctl` on both | ok: `b1000000 m1 cts on`; no framing errors, no overruns |
+| beta `echo hello > /dev/eia0`, alpha `cat /dev/eia0` | ok: `hello`, after one stray byte (below) |
+| alpha `cat /dev/eia0 > /dev/cons &`, beta `echo hi from beta > /dev/eia0` | ok: appears on alpha's terminal at once |
+| alpha `echo hello > /dev/eia0`, beta `cat /dev/eia0` | ok: the other way too |
+| first flow-control try: beta `hexdump /dev/fram > /dev/eia0` | not a test: a fresh FRAM is mostly zeros, `hexdump` collapses them (`*`), only 1915 bytes, which fit alpha's 2 KB buffer |
+| flow control: alpha not reading, beta `hexdump -n 2048 /dev/mem > /dev/eia0` (~4 KB) | ok: alpha took exactly its buffer (rx +2048 + a few), `overrun 0 dropped 0`; beta stopped and said so. **Bug**: the reason was cut off (`... not connected, not powered`): errstr holds 96 characters, the path included. Shortened to `CTS off: other board not reading, off or unwired; N of M sent` (retest pending) |
+| a stray byte (`?hello`) on alpha, `break 1` on beta at boot | expected, from hardware: while a board resets (or sits in BOOTSEL), its TX pin is an input with the RP2040's ~50 kΩ pull-down, against the receiver's ~50 kΩ pull-up: the line floats at half supply and reads as garbage or a break. Fix on the next board: a 10 kΩ pull-up to 3V3 on each RX. The 9P framing drops such bytes anyway (no frame, bad CRC) |
+| beta often didn't power on (USB serial missing, several tries) | **back-powering**: with only alpha on, beta's +3V3 rail measured **2.14 V**, fed by alpha's TX and RTS through beta's pin protection diodes (an RP2040 pin isn't fail-safe), so beta started from a half-powered rail. Without the UART wires (GND only) power cycling behaves. Fix on the bench: ~1 kΩ in series in each TX and RTS wire (re-measure); next board: 74LVC1G17-type buffers (Ioff) on RX/CTS, or the RP2350, whose pins are fail-safe |
 
 ## `bringup` — board test
 

@@ -88,6 +88,30 @@
 #define BUTTON_PIN_START  10
 #define BUTTON_PIN_LAMP   27
 
+// UART0: the link to another board, /dev/eia0 (drivers/eia.cpp), for 9P
+// later (decided 2026-11-24, plan2040_ideas/IDEAS.md section 1). Crossed
+// to the other board, a null modem: TX -> RX, RTS -> CTS both ways, plus
+// GND. RTS/CTS let the receiver stop the sender in hardware when it can't
+// keep up. CTS and RX get the internal pull-up, so a loose wire reads as
+// "idle" and "not clear to send" rather than noise.
+//
+// LESSON (2026-11-25): while the other board resets (or sits in BOOTSEL),
+// its TX pin is an input with the RP2040's ~50k pull-down, against our
+// ~50k pull-up: the line floats at half supply and reads as a stray byte
+// or a break. Next board: a 10k pull-up to 3V3 on each RX (and CTS), and
+// ~1k in series with each TX (and RTS): an RP2040 pin isn't fail-safe,
+// so a TX driving an unpowered board would feed it through its ESD diode
+// (the +5V LED lesson again); 1k keeps that to a few mA, and at 1 Mbaud
+// (1 us a bit) its RC with the wire's capacitance is far too small to
+// matter. Not needed on the bench: both boards power up together.
+#define EIA0_UART          uart0
+#define EIA0_NAME          "UART0"
+#define EIA0_PIN_TX        28
+#define EIA0_PIN_RX        29
+#define EIA0_PIN_CTS       18
+#define EIA0_PIN_RTS       19
+#define EIA0_BAUD          1000000   // exact: 125 MHz / (16 x 7.8125)
+
 // boards/cpu_rp2040/board.cpp. Every board has these three:
 void board_init(void);       // plan2040: board_pins_init(), board_i2c_init(), buttons_init()
 void board_pins_init(void);  // every output configured and off (bringup uses this too)
