@@ -574,6 +574,7 @@ the LAMP button to the lamp output, as on babywarmer
 | `/dev/sysname` | read | This board's name: the first word of `/fram/sysname` (`echo alpha > /fram/sysname`), else `rp-` and the last 4 hex digits of the flash's unique ID (the USB serial number). Other boards will find it as `/n/<name>` over 9P. |
 | `/dev/eia0` | read/write | UART0, the link to another board (TX GPIO28, RX 29, CTS 18, RTS 19, crossed; 1 Mbaud, RTS/CTS on). Write: sends the bytes. Read: what has arrived since the last read, never waits (`cat /dev/eia0 > /dev/cons &` shows it as it comes). Plan 9's name for a serial port. |
 | `/dev/eia0ctl` | read/write | Read: `b1000000 m1 cts on rx … tx … overrun … framing … break … dropped …`. Write `b<speed>` (both boards the same) or `m1`/`m0` (flow control on/off). |
+| `/dev/9p` | read | 9P between boards: whether this board serves (`serve`), what it imported (`/n/beta up`, or down for how long), the link's frame counters. |
 | `/fram/<name>` | read/write | Files on the FRAM, see [Files on the FRAM](#files-on-the-fram-fram). |
 | `/dev/fram` | read | The raw FRAM chip, all 8 KB, filesystem structures included. Read-only. Use `hexdump`. |
 | `/dev/mem` | read | RP2040 memory by address (offset = address): boot ROM `0x0`, flash `0x10000000`, RAM `0x20000000`. Anything else is refused (no crash). Read-only. Use `hexdump`. |
@@ -611,6 +612,8 @@ the LAMP button to the lamp output, as on babywarmer
 | `mv` | `mv <from> <to>` | Rename within `/fram`: only the name in the directory entry is rewritten (one write, no data copied). Replaces an existing `<to>`. Not for devices or between mounts (use `cp`, then `rm`). |
 | `df` | `df` | Total, used and free space on every mount. |
 | `mkfs` | `mkfs /fram` | Format: every file on it is gone. Never happens on its own. |
+| `serve` | `serve`, `serve -r`, `serve off` | Answer 9P from the other board over `/dev/eia0`: all of this board's devices and `/fram` files, or read-only. Nothing is served until a `serve` line says so. Plan 9's `exportfs`. |
+| `import` | `import /dev/eia0 [/n/<name>]` | The other board's files here, as `/n/<its /dev/sysname>` (or the name given): `cat /n/beta/dev/rtc`, `echo on > /n/beta/dev/lamp`. If it doesn't answer, says so; with a name given it mounts anyway and keeps trying every second (`/n/beta: ok again`). Plan 9's `import`. Writing a file that isn't there creates it. Not yet: `ls` of a remote directory, removing remote files. |
 | `hexdump` | `hexdump [-s off] [-n len] [path]` | Hex + ASCII, `hexdump -C` layout, of a path or piped input. Repeated lines become `*`. See [hexdump](#hexdump). |
 | `remember` | `remember <device> <file>` | Keep a file equal to a device: write the device's value to the file when they differ. Run with `&`. See [Settings that survive a power cycle](#settings-that-survive-a-power-cycle). |
 
@@ -1940,6 +1943,19 @@ TX 28 -> RX 29, RTS 19 -> CTS 18, both ways, plus GND):
 | a stray byte (`?hello`) on alpha, `break 1` on beta at boot | expected, from hardware: while a board resets (or sits in BOOTSEL), its TX pin is an input with the RP2040's ~50 kΩ pull-down, against the receiver's ~50 kΩ pull-up: the line floats at half supply and reads as garbage or a break. Fix on the next board: a 10 kΩ pull-up to 3V3 on each RX. The 9P framing drops such bytes anyway (no frame, bad CRC) |
 | beta often didn't power on (USB serial missing, several tries) | **back-powering**: with only alpha on, beta's +3V3 rail measured **2.14 V**, fed by alpha's TX and RTS through beta's pin protection diodes (an RP2040 pin isn't fail-safe), so beta started from a half-powered rail. Without the UART wires (GND only) power cycling behaves. Fix on the bench: ~1 kΩ in series in each TX and RTS wire (re-measure); next board: 74LVC1G17-type buffers (Ioff) on RX/CTS, or the RP2350, whose pins are fail-safe |
 | 1 kΩ in series in each TX and RTS (4 resistors) | back-powering down to **1 V**, not enough: beta, power-cycled while alpha runs, still starts badly, even as the BOOTSEL USB drive (probably the flash doesn't start cleanly from a half-powered rail and the boot ROM falls back to USB boot). Both boards on one USB hub, powered together: fine. Next board: an RS-232 transceiver (MAX3232 family), see `board.h` |
+
+**2026-11-26, 9P steps 3 and 4: serve, import, /n/beta** (branch `9p`,
+alpha and beta as above, both powered together):
+
+| Test | Result |
+|---|---|
+| alpha `import /dev/eia0`, beta not serving yet | no answer: right (without `serve` beta doesn't listen to 9P at all), but the message was cut off at 96 characters. Now: `no answer (300 ms): is the other board on, and does it run serve?` |
+| beta `serve`, alpha `import /dev/eia0` | ok: `/n/beta` (its name asked over 9P) |
+| `cat /n/beta/dev/sysname`, `/n/beta/dev/rtc`, `/n/beta/fram/sysname` | ok: `beta`, beta's clock, beta's file |
+| `cat /n/beta/dev/nope` | ok: `cat: /n/beta/dev/nope: 'nope': file does not exist` |
+| `echo leon > /n/beta/fram/leon` (a new file) | `'leon': file does not exist`: creating wasn't there yet. Added: the client creates a missing file (Tcreate) in the directory above it, as `>` does locally (`srvtest`) |
+| `cat > /n/beta/fram/leon` | the shell printed its old hint for local `/fram` (`no filesystem? full? ...`) instead of the reason. Now the file layer's reason when there is one (`catsim`'s expected output changed with it: `bad name (1-11 characters, no spaces or /)`) |
+| `cat /dev/9p` on alpha | ok: `import: /n/beta up`, 44 frames, no bad ones |
 
 ## `bringup` — board test
 

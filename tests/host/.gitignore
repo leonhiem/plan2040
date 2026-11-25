@@ -6,6 +6,7 @@ hourstest
 fscktest
 mvcut
 p9test
+srvtest
 sim
 quotesim
 cronsim

@@ -19,7 +19,7 @@ SIM = fakefram.cpp $(K) $(P)/dev/fram.cpp $(FS)
 pr  = $(foreach n,$(1),$(P)/prog/$(n).cpp)
 
 # filesystem and hour-counter tests (warnings on: these are clean)
-UNIT = fstest hourstest fscktest mvcut luttest p9test
+UNIT = fstest hourstest fscktest mvcut luttest p9test srvtest
 # whole-shell simulations (-w: the fakes are quick and dirty)
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
 # babywarmer app tests (the real babywarmer_v1 pin map, fake GPIO/PWM)
@@ -33,6 +33,7 @@ hourstest: hourstest.cpp $(P)/fs/hours.cpp $(FS) fakefram2.cpp
 fscktest:  fscktest.cpp  $(FS) fakefram2.cpp
 mvcut:     mvcut.cpp     $(FS) fakefram.cpp
 p9test:    p9test.cpp    $(P)/9p/fcall.cpp $(P)/9p/frame.cpp
+srvtest:   srvtest.cpp   $(P)/9p/srv.cpp $(P)/9p/fcall.cpp $(P)/kernel/fs.cpp $(P)/dev/fram.cpp fakefram.cpp $(FS)
 luttest:   luttest.cpp   $(P)/apps/babywarmer/ntclut.cpp $(P)/kernel/errstr.cpp
 $(UNIT):
 	$(CXX) -Wall -I fake -I $(P) -I $(P)/apps/babywarmer -o $@ $^

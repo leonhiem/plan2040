@@ -118,6 +118,7 @@
  * in `ls` (only devices and programs do), so this is where to find them.
  */
 #include "kernel/fs.h"
+#include "kernel/errstr.h"
 #include "kernel/jobs.h"
 
 #ifndef PLAN2040_BOARD          // set by CMakeLists.txt from the config
@@ -369,8 +370,12 @@ static void finish_capture(void)
     int fd = fs_open(capture_path, capture_append ? FS_APPEND : FS_CREATE);
     int n = fd >= 0 ? fs_write(fd, capture_buf, capture_len) : -1;
     if (fd >= 0) fs_close(fd);
-    if (n != capture_len)
-        printf("%s: write failed (no filesystem? full? over 1 KB? name over 11 chars?)\n", capture_path);
+    if (n != capture_len) {
+        // The file layer's reason when it has one (it names the file); the
+        // old hint only for a failure without one.
+        if (n < 0 && errstr()[0]) printf("%s\n", errstr());
+        else printf("%s: write failed (no filesystem? full? over 1 KB? name over 11 chars?)\n", capture_path);
+    }
 }
 
 // One typed line in typing mode: collected, or `.` ends it. Not called

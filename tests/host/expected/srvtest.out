@@ -1,0 +1,62 @@
+fram: no filesystem, run: mkfs /fram
+-- not serving yet
+Rerror tag 65535 ename 'beta doesn't serve (no serve line)'
+-- version, attach
+Rversion tag 65535 msize 1048 version '9P2000'
+Rerror tag 1 ename 'no authentication required'
+Rattach tag 2 qid (cbf29ce484222325 0 80)
+Rerror tag 2 ename 'fid in use'
+-- walk
+Rwalk tag 10 nwqid 2 (be3699c9bd6bd65 0 80) (a725c2824923e949 0 00)
+Rwalk tag 10 nwqid 1 (be3699c9bd6bd65 0 80)
+Rerror tag 14 ename 'unknown fid'
+Rerror tag 10 ename ''nope': file does not exist'
+Rwalk tag 10 nwqid 3 (be3699c9bd6bd65 0 80) (a725c2824923e949 0 00) (2ec882a5af156bc0 0 00)
+Rwalk tag 10 nwqid 2 (586f0e0b50cb4150 0 80) (ca5e5b63b298ccfd 0 00)
+Rerror tag 10 ename ''n': not served (hops through a board: not yet)'
+Rwalk tag 10 nwqid 1 (be3699c9bd6bd65 0 80)
+Rwalk tag 10 nwqid 1 (a725c2824923e949 0 00)
+Rerror tag 10 ename 'fid in use'
+-- read
+Ropen tag 11 qid (a725c2824923e949 0 00) iounit 1024
+Rread tag 12 count 20 '2026-11-26 10:00:00
+'
+Rread tag 12 count 0
+Rclunk tag 14
+Rread tag 12 count 4 'off
+'
+Rread tag 12 count 5 'date
+'
+Rerror tag 12 ename 'ADS1115 (0x48, header bus) not answering'
+Rerror tag 12 ename 'listing a directory over 9P: not yet'
+Rerror tag 11 ename 'already open'
+-- write
+Ropen tag 11 qid (5f4bbb92dd501b28 0 00) iounit 1024
+Rwrite tag 13 count 3
+Rerror tag 12 ename 'not open for reading'
+Rwrite tag 13 count 5
+/fram/boot now: 'uptime
+date
+'
+/fram/boot now: 'uptime
+date
+ls
+'
+-- create
+Rcreate tag 15 qid (db536af1b69a293b 0 00) iounit 1024
+Rwrite tag 13 count 14
+/fram/leon: 'leon hiemstra
+'
+Rcreate tag 15 qid (db536af1b69a293b 0 00) iounit 1024
+Rerror tag 15 ename 'files can only be made on a mount (/fram)'
+Rerror tag 15 ename 'not a valid name'
+-- read-only, then off
+Rerror tag 11 ename 'read-only (serve -r)'
+Ropen tag 11 qid (5f4bbb92dd501b28 0 00) iounit 1024
+Rerror tag 15 ename 'read-only (serve -r)'
+Rerror tag 20 ename 'stat over 9P: not yet'
+Rflush tag 21
+fids in use: 1
+Rversion tag 65535 msize 512 version '9P2000'
+all ok
+exit 0

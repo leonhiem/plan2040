@@ -29,11 +29,13 @@ set(PLAN2040_DEVS
     cons         # /dev/cons: write to the terminal
     sysname      # /dev/sysname: this board's name, from /fram/sysname
     eia          # /dev/eia0, /dev/eia0ctl: UART0, the link to another board
+    p9           # /dev/9p: 9P between boards (serve, import); after eia
 )
 
 set(PLAN2040_PROGS
     cat echo label thresh hyst toggle adjust follow select date uptime
     wc grep headtail tee hexdump remember cpmv rm fsck mkfs df ls
+    serve import
 )
 
 # Built-in scripts: scripts/<name> (or the app's), "boot" runs at power-up
@@ -42,6 +44,7 @@ set(PLAN2040_SCRIPTS boot)
 
 # Other sources the devices above need.
 set(PLAN2040_FS      framfs hours)               # fs/<name>.cpp
+set(PLAN2040_9P      fcall frame link srv mnt)   # 9p/<name>.cpp
 set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons eia)   # drivers/<name>.cpp
 set(PLAN2040_LIBS    hardware_i2c hardware_adc hardware_gpio hardware_uart pico_unique_id)
 

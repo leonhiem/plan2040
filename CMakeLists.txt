@@ -134,6 +134,10 @@ endforeach()
 foreach(n ${PLAN2040_FS})
     list(APPEND os_src fs/${n}.cpp)
 endforeach()
+# 9P between boards (9p/<name>.cpp): messages, framing, link, server, client.
+foreach(n ${PLAN2040_9P})
+    list(APPEND os_src 9p/${n}.cpp)
+endforeach()
 # An app's other sources (not devices or programs: a screen, a table),
 # relative to apps/<app>/.
 foreach(f ${PLAN2040_APP_SRC})

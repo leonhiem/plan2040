@@ -74,6 +74,6 @@ files: ls /fram
 typing into /fram/waytoolongname: end with '.' or Ctrl-D
 > x
 > .
-/fram/waytoolongname: write failed (no filesystem? full? over 1 KB? name over 11 chars?)
+/fram/waytoolongname: bad name (1-11 characters, no spaces or /)
 % 
 exit 0

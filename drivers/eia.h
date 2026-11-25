@@ -47,3 +47,9 @@ void eia_set_flow(bool on);
 
 // One line: "b1000000 m1 cts on rx 12 tx 6 overrun 0 framing 0 break 0 dropped 0\n".
 int eia_status(char *buf, int len);
+
+// Who uses the link besides /dev/eia0 ("9P"), or 0. Once claimed,
+// /dev/eia0 refuses to read and write, so a `cat /dev/eia0` can't steal
+// 9P's bytes or put its own between 9P's frames.
+void eia_claim(const char *who);
+const char *eia_owner(void);

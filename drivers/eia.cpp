@@ -147,11 +147,16 @@ void eia_set_flow(bool on)
     if (!on && rx_stalled) { rx_stalled = false; rx_irq_on(true); }
 }
 
+static const char *owner;
+void eia_claim(const char *who) { owner = who; }
+const char *eia_owner(void) { return owner; }
+
 int eia_status(char *buf, int len)
 {
     return snprintf(buf, len,
-        "b%lu m%d cts %s rx %lu tx %lu overrun %lu framing %lu break %lu dropped %lu\n",
+        "b%lu m%d cts %s rx %lu tx %lu overrun %lu framing %lu break %lu dropped %lu%s%s\n",
         (unsigned long)baud, flow ? 1 : 0, cts_on() ? "on" : "off",
         (unsigned long)n_rx, (unsigned long)n_tx, (unsigned long)n_overrun,
-        (unsigned long)n_framing, (unsigned long)n_break, (unsigned long)n_dropped);
+        (unsigned long)n_framing, (unsigned long)n_break, (unsigned long)n_dropped,
+        owner ? " used by " : "", owner ? owner : "");
 }

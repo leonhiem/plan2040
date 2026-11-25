@@ -10,8 +10,9 @@
  *   echo b115200 > /dev/eia0ctl     another speed (both boards the same)
  *   echo m0 > /dev/eia0ctl          flow control off (m1: on, the default)
  *
- * The raw link, for testing the wires; 9P will use the driver
- * (drivers/eia.h) underneath, with its own framing.
+ * The raw link, for testing the wires. Once `serve` or `import` has
+ * started 9P on it (9p/), /dev/eia0 says "in use by 9P" instead: 9P's
+ * frames must not be mixed with other bytes. /dev/eia0ctl keeps working.
  */
 #include "drivers/eia.h"
 #include "kernel/fs.h"
@@ -20,8 +21,22 @@
 #include <cstdlib>
 #include <cstring>
 
-static int eia0_read(char *buf, int len)  { return eia_read(buf, len); }
-static int eia0_write(const char *buf, int len) { return eia_write(buf, len); }
+static bool free_for_us(void)
+{
+    if (!eia_owner()) return true;
+    werrstr("in use by %s (cat /dev/9p)", eia_owner());
+    return false;
+}
+
+static int eia0_read(char *buf, int len)
+{
+    return free_for_us() ? eia_read(buf, len) : -1;
+}
+
+static int eia0_write(const char *buf, int len)
+{
+    return free_for_us() ? eia_write(buf, len) : -1;
+}
 
 static int ctl_read(char *buf, int len) { return eia_status(buf, len); }
 
