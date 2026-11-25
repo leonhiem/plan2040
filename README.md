@@ -1480,6 +1480,23 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-25, the babywarmer firmware's first boot on the PCB**
+(`build-babywarmer_v1/plan2040.uf2`): the wrong NTC on the skin input
+still, the heater element not connected.
+
+| Test | Result |
+|---|---|
+| Boot | ok: `ntc: using the built-in table`, the built-in boot script, 10 jobs; big display the skin (13.8, the wrong NTC), small display `10.0` (manual %), bargraph 1 dot; TFT on |
+| START | ok: the APGAR clock starts |
+| MANUAL | ok: auto, small display `35.0`, bargraph to 80 % (boost) |
+| UP/DOWN in auto | ok: 0.1 °C a press, fast when held, 34.0-37.5 |
+| UP/DOWN in manual | ok: 5 % a press, fast when held, 0-80 % |
+| The alarm after a while, MUTE | ok: `/dev/alarm/heater` = `on: no current while switched on (element, fuse or SSR?)`, the others off, `/dev/guard` ok: correct, the element isn't connected; the TFT blinks the yellow failure triangle, the red bell and the heater rod; MUTE: quiet for 1 minute |
+| First boot after `mkfs` | ok: `resume: defaults: /fram/resume: no such file` |
+| Power off ~1 min, on | ok: `resume: restored: manual, 34.0 C, manual 10 %; power was off 1 min` (the settings left by the DOWN test) |
+| `select` line printed cut short | ok: minicom's line width; a wider window shows the whole line |
+| UP held 3 s more at 37.5 | pending: on to 39.0, small display blinking |
+
 **2026-11-25, babywarmer_v1 bringup** (`build-babywarmer_v1/bringup.uf2`,
 the cpu_rp2040 board in the babywarmer PCB, START and LAMP on their new
 pins). The NTC on the skin input is still the wrong type (to be
