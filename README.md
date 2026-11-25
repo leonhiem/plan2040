@@ -1480,6 +1480,18 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-25, babywarmer_v1 bringup** (`build-babywarmer_v1/bringup.uf2`,
+the cpu_rp2040 board in the babywarmer PCB, START and LAMP on their new
+pins). The NTC on the skin input is still the wrong type (to be
+replaced), so the volts only show the inputs work.
+
+| Test | Result |
+|---|---|
+| `bringup` at power-up | ok: local bus `0x50 0x51`, header bus `0x48 0x52`; fram ok (1605 ms); rtc ok, kept its time since the `set`; eeprom ok (65536 bytes, 128-byte pages, 166 ms, non-destructive); adc ok: in0 0.591 V, in1 0.299 V, in2 0.614 V, in3 0.299 V, skin pair 0.291 V, room pair 0.313 V; summary all ok |
+| `all` again | ok: the same, the ADC within 20 codes (~1 mV) |
+| Every button | ok: lamp, start, mute, down, up, manual: each `pressed` and `released` once |
+| Outputs | ok: only the alarm LED blinks (the 1 Hz heartbeat); 7-segment and TFT dark, as `bringup` keeps every other output off |
+
 **2026-11-25, buttons START and LAMP moved** (`build/bringup.uf2`,
 cpu_rp2040): START from GPIO28 to GPIO10, LAMP from GPIO29 to GPIO27,
 so GPIO28/29 stay free for the 9P UART to other boards (UART0 TX 28,
