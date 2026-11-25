@@ -95,15 +95,17 @@
 // keep up. CTS and RX get the internal pull-up, so a loose wire reads as
 // "idle" and "not clear to send" rather than noise.
 //
-// LESSON (2026-11-25): while the other board resets (or sits in BOOTSEL),
-// its TX pin is an input with the RP2040's ~50k pull-down, against our
-// ~50k pull-up: the line floats at half supply and reads as a stray byte
-// or a break. Next board: a 10k pull-up to 3V3 on each RX (and CTS), and
-// ~1k in series with each TX (and RTS): an RP2040 pin isn't fail-safe,
-// so a TX driving an unpowered board would feed it through its ESD diode
-// (the +5V LED lesson again); 1k keeps that to a few mA, and at 1 Mbaud
-// (1 us a bit) its RC with the wire's capacitance is far too small to
-// matter. Not needed on the bench: both boards power up together.
+// LESSON (2026-11-25/26): an RP2040 pin isn't fail-safe. A running
+// board's TX (idle high) and RTS feed an unpowered board through its pin
+// protection diodes: 2.14 V on its 3V3 rail, still 1 V with 1k in series
+// in TX and RTS, and it then starts badly (even as the BOOTSEL drive).
+// On the bench: power both boards together (one USB hub). While a board
+// resets, its TX also floats (~50k pull-down against our ~50k pull-up):
+// a stray byte or a break, which the 9P framing drops.
+// Next board: an RS-232 transceiver (MAX3232 family: 2 drivers TX/RTS, 2
+// receivers RX/CTS) on a DE-9: safe whichever board is off, standard,
+// ESD-proof. Mind its speed (plain MAX3232: 120-250 kbit/s). Details:
+// plan2040_ideas/IDEAS.md, section 6, "The serial link on the next board".
 #define EIA0_UART          uart0
 #define EIA0_NAME          "UART0"
 #define EIA0_PIN_TX        28

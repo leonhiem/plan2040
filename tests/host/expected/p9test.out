@@ -1,0 +1,43 @@
+-- every message type, there and back
+19  Tversion tag 65535 msize 1048 version '9P2000'
+19  Rversion tag 65535 msize 1048 version '9P2000'
+19  Tauth tag 1 afid 5 uname 'leon' aname ''
+20  Rauth tag 1 aqid (1122334455667788 7 80)
+24  Tattach tag 2 fid 0 afid -1 uname 'alpha' aname ''
+20  Rattach tag 2 qid (1122334455667788 7 80)
+49  Rerror tag 3 ename 'ADS1115 (0x48, header bus) not answering'
+9   Tflush tag 4 oldtag 3
+7   Rflush tag 4
+32  Twalk tag 5 fid 0 newfid 1 nwname 2 'dev' 'skintemp'
+17  Twalk tag 5 fid 0 newfid 0 nwname 0
+35  Rwalk tag 5 nwqid 2 (1122334455667788 7 80) (1122334455667788 7 00)
+12  Topen tag 6 fid 1 mode 0
+24  Ropen tag 6 qid (1122334455667788 7 80) iounit 1024
+21  Tcreate tag 7 fid 1 name 'log' perm 664 mode 17
+24  Rcreate tag 7 qid (1122334455667788 7 80) iounit 1024
+23  Tread tag 8 fid 1 offset 4294967296 count 1024
+24  Rread tag 8 count 13
+36  Twrite tag 9 fid 1 offset 5 count 13
+11  Rwrite tag 9 count 13
+11  Tclunk tag 10 fid 1
+7   Rclunk tag 10
+11  Tremove tag 11 fid 1
+7   Rremove tag 11
+11  Tstat tag 12 fid 1
+15  Rstat tag 12 nstat 6
+19  Twstat tag 13 fid 1 nstat 6
+7   Rwstat tag 13
+65  Twalk tag 14 fid 0 newfid 2 nwname 16 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n' 'n'
+1047 Twrite tag 15 fid 1 offset 0 count 1024
+-- the bytes themselves
+Tversion (19): 13 00 00 00 64 ff ff 18 04 00 00 06 00 39 50 32 30 30 30
+Twalk dev rtc (27): 1b 00 00 00 6e 01 00 00 00 00 00 01 00 00 00 02 00 03 00 64 65 76 03 00 72 74 63
+-- bad messages are refused
+cut short: 27 of 27 refused
+-- framing
+crc16("123456789") = 29b1
+frame of 11 22 00 33 (9): 00 03 11 22 04 33 45 07 00
+there and back: 2656 of 2656
+through noise: 3 messages: first third first (frames 3 bad_crc 1 bad_cobs 2 too_long 0)
+all ok
+exit 0
