@@ -1480,6 +1480,17 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
 
+**2026-11-25, buttons START and LAMP moved** (`build/bringup.uf2`,
+cpu_rp2040): START from GPIO28 to GPIO10, LAMP from GPIO29 to GPIO27,
+so GPIO28/29 stay free for the 9P UART to other boards (UART0 TX 28,
+RX 29). The wires and their 3k3 pull-ups moved along.
+
+| Test | Result |
+|---|---|
+| `bringup` at power-up | ok: i2c scan `0x50 0x51`; fram ok (8192 bytes, 1608 ms, non-destructive); rtc ticking, `VL: time not trusted` (it had lost its time); summary `i2c ok, fram ok, rtc ok`; the alarm LED blinks `bringup`'s 1 Hz heartbeat |
+| Every button | ok: mute, lamp (GPIO27), start (GPIO10), manual, down, up: each `pressed` and `released` once |
+| `set 2026-11-25 13:25:40`, `time`, `all` | ok: the RTC keeps the time (`13:25:47` seven seconds later), `control_1=0x00 control_2=0x00`, VL clear: `rtc: ok` |
+
 **2026-11-24, the NTC table** (step 3g, `build-babywarmer_v1/plan2040.uf2`,
 after the hack): the table format and generator, `/dev/ntc/*`, the
 built-in MF58 table, writing to the EEPROM in the background. On the PC:
