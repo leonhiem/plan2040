@@ -1,4 +1,4 @@
-// sptest: /dev/setpoint's range (IEC gap d): 34.0-37.5 C; above 37.5 (up
+// sptest: /dev/setpoint's range (IEC gap d; the minimum 30.0 since 2026-11-26): 30.0-37.5 C; above 37.5 (up
 // to 39.0) only on purpose: UP held 3 s at 37.5 (the buttons repeat every
 // 150 ms, adjust writes past the limit each time), or `echo on >
 // /dev/setpoint/high` from the shell. The real dev/setpoint.cpp and the
@@ -33,7 +33,7 @@ int main()
 {
     dev_setpoint_register();
     show("power-up");
-    put("/dev/setpoint", "30"); show("echo 30 > /dev/setpoint");
+    put("/dev/setpoint", "25"); show("echo 25 > /dev/setpoint");
     put("/dev/setpoint", "37"); show("echo 37 > /dev/setpoint");
     up(10, 1000); show("UP pressed 10 times, 1 s apart");
     up(15, 150);  show("UP held 2.25 s at the limit (repeats)");

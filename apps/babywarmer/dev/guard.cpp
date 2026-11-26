@@ -12,7 +12,7 @@
  *
  * /dev/guard, how far the skin reading can be trusted, with the reason:
  *
- *   ok           the jobs' power, at most AUTO_CAP (80 %, boost's) in auto
+ *   ok           the jobs' power, at most AUTO_CAP (100 %) in auto
  *   safe: <why>  auto mode, the skin reading not usable: the guard heats
  *                from the room temperature itself (safelut.h)
  *   none: <why>  skin and room unreadable: manual at the room table's power
@@ -79,6 +79,7 @@
 #include <cstring>
 
 #define GUARD_MS              1000
+#define BOOT_WAIT_S           3      // at boot: wait this long for the first readings
 
 // The watchdogs (the field warmer's numbers).
 #define NO_RISE_S             300    // 5 minutes of warm-up ...
@@ -93,7 +94,7 @@
 #define HW_RECOVER_S          5      // a reading or the control back this long
 #define CONTROL_DEAD_S        10     // auto mode, nobody writes /dev/heater
 #define NONE_DEFAULT_PERCENT  10.0f  // no room temperature ever seen
-#define AUTO_CAP              WARMUP_POWER  // the backstop in auto: the most auto asks
+#define AUTO_CAP              100.0f // the backstop in auto: the most auto asks (Leon, 2026-11-26)
 
 // Manual mode's check timer.
 #define CHECK_POWER           25.0f  // manual above this ...
@@ -344,6 +345,13 @@ static void guard_task(void)
     if (!skin_ok) snprintf(skin_err, sizeof(skin_err), "%s", errstr()[0] ? errstr() : "/dev/skintemp: no reading");
     char room_err[ERRMAX] = "";
     bool room_ok = read_float("/dev/ambient", &room);
+
+    // The first tick can come before the first readings (the lamp test
+    // blocks at boot): judged then, auto at power-up would look like "no
+    // sensors". Wait a moment; the relay stays off meanwhile, so no heat.
+    static int boot_s;
+    if (boot_s < BOOT_WAIT_S && (!skin_ok || !room_ok)) { boot_s++; return; }
+    boot_s = BOOT_WAIT_S;
     if (room_ok) { last_room = room; have_room = true; }
     else snprintf(room_err, sizeof(room_err), "%s", errstr()[0] ? errstr() : "/dev/ambient: no reading");
     read_float("/dev/setpoint", &sp);

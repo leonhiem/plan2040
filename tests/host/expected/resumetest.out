@@ -4,7 +4,7 @@
 resume: defaults: /fram/resume: no such file
   % cat /dev/resume
   defaults: /fram/resume: no such file
-  -> heaterauto off setpoint 35.0 percent 10.0
+  -> heaterauto on setpoint 35.0 percent 10.0
   % echo 36.5 > /dev/setpoint
   % echo on > /dev/heaterauto
   % cat /fram/resume
@@ -45,7 +45,7 @@ resume: restored: auto, 37.5 C, manual 40 %; power was off 1 min
 resume: defaults: power was off 25 min (more than 10)
   % cat /dev/resume
   defaults: power was off 25 min (more than 10)
-  -> heaterauto off setpoint 35.0 percent 10.0
+  -> heaterauto on setpoint 35.0 percent 10.0
   % echo 36.5 > /dev/setpoint
   % echo on > /dev/heaterauto
   % cat /fram/resume
@@ -75,14 +75,14 @@ resume: restored: auto, 36.5 C, manual 10 %; power was off 2 min
 resume: defaults: the RTC lost its time (VL; set it: echo "YYYY-MM-DD HH:MM:SS" > /dev/rtc)
   % cat /dev/resume
   defaults: the RTC lost its time (VL; set it: echo "YYYY-MM-DD HH:MM:SS" > /dev/rtc)
-  -> heaterauto off setpoint 35.0 percent 10.0
+  -> heaterauto on setpoint 35.0 percent 10.0
 -- power off 1 min
 
 == the clock set back an hour
 resume: defaults: the clock is earlier than the last save
   % cat /dev/resume
   defaults: the clock is earlier than the last save
-  -> heaterauto off setpoint 35.0 percent 10.0
+  -> heaterauto on setpoint 35.0 percent 10.0
   % echo hello > /fram/resume
 -- power off 1 min
 
@@ -90,12 +90,12 @@ resume: defaults: the clock is earlier than the last save
 resume: defaults: /fram/resume not understood
   % cat /dev/resume
   defaults: /fram/resume not understood
-  -> heaterauto off setpoint 35.0 percent 10.0
+  -> heaterauto on setpoint 35.0 percent 10.0
 -- power off 1 min
 
 == 1 min later, the RTC not answering
 resume: defaults: RTC (0x51, local bus) not answering
   % cat /dev/resume
   defaults: RTC (0x51, local bus) not answering
-  -> heaterauto off setpoint 35.0 percent 10.0
+  -> heaterauto on setpoint 35.0 percent 10.0
 exit 0

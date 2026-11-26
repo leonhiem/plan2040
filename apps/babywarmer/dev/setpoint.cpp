@@ -2,7 +2,7 @@
  * apps/babywarmer/dev/setpoint.cpp — /dev/setpoint, /dev/setpoint/raised
  *
  *   cat /dev/setpoint          the skin setpoint, e.g. "35.0"
- *   echo 36.5 > /dev/setpoint  set it, within 34.0-37.5 C
+ *   echo 36.5 > /dev/setpoint  set it, within 30.0-37.5 C
  *   cat /dev/setpoint/high     "on" while above 37.5 C is allowed (up to 39.0)
  *
  * Above 37.5 C only on purpose (IEC 60601-2-21, as commercial warmers): at
@@ -26,7 +26,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#define SETPOINT_MIN     34.0f
+#define SETPOINT_MIN     30.0f   // Leon, 2026-11-26 (was 34.0, the GE Panda warmer's)
 #define SETPOINT_NORMAL  37.5f   // the limit ...
 #define SETPOINT_MAX     39.0f   // ... and above it, on purpose
 #define SETPOINT_DEF     35.0f   // the field warmer's

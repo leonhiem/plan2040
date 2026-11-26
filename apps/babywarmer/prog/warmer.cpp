@@ -17,7 +17,7 @@
  *            part   = Kp*error + integral - Kp*Td*d(skin)/dt, within
  *                     /dev/pid/min..max (-35..+25 %); the integral only
  *                     moves while part is within them (anti-windup)
- *            power  = ff + part, within 0../dev/pid/outmax (75 %)
+ *            power  = ff + part, within 0../dev/pid/outmax (100 %)
  *          The derivative is on the skin, not the error: no kick when the
  *          setpoint changes. A setpoint raised by 2 C or more with the skin
  *          more than 3 C below it boosts again (/dev/setpoint/raised); a
@@ -150,7 +150,7 @@ static void step(void)
     if (read_float("/dev/ambient", &room)) { ff = fftable_power(room); ff_age_s = 0; }
     else if (++ff_age_s >= FF_FRESH_S)     { ff = FF_FALLBACK; ff_age_s = FF_FRESH_S; }
     float lo = get("/dev/pid/min", -35.0f), hi = get("/dev/pid/max", 25.0f);
-    float outmax = get("/dev/pid/outmax", 75.0f);
+    float outmax = get("/dev/pid/outmax", 100.0f);
     int   raised = (int)get("/dev/setpoint/raised", 0.0f);
     bool  reboost = raised_seen >= 0 && raised != raised_seen;
     raised_seen = raised;

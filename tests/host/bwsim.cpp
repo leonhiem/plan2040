@@ -16,7 +16,8 @@
 // this is one plausible baby, not the only one.
 //
 // Story (each step with what the guard should do):
-//   0:00  manual 10 %; the skin sensor is NOT on the baby (reads the room)
+//   0:00  power-up in auto (as the field warmer); 0:02 MANUAL -> manual
+//         10 %; the skin sensor is NOT on the baby (reads the room)
 //   1:00  MANUAL -> auto: boost; scenario (2), sensor out during warm-up:
 //         "no rise" after 5 min -> safe, heating from the room (33.5 %)
 //  14:00  the sensor goes on the baby -> ok after 2 min plausible, warmer's pid
@@ -30,7 +31,7 @@
 //  55:00  the heater element breaks; 57:00 works again
 //  60:00  the SSR sticks on -> relay held off; 62:00 replaced; 63:00 released
 //  66:00  UP 20 times, 1 s apart -> the setpoint stops at 37.5 (gap d:
-//         34-37.5 C; above only by holding UP 3 s, tests/host/sptest);
+//         30-37.5 C; above only by holding UP 3 s, tests/host/sptest);
 //         the skin within 3 C: no re-boost, the PID climbs
 //  75:00  the room NTC opens: /dev/alarm/sensor "warn" (CHK, no buzzer),
 //         the PID runs on the last feed-forward (30 % after 10 min); 88:00 back
@@ -230,6 +231,7 @@ int main()
             lag1 += (p - lag1) / LAG_S; lag2 += (lag1 - lag2) / LAG_S; lag3 += (lag2 - lag3) / LAG_S;
             skin += GAIN * lag3 - (skin - ROOM) / LOSS_S * draught + lamp;
         }
+        if (sec == 2)        { SAY("--- 0:02 press MANUAL (power-up is auto since 2026-11-26; -> manual 10 %%)\n"); button[BUTTON_MANUAL] = true; }
         if (sec == 60)       { SAY("--- 1:00 press MANUAL (-> auto); the skin sensor is not on the baby\n"); button[BUTTON_MANUAL] = true; }
         if (sec == 14 * 60)  { SAY("--- 14:00 the skin sensor goes on the baby\n"); sensor_on_baby = true; }
         if (sec == 20 * 60)  SAY("--- 20:00 press UP 10 times (0.1 C each: setpoint 36.0)\n");

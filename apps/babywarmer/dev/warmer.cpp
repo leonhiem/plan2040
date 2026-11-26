@@ -10,7 +10,7 @@
  *                              field warmer's, tuned on its logs)
  *   /dev/pid/min, max          the PID's part around the feed-forward:
  *                              -35..+25 %
- *   /dev/pid/outmax            feed-forward + PID at most 75 %
+ *   /dev/pid/outmax            feed-forward + PID at most 100 %
  *   /dev/pid/integral, ff      what warmer uses, published every second
  *                              (for cat and monitor; a write is overwritten)
  *
@@ -27,7 +27,7 @@ static const char *STATE_NAMES[] = { "idle", "boost", "coast", "pid", "safe" };
 static char  state[8] = "idle";
 static float autopower;
 static float kp = 3.0f, ti = 200.0f, td = 5.0f;
-static float pmin = -35.0f, pmax = 25.0f, outmax = 75.0f;
+static float pmin = -35.0f, pmax = 25.0f, outmax = 100.0f;
 static float integral, ff;
 
 // A number into *dst, within lo..hi; -1 if it isn't one.

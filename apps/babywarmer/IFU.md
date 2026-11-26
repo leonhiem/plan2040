@@ -50,7 +50,7 @@
   minutes**, the warmer carries on with its settings: the mode, the
   setpoint (above 37.5 °C it comes back as 37.5) and the manual power; in
   auto mode it warms up again. After a longer interruption it starts
-  **in manual mode at 10 %, setpoint 35.0 °C**: set it again. Switching the
+  **in auto mode, setpoint 35.0 °C**: set it again. Switching the
   warmer off and on works the same way. After any power interruption,
   check the baby and the settings. **TODO:** how long the reserve sounds
   the alarm.
@@ -108,14 +108,16 @@ room, a neonatal unit or a ward, in a room of 18–30 °C.
 
 ## 5. Starting
 
-1. Switch on. The display shows all segments for a moment (lamp test).
-   The warmer starts in **manual mode at 10 %**, setpoint **35.0 °C**
-   (unless it was switched off less than 10 minutes ago: section 1,
-   "Power failure").
-2. Place the skin sensor first (section 4), then press **MANUAL** for auto
-   mode.
+1. Place the skin sensor on the baby first (section 4).
+2. Switch on. The display shows all segments for a moment (lamp test).
+   The warmer starts in **auto mode**, setpoint **35.0 °C**, and warms up
+   at once (unless it was switched off less than 10 minutes ago: then it
+   carries on as before, section 1, "Power failure").
 3. Check the setpoint on the small display, and change it with UP/DOWN if
    needed (section 6).
+4. To pre-warm the cot without a baby, press **MANUAL** for manual mode
+   (section 7): in auto, a sensor not on a baby is noticed after 5 minutes
+   and alarms (section 8, CHK).
 
 ## 6. Auto mode
 
@@ -125,14 +127,14 @@ The warmer keeps the baby's skin at the setpoint:
   setpoint. Then the heater pauses for 45 seconds, so that the heat already
   in the mattress shows. After that the warmer controls the skin
   temperature, adjusting the power every second.
-- **Setpoint:** 34.0–37.5 °C, in 0.1 °C steps (default 35.0). Hold UP or
+- **Setpoint:** 30.0–37.5 °C, in 0.1 °C steps (default 35.0). Hold UP or
   DOWN to change it quickly.
 - **Above 37.5 °C, only on purpose:** at 37.5, keep holding UP for 3
   seconds; the setpoint then goes up to 39.0 °C, and the small display
   blinks as long as it is above 37.5.
 - **Raising the setpoint by 2 °C or more**, with the baby more than 3 °C
   below it, starts a new warm-up.
-- The power in auto mode is never more than 80 %.
+- The power in auto mode can be up to 100 %.
 
 ## 7. Manual mode
 
@@ -149,15 +151,16 @@ switching to auto, also ends it.
 
 ## 8. Alarms
 
-**Look** (LED only) or **sound** (buzzer + alarm LED). MUTE silences the
-buzzer for 1 minute; the LED stays on. If the cause is still there after
-that minute, the buzzer sounds again.
+**Look** (LED only), **beeps** (a short beep every 5 seconds, alarm LED)
+or **sound** (continuous buzzer, alarm LED). MUTE silences the beeps and
+the buzzer for 1 minute; the LED stays on. If the cause is still there
+after that minute, they sound again.
 
 | You see | Meaning | What to do |
 |---|---|---|
-| LOW (look) | auto: skin 1 °C below the setpoint | Check the baby and the sensor; look for draughts. |
+| LOW + beeps | auto: skin 1 °C below the setpoint | Check the baby and the sensor; look for draughts. |
 | LOW + buzzer | auto: skin 2 °C below the setpoint | Same, now. |
-| HIGH (look) | auto: skin 1 °C above the setpoint | Check the baby: fever? Another heat source (sunlight, phototherapy)? |
+| HIGH + beeps | auto: skin 1 °C above the setpoint | Check the baby: fever? Another heat source (sunlight, phototherapy)? |
 | HIGH + buzzer | auto: skin 2 °C above the setpoint; manual: skin above 39 °C | Same, now. In manual, turn the power down. |
 | CHK + buzzer, big digits blinking | auto: the skin reading isn't trusted: it fell suddenly, stayed far below the setpoint, or didn't rise during the warm-up. **The warmer now heats by itself from the room temperature**, a moderate power. | **The sensor has probably come off the baby.** Put it back (section 4). The warmer returns to normal by itself, 2 minutes after the reading is plausible again. |
 | CHK + buzzer, big digits blank | skin and room sensors both unreadable; the warmer has gone to manual, at a power for the last room temperature seen | Check the sensor cables. Adjust the power with UP/DOWN as in manual mode, and check the baby often. Auto mode returns by itself when the sensors answer. |
@@ -179,10 +182,10 @@ current and the alarms.
 
 | | |
 |---|---|
-| Setpoint | 34.0–37.5 °C, up to 39.0 on purpose; steps 0.1 °C |
+| Setpoint | 30.0–37.5 °C, up to 39.0 on purpose; steps 0.1 °C |
 | Manual power | 0–80 %, steps 5 % |
-| Auto power | at most 80 % |
-| Alarms | ±1 °C look, ±2 °C sound; manual check after 12 min above 25 %, heater off 3 min later |
+| Auto power | up to 100 % |
+| Alarms | ±1 °C beeps, ±2 °C continuous; manual check after 12 min above 25 %, heater off 3 min later |
 | Room | 18–30 °C |
 | Skin temperature accuracy | **TODO** (after calibration; IEC: ±0.3 °C at 30–42 °C) |
 | Irradiance at the mattress | **TODO** (IEC: at most 60 mW/cm², near-IR at most 10; gap f) |
