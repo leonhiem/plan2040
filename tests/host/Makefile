@@ -47,7 +47,7 @@ adctest:  adctest.cpp $(P)/drivers/ads1115.cpp $(BW)/ntcadc.cpp ntcstub.cpp $(BW
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 BWSRC = $(P)/kernel/task.cpp $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp $(P)/kernel/errstr.cpp conf_scripts_bw.cpp \
         $(P)/dev/lamp.cpp $(P)/dev/buttons.cpp $(call pr,cat echo follow toggle adjust select) \
-        $(BW)/heater.cpp $(BW)/seg7.cpp $(foreach n,heater relay alarm seg7 setpoint heaterauto percent warmer guard tft,$(BW)/dev/$(n).cpp) $(BW)/safelut.cpp $(BW)/fftable.cpp \
+        $(BW)/heater.cpp $(BW)/seg7.cpp $(foreach n,heater relay alarm seg7 setpoint heaterauto percent warmer guard tft,$(BW)/dev/$(n).cpp) \
         $(foreach n,warmer alarm ledwire monitor tftwire,$(BW)/prog/$(n).cpp) $(P)/prog/label.cpp
 # The TFT code is C (a blackbox copy of the st7735 repo): compiled with
 # the C compiler, against the same fakes.

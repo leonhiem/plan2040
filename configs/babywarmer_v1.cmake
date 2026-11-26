@@ -35,7 +35,7 @@ set(PLAN2040_DEVS
     current      # /dev/current: heater current sense, ADC0 (raw counts)
     heater       # /dev/heater: 0-100 %, time-proportional SSR + bargraph; the "tpo" task
     relay        # /dev/relay: the mechanical safety relay, on/off
-    alarm        # /dev/alarm: buzzer + alarm LED (on | muted | off); /dev/alarm/{heater,temphigh,templow,sensor}
+    alarm        # /dev/alarm: buzzer + alarm LED (on | muted | off); /dev/alarm/{heater,temphigh,templow,sensor,room,check}
     seg7         # /dev/seg7big, /dev/seg7small, /dev/leds + /dev/leds/<name>; lamp test at boot
     setpoint     # /dev/setpoint: 30.0-39.0 C, default 35.0; /dev/setpoint/raised
     heaterauto   # /dev/heaterauto: on = auto (PID), off = manual
@@ -59,8 +59,8 @@ set(PLAN2040_SCRIPTS boot tftmon)
 
 set(PLAN2040_FS      framfs hours)
 set(PLAN2040_DRIVERS pcf8563 fm24cl64 buttons at24c ads1115)
-set(PLAN2040_APP_SRC ntclut.cpp ntcadc.cpp heater.cpp seg7.cpp safelut.cpp fftable.cpp  # apps/babywarmer/: NTC
-    # table + sampling, TPO, 74HC595, the room tables (safe, feed-forward),
+set(PLAN2040_APP_SRC ntclut.cpp ntcadc.cpp heater.cpp seg7.cpp  # apps/babywarmer/: NTC
+    # table + sampling, TPO, 74HC595 (the feed-forward is feedforward.h),
     tft/st7735.c tft/gfx.c tft/icons.c tft/baby.c    # and the TFT (a blackbox copy of the
     tft/heat_indicator.c tft/apgar_timer.c          # st7735 repo, see tft/README.md)
     tft/text_console.c tft/cue_icons.c tft/display.c)

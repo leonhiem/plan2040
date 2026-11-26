@@ -24,12 +24,13 @@ adjust /dev/heaterauto /dev/setpoint /dev/percent 0.1 5 &
 warmer > /dev/autopower &
 follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &
 
-# What the nurse sees: the skin temperature; the setpoint, the manual %, or
-# in safe the power the guard heats with; the buzzer: continuous for an
-# alarm, a beep every 5 s while the skin is 1 C off the setpoint (-w; MUTE:
-# quiet for a minute); the front-panel LEDs; the TFT (START: APGAR clock).
+# What the nurse sees: the skin temperature; the setpoint (auto, also in
+# safe: the bargraph shows the power) or the manual %; the buzzer: continuous for an
+# alarm, a beep every 5 s for a warning after -w (the skin 1 C off the
+# setpoint, safe mode; MUTE: quiet for a minute); the front-panel LEDs;
+# the TFT (START: APGAR clock).
 cat /dev/skintemp > /dev/seg7big &
-select /dev/state idle=/dev/percent boost=/dev/setpoint coast=/dev/setpoint pid=/dev/setpoint safe=/dev/heater > /dev/seg7small &
-alarm /dev/alarm/heater /dev/alarm/sensor /dev/alarm/check -w /dev/alarm/temphigh /dev/alarm/templow &
+select /dev/state idle=/dev/percent boost=/dev/setpoint coast=/dev/setpoint pid=/dev/setpoint safe=/dev/setpoint > /dev/seg7small &
+alarm /dev/alarm/heater /dev/alarm/check -w /dev/alarm/sensor /dev/alarm/temphigh /dev/alarm/templow &
 ledwire &
 tftwire &

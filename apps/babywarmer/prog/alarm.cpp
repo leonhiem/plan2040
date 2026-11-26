@@ -1,13 +1,13 @@
 /**
  * apps/babywarmer/prog/alarm.cpp — alarm <condition> ... [-w <condition> ...]
  *
- *   alarm /dev/alarm/heater /dev/alarm/sensor /dev/alarm/check -w /dev/alarm/temphigh /dev/alarm/templow &
+ *   alarm /dev/alarm/heater /dev/alarm/check -w /dev/alarm/sensor /dev/alarm/temphigh /dev/alarm/templow &
  *
  * Two sounds for two priorities (as IEC 60601-1-8's high and low):
  *   - any condition reading "on" sounds the buzzer continuously;
- *   - a condition after -w reading "warn" (the skin 1 C off the setpoint)
- *     beeps: BEEP_MS every BEEP_EVERY_MS. Conditions before -w are quiet
- *     at "warn" (the room sensor: CHK only).
+ *   - a condition after -w reading "warn" (the skin 1 C off the setpoint,
+ *     safe mode) beeps: BEEP_MS every BEEP_EVERY_MS. Conditions before -w,
+ *     or not listed (/dev/alarm/room: CHK only), are quiet at "warn".
  * The alarm LED is lit for both (/dev/alarm on, or muted between beeps).
  * MUTE silences the buzzer for MUTE_MS (1 minute), never the LED
  * (/dev/alarm muted). A press arms the mute even before an alarm; it ends

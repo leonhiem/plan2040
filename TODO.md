@@ -880,6 +880,32 @@ Order, one commit each, tested on the PC and then the board:
     port, `watch 1000 monitor`). Also: the PID's part is still capped at
     +25 % over the feed-forward, so outside the boost auto reaches ~55 %
     at most, not 100.
+    **Logged warm-up and sensor-off test, 2026-11-26** (Claude logging
+    the USB serial port; plan2040-logs/): the warm-up slow (24 min: the
+    feed-forward table 30 % where 47.5 % was needed, the integral made up
+    18 % at ~1.2 %/min), no overshoot; the sensor off: safe in 16 s, but
+    safe's 38 % held the skin 2.7 C under the setpoint, so it never
+    recovered (needed within 2 C). Changed (Leon): `feedforward.h`, FF_K
+    3.7 % per C of (setpoint - room), replaces fftable and safelut; safe
+    90 % of it (at most 55 %), recovery within 3 C; safe beeps (sensor
+    "warn"), none continuous ("on"); `/dev/alarm/room` for the room
+    sensor (silent, CHK); any raise with the skin > 3 C below boosts
+    (RAISE_C 0.1); the "stays low" check waits until the setpoint has
+    settled (6 s); PID max +50 %. bwsim's model re-fitted to the log
+    (3 lags of 51 s, G 0.0775, loss 347 s: rms 0.18 C, steady 3.72 %/C).
+    **Open:** PID tuning (Kp 3, Ti 200 s are slow for this plant: a draught
+    x1.8 in bwsim drops the skin 3 C in 4 min and ends in a false safe);
+    to tune on the board with a fan, logged. And boost 80 or 100 %.
+    **Second warm-up and sensor-off, 2026-11-26** (logged): 37.0 at 10:19
+    (was 23:42), peak +0.7, a slow wave to 36.6; K ≈ 3.8 from the steady
+    end. A 14 s LOW blip as the skin passed 36.0 (fixed: reached within
+    0.8 C). Sensor off: safe in 13 s at 41 %; recovered at 34.6, but then
+    LOW screamed and the PID crept from the safe power. Changed (Leon):
+    recovery = a new warm-up (guard: start_warmup; warmer: PID from the
+    feed-forward, integral 0, or boost if > 3 C below); small display
+    shows the setpoint in safe. **Next to discuss:** the integral seed
+    after the coast (+3 % -> 0: less overshoot), K 3.7 -> 3.8, then the
+    PID tuning with a fan.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

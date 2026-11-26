@@ -79,7 +79,7 @@ room, a neonatal unit or a ward, in a room of 18–30 °C.
 | Display | Shows |
 |---|---|
 | Big digits | the baby's skin temperature. **Blinking:** the reading is not trusted (section 8). **Blank:** no reading. |
-| Small digits | auto: the setpoint; manual: the heater power in %; while CHK is lit in auto: the power the warmer heats with by itself. **Blinking:** setpoint above 37.5 °C. |
+| Small digits | auto: the setpoint (also while CHK is lit; the bar shows the power); manual: the heater power in %. **Blinking:** setpoint above 37.5 °C. |
 | Bar | the heater power. |
 | Screen | the same, larger, with the APGAR clock. |
 
@@ -132,8 +132,8 @@ The warmer keeps the baby's skin at the setpoint:
 - **Above 37.5 °C, only on purpose:** at 37.5, keep holding UP for 3
   seconds; the setpoint then goes up to 39.0 °C, and the small display
   blinks as long as it is above 37.5.
-- **Raising the setpoint by 2 °C or more**, with the baby more than 3 °C
-  below it, starts a new warm-up.
+- **Raising the setpoint** with the baby more than 3 °C below it starts a
+  new warm-up.
 - The power in auto mode can be up to 100 %.
 
 ## 7. Manual mode
@@ -162,7 +162,7 @@ after that minute, they sound again.
 | LOW + buzzer | auto: skin 2 °C below the setpoint | Same, now. |
 | HIGH + beeps | auto: skin 1 °C above the setpoint | Check the baby: fever? Another heat source (sunlight, phototherapy)? |
 | HIGH + buzzer | auto: skin 2 °C above the setpoint; manual: skin above 39 °C | Same, now. In manual, turn the power down. |
-| CHK + buzzer, big digits blinking | auto: the skin reading isn't trusted: it fell suddenly, stayed far below the setpoint, or didn't rise during the warm-up. **The warmer now heats by itself from the room temperature**, a moderate power. | **The sensor has probably come off the baby.** Put it back (section 4). The warmer returns to normal by itself, 2 minutes after the reading is plausible again. |
+| CHK + beeps, big digits blinking | auto: the skin reading isn't trusted: it fell suddenly, stayed far below the setpoint, or didn't rise during the warm-up. **The warmer now heats by itself**, a little under what usually holds the setpoint in this room. | **The sensor has probably come off the baby.** Put it back (section 4). The warmer returns to normal by itself, 2 minutes after the reading is within 3 °C of the setpoint. |
 | CHK + buzzer, big digits blank | skin and room sensors both unreadable; the warmer has gone to manual, at a power for the last room temperature seen | Check the sensor cables. Adjust the power with UP/DOWN as in manual mode, and check the baby often. Auto mode returns by itself when the sensors answer. |
 | CHK (look), big digits normal | auto: the room sensor is faulty | The warmer goes on controlling the skin, with an estimate of the room. Have it repaired. |
 | Buzzer, manual mode | check the baby (section 7) | Check the baby, press MUTE. |

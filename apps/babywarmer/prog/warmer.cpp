@@ -13,21 +13,25 @@
  *   coast  0 % for 45 s, so the heat stored in the mattress shows: pid,
  *          the integral starting at 3 %.
  *   pid    feed-forward + PID:
- *            ff     = fftable_power(room)       (the steady load, fftable.h)
+ *            ff     = FF_K * (setpoint - room)  (the steady load, feedforward.h)
  *            part   = Kp*error + integral - Kp*Td*d(skin)/dt, within
- *                     /dev/pid/min..max (-35..+25 %); the integral only
+ *                     /dev/pid/min..max (-35..+50 %); the integral only
  *                     moves while part is within them (anti-windup)
  *            power  = ff + part, within 0../dev/pid/outmax (100 %)
  *          The derivative is on the skin, not the error: no kick when the
- *          setpoint changes. A setpoint raised by 2 C or more with the skin
- *          more than 3 C below it boosts again (/dev/setpoint/raised); a
- *          smaller step the PID climbs itself.
+ *          setpoint changes. A setpoint raised (any amount) with the skin
+ *          more than 3 C below it boosts again (/dev/setpoint/raised);
+ *          within 3 C the PID climbs itself.
  *   safe   while the guard doesn't trust the skin reading (it heats by
- *          itself then): asks what the guard heats with, so that when the
- *          guard says ok the PID takes over from that power (bumpless).
+ *          itself then): asks what the guard heats with. When the guard
+ *          says ok again: a new warm-up (Leon, 2026-11-26): boost if the
+ *          skin is more than 3 C below, else the PID fresh from the
+ *          feed-forward (integral 0). It used to continue from the safe
+ *          power (bumpless), which climbed far too slowly: the integral
+ *          started at -12 % (41 -> 46 % in 5 minutes on the board).
  *
- * The room sensor down: the last feed-forward for 10 minutes (a room
- * changes slowly), then 30 % (the table at 24 C); the guard alarms.
+ * The room sensor down: the last room seen for 10 minutes (a room changes
+ * slowly), then 24 C; the guard warns (/dev/alarm/room).
  * The skin unreadable: the power is held; the guard goes to safe.
  *
  * The tuning is read every second from the /dev/pid/ files (dev/warmer.cpp); the
@@ -35,7 +39,7 @@
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
-#include "fftable.h"
+#include "feedforward.h"
 #include "warmup.h"
 #include "pico/stdlib.h"
 #include <cstdio>
@@ -44,8 +48,8 @@
 
 #define COAST_SEED        3.0f      // the integral after coast, on top of ff
 #define DT                1.0f      // seconds per step
-#define FF_FRESH_S        600       // keep the last feed-forward this long
-#define FF_FALLBACK       30.0f
+#define ROOM_FRESH_S      600       // the room sensor down: the last room seen this long ...
+#define ROOM_FALLBACK     24.0f     // ... then this
 
 enum { IDLE, BOOST, COAST, PID, SAFE };
 static const char *NAMES[] = { "idle", "boost", "coast", "pid", "safe" };
@@ -55,8 +59,9 @@ static bool  started;
 static absolute_time_t next_step;
 static int   coast_s;
 static float integral, prev_skin, power;
-static float ff = FF_FALLBACK;
-static int   ff_age_s = FF_FRESH_S;   // no room reading yet
+static float ff;
+static float room = ROOM_FALLBACK;
+static int   room_age_s = ROOM_FRESH_S;   // no room reading yet
 static int   raised_seen = -1;
 
 // ---- devices ------------------------------------------------------------
@@ -112,16 +117,6 @@ static void set_state(int s)
 
 // ---- the PID --------------------------------------------------------------
 
-// Starts the PID so its first output is `from` (bumpless): power = ff +
-// Kp*(setpoint - skin) + integral, the derivative 0 with prev_skin = skin.
-static void pid_start_from(float from, float sp, float skin, float lo, float hi)
-{
-    float kp = get("/dev/pid/kp", 3.0f);
-    integral = from - ff - kp * (sp - skin);
-    integral = integral < lo ? lo : integral > hi ? hi : integral;
-    prev_skin = skin;
-}
-
 static float pid_step(float sp, float skin, float lo, float hi, float outmax)
 {
     float kp = get("/dev/pid/kp", 3.0f);
@@ -146,10 +141,11 @@ static void step(void)
     float sp      = get("/dev/setpoint", 35.0f);
     float skin;
     bool  skin_ok = read_float("/dev/skintemp", &skin);
-    float room;
-    if (read_float("/dev/ambient", &room)) { ff = fftable_power(room); ff_age_s = 0; }
-    else if (++ff_age_s >= FF_FRESH_S)     { ff = FF_FALLBACK; ff_age_s = FF_FRESH_S; }
-    float lo = get("/dev/pid/min", -35.0f), hi = get("/dev/pid/max", 25.0f);
+    float r;
+    if (read_float("/dev/ambient", &r))   { room = r; room_age_s = 0; }
+    else if (++room_age_s >= ROOM_FRESH_S) { room = ROOM_FALLBACK; room_age_s = ROOM_FRESH_S; }
+    ff = feedforward_power(sp, room);
+    float lo = get("/dev/pid/min", -35.0f), hi = get("/dev/pid/max", 50.0f);
     float outmax = get("/dev/pid/outmax", 100.0f);
     int   raised = (int)get("/dev/setpoint/raised", 0.0f);
     bool  reboost = raised_seen >= 0 && raised != raised_seen;
@@ -178,8 +174,13 @@ static void step(void)
             set_state(PID);
         }
         break;
-    case SAFE:                                           // the guard says ok again
-        if (skin_ok) { pid_start_from(power, sp, skin, lo, hi); set_state(PID); }
+    case SAFE:                                           // the guard says ok again: a new warm-up
+        if (!skin_ok) break;
+        if (skin < sp - WARMUP_EXIT_C) { set_state(BOOST); power = WARMUP_POWER; break; }
+        integral = 0.0f;                                 // the PID fresh from the feed-forward
+        prev_skin = skin;
+        set_state(PID);
+        power = pid_step(sp, skin, lo, hi, outmax);
         break;
     case PID:
         if (reboost && skin_ok && skin < sp - WARMUP_EXIT_C) { set_state(BOOST); power = WARMUP_POWER; }

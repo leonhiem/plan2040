@@ -11,7 +11,8 @@
  * the last, allow up to 39.0 (the field warmer's maximum). From the shell:
  * `echo on > /dev/setpoint/high`. Back at 37.5 or below, the limit returns.
  * ledwire blinks the small display while it's above 37.5.
- *   cat /dev/setpoint/raised   how many times it was raised by RAISE_C (2 C)
+ *   cat /dev/setpoint/raised   how many times it was raised (by RAISE_C,
+ *                              0.1 C, or more)
  *                              or more
  *
  * A raise counts when the presses stop (EDIT_SETTLE_MS, 5 s, after the
@@ -33,7 +34,8 @@
 #define HIGH_HOLD_MS     3000    // pushing past 37.5 this long ...
 #define HIGH_GAP_MS      400     // ... with writes this close together (UP's repeat: 150 ms)
 
-#define RAISE_C          2.0f
+#define RAISE_C          0.1f    // any raise (was 2 C: a raise of 1.5 C with the skin far
+                                 // below looked like a sensor off the baby, 2026-11-26)
 #define EDIT_SETTLE_MS   5000
 
 static float setpoint = SETPOINT_DEF;

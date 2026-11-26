@@ -2,7 +2,7 @@
  * apps/babywarmer/prog/tftwire.cpp — tftwire: the TFT's fields from the
  * warmer's devices, in one job (as ledwire does for the LEDs)
  *
- *   aut, man   /dev/heaterauto              chk   /dev/alarm/sensor (warn or on)
+ *   aut, man   /dev/heaterauto              chk   /dev/alarm/sensor or room (warn or on)
  *   low, high  /dev/alarm/templow, temphigh fail  /dev/alarm/heater
  *   heater     /dev/heater (0-100)
  *   apgar      the START button's one-shot ("1" for one tick): the display
@@ -49,7 +49,7 @@ static int tftwire_run(const char *in, int inlen, int argc, char **argv, char *o
     set_tft("/dev/tft/aut", auto_mode);
     set_tft("/dev/tft/man", !auto_mode);
 
-    set_tft("/dev/tft/chk", !dev_is("/dev/alarm/sensor", "off"));   // skin not trusted, or the room sensor
+    set_tft("/dev/tft/chk", !dev_is("/dev/alarm/sensor", "off") || !dev_is("/dev/alarm/room", "off"));
 
     set_tft("/dev/tft/low",  dev_is("/dev/alarm/templow",  "on") || dev_is("/dev/alarm/templow",  "warn"));
     set_tft("/dev/tft/high", dev_is("/dev/alarm/temphigh", "on") || dev_is("/dev/alarm/temphigh", "warn"));

@@ -294,11 +294,11 @@ The control, as devices that hold values and programs that run as jobs
 | `/dev/heaterauto` | read/write | `on` = auto (the PID), `off` = manual (`/dev/percent`). Starts `off`. Every switch to manual sets `/dev/percent` to 10 (the field warmer's customer request). |
 | `/dev/percent` | read/write | Manual heater power, 0-80 (the field warmer's maximum), default 10. |
 | `/dev/pid/kp`, `ti`, `td` | read/write | The PID's tuning (3.0 %/°C, 200 s, 5 s), read by `warmer` every second. |
-| `/dev/pid/min`, `max`, `outmax` | read/write | The PID's part around the feed-forward within `min`..`max` (-35..+25 %), the total at most `outmax` (75 %). |
-| `/dev/pid/integral`, `ff` | read | What `warmer` uses now: the integral and the feed-forward for the room (30 % at 24 °C; the room sensor down: the last value for 10 minutes, then 30 %). |
+| `/dev/pid/min`, `max`, `outmax` | read/write | The PID's part around the feed-forward within `min`..`max` (-35..+50 %), the total at most `outmax` (100 %). |
+| `/dev/pid/integral`, `ff` | read | What `warmer` uses now: the integral and the feed-forward, 3.7 % per °C of (setpoint − room) (`feedforward.h`; 47 % at 37.0 °C in a 24.3 °C room; the room sensor down: the last room for 10 minutes, then 24 °C). |
 | `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `warmer`). |
 | `/dev/autopower` | read/write | The power auto mode asks for (from `select`; in safe, what the guard heats with). |
-| `/dev/alarm/heater`, `temphigh`, `templow`, `sensor`, `check` | read/write | The alarm conditions (written by the guard): `off`, `warn: <why>` (the LEDs and the TFT show it; `temphigh`/`templow` also beep every 5 s, `alarm -w`) or `on: <why>` (the continuous buzzer too). `temphigh`/`templow`: the skin 1 °C off the setpoint warns, 2 °C alarms (below). `check` is manual mode's "check the baby". Reasons, e.g.: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
+| `/dev/alarm/heater`, `temphigh`, `templow`, `sensor`, `room`, `check` | read/write | The alarm conditions (written by the guard): `off`, `warn: <why>` (the LEDs and the TFT show it; `sensor`, `temphigh`, `templow` also beep every 5 s, `alarm -w`) or `on: <why>` (the continuous buzzer too). `temphigh`/`templow`: the skin 1 °C off the setpoint warns, 2 °C alarms (below). `sensor`: `warn` in safe, `on` in none. `room`: the room sensor down in auto, `warn` (CHK only). `check` is manual mode's "check the baby". Reasons, e.g.: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
 | `/dev/guard` | read | The guard's verdict on the skin reading, with the reason: `ok`, `safe: <why>`, `none: <why>` (see "The guard" below). |
 | `/dev/heater/limit` | read | The guard's say over the heater: `cap 100.0` (the jobs' power, at most that) or `set 39.0` (the guard's own power, whatever the jobs ask). |
 
@@ -339,10 +339,10 @@ user's intent (setpoint, auto/manual), never what a job computed.
 | `/dev/guard` | When (auto mode) | The heater |
 |---|---|---|
 | `ok` | the skin reading is used | the PID's power, as the jobs ask, at most 100 % |
-| `safe: <why>` | the sensor fell off the baby (the skin fell > 0.08 °C/s for 3 s, or stays > 3 °C below the setpoint for 20 s); it was off from the start (< 0.3 °C rise in 5 min of warm-up, or after the setpoint was raised by 2 °C or more); the skin reading fails; or the control jobs are gone (nothing wrote `/dev/heater` for 10 s) | **the guard's own power**: the room table (`safelut`) for the room temperature, whatever the jobs ask |
-| `none: <why>` | no temperature at all (skin and room unreadable) | the guard switches to **manual** at the room table's power for the last room temperature seen (else 10 %); UP/DOWN adjust it |
+| `safe: <why>` | the sensor fell off the baby (the skin fell > 0.08 °C/s for 3 s, or stays > 3 °C below the setpoint for 20 s); it was off from the start (< 0.3 °C rise in 5 min of warm-up, or after a setpoint raise with the skin more than 3 °C below); the skin reading fails; or the control jobs are gone (nothing wrote `/dev/heater` for 10 s) | **the guard's own power**: 90 % of the feed-forward for the setpoint and the last room seen, at most 55 %, whatever the jobs ask; a beep every 5 s |
+| `none: <why>` | no temperature at all (skin and room unreadable) | the guard switches to **manual** at that same power (else 10 %); UP/DOWN adjust it; the continuous buzzer |
 
-Back to `ok` by itself: 2 minutes after the skin is within 2 °C of the
+Back to `ok` by itself: 2 minutes after the skin is within 3 °C of the
 setpoint again (sensor causes), 5 s after a reading or the control is
 back (hardware causes); from `none`, back to auto. Manual mode (the
 nurse's choice): hardware safety only. The guard also owns what
@@ -353,9 +353,10 @@ temperature there, IEC 60601-2-21, as the GE Panda warmer): manual
 power above 25 % for 12 minutes sounds `/dev/alarm/check` ("check the
 baby, press MUTE"); 3 more minutes unanswered switch the heater off
 until MUTE, which also restarts the timer (lowering the power to 25 %
-or less, or auto mode, stop it); and it writes `/dev/alarm/sensor`: "on" when the skin reading isn't
-trusted, "warn" (CHK, no buzzer) when only the room sensor is down in
-auto (the PID then runs on the last feed-forward). CHK lights for either. The temperature
+or less, or auto mode, stop it); and it writes `/dev/alarm/sensor` ("warn" in safe: beeps; "on" in
+none: the buzzer) and `/dev/alarm/room` ("warn", CHK, no buzzer, when the
+room sensor is down in auto: the PID then runs on the last room seen).
+CHK lights for either. The temperature
 alarms follow the setpoint (IEC 60601-2-21, as the GE Panda warmer): in
 auto with a trusted reading, the skin 1 °C off lights LOW or HIGH and
 beeps every 5 s (since 2026-11-26), 2 °C off sounds the buzzer continuously (both clear 0.2 °C inside, so a reading on
@@ -377,7 +378,7 @@ small display's value from `/dev/state`):
 |---|---|---|---|
 | CHK LED, TFT SENSOR icon + triangle | off | on / blinking | on / blinking |
 | big display | the skin temperature | **the reading, blinking**: shown, not trusted (it may be the room) | **blank**: no reading |
-| small display | the setpoint (auto) or the manual % | **the power it heats with** | the manual %, UP/DOWN adjust it |
+| small display | the setpoint (auto) or the manual % | the setpoint (the bargraph shows the power; until 2026-11-26 the power, which looked like manual) | the manual %, UP/DOWN adjust it |
 | MODE (LEDs, TFT) | auto/manual | auto | **manual** (the guard switched) |
 | buzzer | - | sounds, MUTE silences it for 1 min | the same |
 | console | - | `guard: safe: <why>, heating N % from the room (T C)` once | `guard: none: <why>, manual at N %` once |
@@ -1479,6 +1480,43 @@ session with `>>`, scripts and `/fram/boot`). On the board:
 | New: `#` comments (`date # hi` runs `date`) | ok: typed and inside `/fram/boot` |
 | Stack fix (pipe buffers static): no visible change expected, everything above should behave the same | ok: nothing changed |
 | Shell fix found on the PC: lines typed or pasted after `run`/`sleep`/`watch` ran immediately, mixed into the script (inherited from picoos). Now they wait until it's done. Paste e.g. `sleep 2000` + `echo after` in one go | ok: `after` came after the sleep |
+
+**2026-11-26, the logged warm-up and the sensor off the baby**
+(`build-babywarmer_v1/plan2040.uf2`, logged by Claude over the USB
+serial port: `plan2040-logs/warmup-2026-11-26.log`,
+`sensoroff-2026-11-26.log`). Pre-tests 1-4 first.
+
+| Test | Result |
+|---|---|
+| 1: manual 10 %, relay, SSR, current | ok: relay `on`, SSR `on`/`off` with ms, current ~20 off, 220-236 on (~1.5 s of 15 s): the threshold 50 is well clear of both |
+| 2: skin and room NTC; a finger on the skin NTC | ok: both 23.3; the skin climbs smoothly 0.3-0.4 °C/s |
+| 3: auto, setpoint 30.0, a finger | ok: HIGH + beeps at 1 °C over, continuous at 2 °C, the relay off at 3 °C, MUTE; letting go: the guard's safe (the fall), as expected |
+| 4: UP held 3 s at 37.5 | ok: on to 39.0, the small display blinking; DOWN locks it again |
+| Warm-up to 37.0 (boost 80 %), logged | ok, slow: boost 6:00 (25.6 → 34.0), coast 48 s (→ 35.4, still rising), then **stuck at 35.4-35.9 for 10 min** and 37.0 at 23:42; peak 37.3 (+0.3, no overshoot); steady 36.9-37.3 for 20 min at 45-49 % (feed-forward 30 %: the integral carried +18.6 %); no alarms |
+| The skin sensor thrown out of the bed (at 37.0), logged | ok: safe 16 s later (`skin fell to 34.6 C in 3 s`), heating 38 % (the room table), CHK, buzzer |
+| The sensor back | **not ok:** the skin settled at 34.2-34.4 under the safe power, never within 2 °C of 37.0: no recovery in 15 minutes. The continuous buzzer in safe too annoying (Leon) |
+
+Changed after it (on the PC: 26 tests ok, the simulator re-fitted to
+this warm-up, rms 0.18 °C): the feed-forward 3.7 % per °C of (setpoint −
+room) instead of the room tables; safe heats 90 % of it (at most 55 %)
+and recovers within 3 °C (was 2); safe beeps every 5 s, both sensors
+gone stays continuous; the room-sensor fault its own silent alarm
+(`/dev/alarm/room`, CHK); any setpoint raise with the skin more than 3 °C
+below boosts again; the PID's part up to +50 %.
+
+| Test | Result |
+|---|---|
+| Warm-up to 37.0 again, logged (`warmup2-2026-11-26.log`) | ok: boost 6:41 (25.1 → 34.0), coast → 35.5, the PID from 55 %, **37.0 at 10:19** (was 23:42); peak 37.7 (+0.7) at 14:35, then a slow wave 37.6 → 36.6 → 37.2 (the integral seeded +3 % after the coast); steady 48 % at 37.1 in 24.6 °C (K ≈ 3.8). LOW blipped 14 s at 8:04 as the skin passed 36.0: the icy face Leon saw in run 1 too (fixed: the warm-up counts as reached within 0.8 °C, not 1.0) |
+| The sensor out and back, logged (`sensoroff2-2026-11-26.log`) | ok: safe 13 s after the fall, 41 %, beeps; sensor back after 3:40: the skin settled at ~34.6 under 41 %; **recovered** at 34.6 (within 3 °C) after ~10 min. Not ok after that: LOW alarm (continuous) at once, 2.4 °C below, and the PID continued from the safe power (integral -11.7 %): 41 → 46 % in 5 min, 34.6 → 35.4. The small display showed the power in safe: looked like manual (Leon) |
+
+Changed after it: recovery from safe is a new warm-up (LOW quiet until
+within 0.8 °C; the PID fresh from the feed-forward, or a boost if more
+than 3 °C below); the small display shows the setpoint in safe.
+
+| Test | Result |
+|---|---|
+| The sensor out and back again, logged | pending: after the recovery no LOW, the PID from ~52 %, a steady climb to 37.0 |
+| A fan on the baby (a draught), logged | pending: how fast the PID follows (Kp 3, Ti 200 s): tuning |
 
 **2026-11-26, the first warm-up, and what changed after it**
 (`build-babywarmer_v1/plan2040.uf2`): the heater element and the right
