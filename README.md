@@ -2034,6 +2034,17 @@ alpha and beta as above, both powered together):
 | `echo leon > /n/beta/fram/leon` (a new file) | `'leon': file does not exist`: creating wasn't there yet. Added: the client creates a missing file (Tcreate) in the directory above it, as `>` does locally (`srvtest`) |
 | `cat > /n/beta/fram/leon` | the shell printed its old hint for local `/fram` (`no filesystem? full? ...`) instead of the reason. Now the file layer's reason when there is one (`catsim`'s expected output changed with it: `bad name (1-11 characters, no spaces or /)`) |
 | `cat /dev/9p` on alpha | ok: `import: /n/beta up`, 44 frames, no bad ones |
+| retest with Tcreate: `echo leon > /n/beta/fram/leon`, `cat` it, `echo hiemstra >> /n/beta/fram/leon`, `cat` it | ok: `leon`, then `leon` + `hiemstra`; beta's own `cat /fram/leon` the same |
+| `cat > /n/beta/fram/note`, four lines, `.`; `cat /n/beta/fram/note` | ok: the four lines |
+| `echo on > /n/beta/dev/lamp`, `echo off > /n/beta/dev/lamp` | ok: beta's lamp LED (GPIO6) on, then off |
+| both ways at once: alpha `serve` too, beta `import /dev/eia0`, `cat /n/alpha/dev/sysname` | ok: `/n/alpha`, `alpha`; one wire carries alpha's client to beta's server and beta's client to alpha's server |
+| load: alpha `cat /n/beta/dev/uptime > /dev/cons &` + `watch 200 cat /n/beta/dev/uptime`, beta `cat /n/alpha/dev/uptime > /dev/cons &`, together | ok: `/dev/9p` on both: **9370 frames received, bad_crc 0, bad_cobs 0, too_long 0**, and 1 fid in use (the root: no fids leaked). Both boards received exactly as many frames: each board receives the other's requests plus the replies to its own, and every request got its reply |
+| the load test's output on the terminal | the uptime lines land in the middle of the prompt and the typed line (known open item: redraw the prompt after `/dev/cons` output) |
+| link down: beta's USB pulled, alpha `cat /n/beta/dev/rtc` | ok: `CTS off: other board not reading, off or unwired; 1 of 16 sent`: alpha didn't even wait for a timeout, the UART's CTS said at once that beta wasn't there; the link is marked down |
+| still down: `cat /n/beta/dev/rtc` again | ok, at once: `beta: no answer for 96 s; retrying every second`, then `100 s` |
+| beta powered again, `serve` on beta | ok: alpha printed `/n/beta: ok again` by itself (the background retry: Tversion, Tattach, a new session on the restarted beta), and `cat /n/beta/dev/rtc` answered `2026-11-27 00:16:21`. Beta started fine this time |
+| `/fram/boot` on both: `date`, `toggle /dev/buttons/lamp /dev/lamp &`, `serve`, `import /dev/eia0 /n/<the other>` | ok: after a power-up both serve and import each other, in either order (with the name given, `import` mounts at once and retries until the other board answers) |
+| powering one board while the other runs | still needs several tries: the back-powering through TX/RTS (see above); both together on the hub is fine |
 
 ## `bringup` — board test
 

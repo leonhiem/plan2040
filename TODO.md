@@ -1495,6 +1495,10 @@ How picoos carries over:
   to devices/files). So the redraw is wanted, not just nice to have, as
   soon as anything prints to `/dev/cons` regularly; it's a small change
   (`/dev/cons` asks the shell to redraw prompt + typed line).
+  **Update 2026-11-27 (branch `9p`):** 9P makes it more pressing: a
+  background job reading another board (`cat /n/beta/dev/uptime >
+  /dev/cons &`) and the link's own `/n/beta: ok again` land in the
+  middle of the prompt. Leon: keep it on this list, not now.
 - **Per-job poll rate**: all background jobs run every 150 ms.
 - **`hyst` shares one state** between all its users (from picoos).
 - **`fsck /fram`** — **done 2026-11-16** (see the README): reclaim blocks leaked by a power cut mid-write
