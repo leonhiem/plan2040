@@ -32,6 +32,8 @@
 -- the bytes themselves
 Tversion (19): 13 00 00 00 64 ff ff 18 04 00 00 06 00 39 50 32 30 30 30
 Twalk dev rtc (27): 1b 00 00 00 6e 01 00 00 00 00 00 01 00 00 00 02 00 03 00 64 65 76 03 00 72 74 63
+-- Dir (stat)
+sizeD2M 64 convD2M 64
 -- bad messages are refused
 cut short: 27 of 27 refused
 -- framing

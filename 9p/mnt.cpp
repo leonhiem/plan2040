@@ -23,8 +23,9 @@
  * Plan 9's equivalent is the mount driver (devmnt) plus import(4).
  *
  * Writing a file that isn't there creates it (Tcreate), as `>` does
- * locally. Not yet (step 5): listing (`ls /n/beta/...`), removing files,
- * unmount. One link, one import.
+ * locally; `rm` is Tremove; `ls /n/beta/dev` reads the directory (its
+ * entries are Dirs, stat(5)); `unmount /n/beta` undoes the import. One
+ * link, one import.
  */
 #include "9p/p9.h"
 #include "kernel/fs.h"
@@ -397,18 +398,120 @@ static int mnt_write(const char *name, const char *buf, int len, bool append)
     return -1;
 }
 
+// rm: walk + remove in one burst (a remove also ends the fid).
 static int mnt_remove(const char *name)
 {
-    (void)name;
-    werrstr("removing a file over 9P: not yet");
+    for (int attempt = 0; attempt < 2; attempt++) {
+        if (!usable()) return -1;
+        char tmp[FS_NAME_MAX];
+        const char *w[MAXWELEM];
+        int nw = split(name, tmp, sizeof(tmp), w);
+        if (nw < 0) { werrstr("more than %d names in the path", MAXWELEM); return -1; }
+        uint32_t fid = newfid();
+        begin();
+        memset(&t, 0, sizeof(t));
+        t.type = Twalk; t.fid = ROOTFID; t.newfid = fid; t.nwname = nw;
+        for (int i = 0; i < nw; i++) t.wname[i] = w[i];
+        if (!send(0, 0)) return send_failed(), -1;
+        memset(&t, 0, sizeof(t));
+        t.type = Tremove; t.fid = fid;
+        if (!send(0, 0)) return send_failed(), -1;
+        if (!wait_all()) return -1;
+        if (lost_session() && attempt == 0) {
+            if (!attach()) return -1;
+            continue;
+        }
+        if (!walk_ok(nw, w)) return -1;
+        if (is_error(1)) return -1;
+        return 0;
+    }
     return -1;
+}
+
+/* ── listing a directory ───────────────────────────────────────────── */
+
+// The whole directory is read at index 0 (walk, open, reads until an
+// empty one, clunk) and kept here; ls then asks for entry 1, 2, ...
+static uint8_t dirbuf[2048];
+static unsigned dirlen;
+
+// One request on its own, waited for.
+static bool one(char *dest, int destlen)
+{
+    begin();
+    if (!send(dest, destlen)) return send_failed();
+    return wait_all();
+}
+
+static int fetch_dir(const char *dir)
+{
+    char tmp[FS_NAME_MAX];
+    const char *w[MAXWELEM];
+    int nw = dir[0] ? split(dir, tmp, sizeof(tmp), w) : 0;
+    if (nw < 0) { werrstr("more than %d names in the path", MAXWELEM); return -1; }
+    for (int attempt = 0; attempt < 2; attempt++) {
+        if (!usable()) return -1;
+        uint32_t fid = newfid();
+        dirlen = 0;
+        begin();
+        memset(&t, 0, sizeof(t));
+        t.type = Twalk; t.fid = ROOTFID; t.newfid = fid; t.nwname = nw;
+        for (int i = 0; i < nw; i++) t.wname[i] = w[i];
+        if (!send(0, 0)) return send_failed(), -1;
+        memset(&t, 0, sizeof(t));
+        t.type = Topen; t.fid = fid; t.mode = OREAD;
+        if (!send(0, 0)) return send_failed(), -1;
+        if (!wait_all()) return -1;
+        if (lost_session() && attempt == 0) {
+            if (!attach()) return -1;
+            continue;
+        }
+        if (!walk_ok(nw, w) || is_error(1)) return -1;
+        bool ok = true;
+        for (;;) {
+            unsigned room = sizeof(dirbuf) - dirlen;
+            if (room < STATFIXLEN) break;          // full: list what fits
+            memset(&t, 0, sizeof(t));
+            t.type = Tread; t.fid = fid; t.offset = dirlen;
+            t.count = room < MNT_IOUNIT ? room : MNT_IOUNIT;
+            if (!one((char *)dirbuf + dirlen, room)) return -1;
+            if (is_error(0)) { ok = false; break; }
+            if (pend[0].count == 0) break;
+            dirlen += pend[0].count;
+        }
+        char why[ERRMAX];
+        snprintf(why, sizeof(why), "%s", errstr());
+        memset(&t, 0, sizeof(t));
+        t.type = Tclunk; t.fid = fid;
+        one(0, 0);                                 // its answer doesn't matter
+        if (!ok) { werrstr("%s", why); return -1; }
+        return 0;
+    }
+    return -1;
+}
+
+static int mnt_listdir(const char *dir, int index, char *name, int namelen, int *size)
+{
+    if (index == 0 && fetch_dir(dir) < 0) return -1;
+    unsigned off = 0;
+    for (int i = 0; off < dirlen; i++) {
+        Dir d;
+        char strs[96];
+        unsigned n = convM2D(dirbuf + off, dirlen - off, &d, strs, sizeof(strs));
+        if (n == 0) return -1;
+        if (i == index) {
+            snprintf(name, namelen, "%s%s", d.name, (d.mode & DMDIR) ? "/" : "");
+            *size = (int)d.length;
+            return 0;
+        }
+        off += n;
+    }
+    return -1;                                     // past the end
 }
 
 static int mnt_list(int index, char *name, int namelen, int *size)
 {
-    (void)index; (void)name; (void)namelen; (void)size;
-    werrstr("listing over 9P: not yet");
-    return -1;
+    return mnt_listdir("", index, name, namelen, size);
 }
 
 static int mnt_format(void)
@@ -425,7 +528,7 @@ static int mnt_df(int *free_bytes, int *total_bytes)
 }
 
 static const mount_t mnt = {
-    prefix, mnt_read, mnt_write, mnt_remove, mnt_list, mnt_format, mnt_df, 0, 0
+    prefix, mnt_read, mnt_write, mnt_remove, mnt_list, mnt_format, mnt_df, 0, 0, mnt_listdir
 };
 
 /* ── import, the retry, status ─────────────────────────────────────── */
@@ -504,6 +607,27 @@ void mnt_tick(void)
     t.version = P9_VERSION;
     unsigned m = convS2M(&t, cbuf, sizeof(cbuf));
     ping = (m && link_send(cbuf, m)) ? 1 : 0;
+}
+
+int mnt_unmount(const char *mountpoint, char *msg, int msglen)
+{
+    if (!mounted || strcmp(mountpoint, prefix) != 0) {
+        snprintf(msg, msglen, "%s: not imported%s%s", mountpoint, mounted ? "; imported is " : "",
+                 mounted ? prefix : "");
+        return -1;
+    }
+    if (up) {                                      // tell the server: the root fid goes
+        memset(&t, 0, sizeof(t));
+        t.type = Tclunk; t.fid = ROOTFID;
+        one(0, 0);
+    }
+    fs_unmount(prefix);
+    mounted = false;
+    up = false;
+    ping = 0;
+    snprintf(msg, msglen, "%s unmounted\n", prefix);
+    snprintf(remote, sizeof(remote), "the other board");
+    return 0;
 }
 
 int mnt_status(char *buf, int len)

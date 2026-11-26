@@ -359,6 +359,75 @@ unsigned convS2M(const Fcall *f, uint8_t *ap, unsigned nap)
     return (unsigned)(p - ap) == size ? size : 0;
 }
 
+/* ── Dir: stat(5) ─────────────────────────────────────────────────── */
+
+unsigned sizeD2M(const Dir *d)
+{
+    uint64_t n = STATFIXLEN - 4 * BIT16SZ;
+    n += ssize(d->name) + ssize(d->uid) + ssize(d->gid) + ssize(d->muid);
+    return n > 0xFFFF + BIT16SZ ? 0 : (unsigned)n;
+}
+
+unsigned convD2M(const Dir *d, uint8_t *buf, unsigned nbuf)
+{
+    unsigned ss = sizeD2M(d);
+    if (ss == 0 || ss > nbuf) return 0;
+    uint8_t *p = buf;
+    PBIT16(p, ss - BIT16SZ); p += BIT16SZ;
+    PBIT16(p, d->type);      p += BIT16SZ;
+    PBIT32(p, d->dev);       p += BIT32SZ;
+    p = pqid(p, &d->qid);
+    PBIT32(p, d->mode);      p += BIT32SZ;
+    PBIT32(p, d->atime);     p += BIT32SZ;
+    PBIT32(p, d->mtime);     p += BIT32SZ;
+    PBIT64(p, d->length);    p += BIT64SZ;
+    p = pstring(p, d->name);
+    p = pstring(p, d->uid);
+    p = pstring(p, d->gid);
+    p = pstring(p, d->muid);
+    return (unsigned)(p - buf) == ss ? ss : 0;
+}
+
+// One string of a Dir, copied out with a nul. Returns the position after
+// it in buf, or 0.
+static const uint8_t *cstring(const uint8_t *p, const uint8_t *ep, const char **s,
+                              char **strs, char *se)
+{
+    if (ep - p < BIT16SZ) return 0;
+    unsigned n = GBIT16(p);
+    p += BIT16SZ;
+    if ((unsigned long)(ep - p) < n || (unsigned long)(se - *strs) < n + 1ul) return 0;
+    memcpy(*strs, p, n);
+    (*strs)[n] = '\0';
+    *s = *strs;
+    *strs += n + 1;
+    return p + n;
+}
+
+unsigned convM2D(const uint8_t *buf, unsigned nbuf, Dir *d, char *strs, unsigned nstrs)
+{
+    if (nbuf < STATFIXLEN) return 0;
+    unsigned size = GBIT16(buf) + BIT16SZ;
+    if (size < STATFIXLEN || size > nbuf) return 0;
+    const uint8_t *p = buf + BIT16SZ, *ep = buf + size;
+    d->type   = GBIT16(p); p += BIT16SZ;
+    d->dev    = GBIT32(p); p += BIT32SZ;
+    d->qid.type = GBIT8(p);
+    d->qid.vers = GBIT32(p + 1);
+    d->qid.path = GBIT64(p + 5);
+    p += QIDSZ;
+    d->mode   = GBIT32(p); p += BIT32SZ;
+    d->atime  = GBIT32(p); p += BIT32SZ;
+    d->mtime  = GBIT32(p); p += BIT32SZ;
+    d->length = GBIT64(p); p += BIT64SZ;
+    char *se = strs + nstrs;
+    p = cstring(p, ep, &d->name, &strs, se);
+    if (p) p = cstring(p, ep, &d->uid, &strs, se);
+    if (p) p = cstring(p, ep, &d->gid, &strs, se);
+    if (p) p = cstring(p, ep, &d->muid, &strs, se);
+    return (p && p == ep) ? size : 0;
+}
+
 /* ── a message in words ────────────────────────────────────────────── */
 
 static const char *tname(int t)

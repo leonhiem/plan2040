@@ -111,7 +111,7 @@ int main()
     printf("%s\n", read_(5, 0)); CHECK(r.type == Rerror && !strcmp(r.ename, "ADS1115 (0x48, header bus) not answering"));
     clunk(5);
     walk(0, 6, "dev"); open_(6, OREAD);
-    printf("%s\n", read_(6, 0)); CHECK(r.type == Rerror);   // directory listing: not yet
+    printf("%s\n", read_(6, 0)); CHECK(r.type == Rread && r.count > 0);   // a directory: its entries
     printf("%s\n", open_(6, OWRITE)); CHECK(r.type == Rerror && !strcmp(r.ename, "already open"));
     clunk(6);
 
@@ -150,6 +150,57 @@ int main()
     printf("%s\n", ask(&t)); CHECK(r.type == Rerror);
     clunk(10);
 
+    printf("-- stat, directories, remove\n");
+    {
+        Fcall t2 = q(Tstat, 30); t2.fid = 0;
+        printf("%s\n", ask(&t2)); CHECK(r.type == Rstat);
+        Dir d; char strs[128];
+        CHECK(convM2D(r.stat, r.nstat, &d, strs, sizeof strs) == r.nstat);
+        printf("  root: name '%s' mode %lo uid '%s'\n", d.name, (unsigned long)d.mode, d.uid);
+        CHECK(!strcmp(d.name, "/") && (d.mode & DMDIR) && !strcmp(d.uid, "beta"));
+        // List a directory: read until an empty read, small counts so it takes several.
+        const char *dirs_[] = { "", "dev", "fram" };
+        for (int k = 0; k < 3; k++) {
+            if (dirs_[k][0]) walk(0, 20, dirs_[k]); else walk(0, 20, 0);
+            open_(20, OREAD);
+            printf("  ls /%s:", dirs_[k]);
+            uint64_t off = 0; int entries = 0;
+            for (;;) {
+                Fcall rd = q(Tread, 31); rd.fid = 20; rd.offset = off; rd.count = 100;
+                ask(&rd);
+                if (r.type != Rread) { printf(" [%s]", words); fails++; break; }
+                if (r.count == 0) break;
+                unsigned o = 0;
+                static uint8_t chunk[1100]; memcpy(chunk, r.data, r.count);
+                while (o < r.count) {
+                    unsigned m = convM2D(chunk + o, r.count - o, &d, strs, sizeof strs);
+                    if (!m) { printf(" [bad entry]"); fails++; break; }
+                    printf(" %s%s(%llu)", d.name, (d.mode & DMDIR) ? "/" : "", (unsigned long long)d.length);
+                    o += m; entries++;
+                }
+                off += r.count;
+            }
+            printf("\n");
+            CHECK(entries > 0);
+            clunk(20);
+        }
+        walk(0, 20, "dev"); open_(20, OREAD);
+        Fcall rd = q(Tread, 32); rd.fid = 20; rd.offset = 0; rd.count = 100; ask(&rd);
+        rd.offset = 7; printf("%s\n", ask(&rd)); CHECK(r.type == Rerror);           // not where it left off
+        rd.offset = 0; rd.count = 10; printf("%s\n", ask(&rd)); CHECK(r.type == Rerror); // too small for one
+        clunk(20);
+        // remove
+        walk(0, 21, "fram", "leon");
+        t2 = q(Tremove, 33); t2.fid = 21;
+        printf("%s\n", ask(&t2)); CHECK(r.type == Rremove && fs_open("/fram/leon") < 0);
+        printf("%s\n", clunk(21)); CHECK(r.type == Rerror);                          // remove ended the fid
+        walk(0, 21, "dev", "lamp"); t2 = q(Tremove, 33); t2.fid = 21;
+        printf("%s\n", ask(&t2)); CHECK(r.type == Rerror && !strcmp(r.ename, "a device can't be removed"));
+        walk(0, 21, "fram"); t2 = q(Tremove, 33); t2.fid = 21;
+        printf("%s\n", ask(&t2)); CHECK(r.type == Rerror);
+        CHECK(srv_fids() == 1);
+    }
+
     printf("-- read-only, then off\n");
     srv_serve(SRV_RO);
     walk(0, 9, "dev", "lamp");
@@ -159,7 +210,7 @@ int main()
     walk(0, 10, "fram"); t = q(Tcreate, 15); t.fid = 10; t.name = "no"; t.mode = OWRITE;
     printf("%s\n", ask(&t)); CHECK(r.type == Rerror && !strcmp(r.ename, "read-only (serve -r)"));
     clunk(10);
-    printf("%s\n", (t = q(Tstat, 20), t.fid = 0, ask(&t))); CHECK(r.type == Rerror);
+    printf("%s\n", (t = q(Tstat, 20), t.fid = 0, ask(&t))); CHECK(r.type == Rstat);
     printf("%s\n", (t = q(Tflush, 21), t.oldtag = 20, ask(&t))); CHECK(r.type == Rflush);
     printf("fids in use: %d\n", srv_fids()); CHECK(srv_fids() == 1);   // only the root
     t = q(Tversion, NOTAG); t.msize = 512; t.version = "9P2000";

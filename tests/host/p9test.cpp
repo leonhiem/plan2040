@@ -103,6 +103,25 @@ static void exact_bytes(void)
     CHECK(g.wname[0] > (const char *)buf && g.wname[1] < (const char *)buf + n);
 }
 
+static void dirs(void)
+{
+    printf("-- Dir (stat)\n");
+    Dir d; memset(&d, 0, sizeof d);
+    d.qid.path = 42; d.qid.type = QTDIR; d.mode = DMDIR | 0555; d.length = 0;
+    d.name = "dev"; d.uid = d.gid = d.muid = "beta";
+    uint8_t buf[128];
+    unsigned n = convD2M(&d, buf, sizeof buf);
+    printf("sizeD2M %u convD2M %u\n", sizeD2M(&d), n);
+    CHECK(n == STATFIXLEN + 3 + 3 * 4 && n == sizeD2M(&d) && GBIT16(buf) == n - 2);
+    Dir e; char strs[64];
+    CHECK(convM2D(buf, n, &e, strs, sizeof strs) == n);
+    CHECK(!strcmp(e.name, "dev") && !strcmp(e.muid, "beta") && e.qid.path == 42 && e.mode == (DMDIR | 0555));
+    CHECK(convM2D(buf, n, &e, strs, sizeof strs) == n);           // buf unchanged: parse again
+    CHECK(convM2D(buf, n - 1, &e, strs, sizeof strs) == 0);       // cut short
+    CHECK(convM2D(buf, n, &e, strs, 8) == 0);                     // no room for the strings
+    CHECK(convD2M(&d, buf, n - 1) == 0);                          // no room
+}
+
 static void bad_messages(void)
 {
     printf("-- bad messages are refused\n");
@@ -222,6 +241,7 @@ int main()
 {
     messages();
     exact_bytes();
+    dirs();
     bad_messages();
     framing();
     printf(fails ? "%d FAILED\n" : "all ok\n", fails);

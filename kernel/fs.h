@@ -72,12 +72,20 @@ typedef struct {
     int (*df)(int *free_bytes, int *total_bytes);
     int (*rename)(const char *from, const char *to);              // 0, or -1
     int (*fsck)(char *report, int len);   // check + safe fixes: report bytes, or -1
+    // Optional (2026-11-27, 9P): list a directory *inside* the mount
+    // ("dev" for /n/beta/dev), as list() does for its top. A mount
+    // without directories (/fram) leaves it 0.
+    int (*listdir)(const char *dir, int index, char *name, int namelen, int *size);
 } mount_t;
 
 #define FS_MAX_MOUNTS 4
 #define FS_MAX_OPEN   4   // open files at once (devices don't use these)
 
 void fs_mount(const mount_t *m);
+
+// Take a mount out of the namespace (2026-11-27, for 9P's unmount): its
+// open files are closed. 0, or -1 if nothing is mounted there.
+int fs_unmount(const char *prefix);
 
 // Open modes. Devices ignore them; they only matter for files.
 #define FS_RDWR   0   // existing file only (the default: what cat, thresh, ... use)
@@ -100,6 +108,8 @@ int fs_rename(const char *from, const char *to);
 int fs_fsck(const char *path, char *report, int len);
 int fs_format(const char *path);
 int fs_df(const char *path, int *free_bytes, int *total_bytes);
+// path: a mount ("/fram"), or a directory inside one that has listdir()
+// ("/n/beta/dev"). -1 past the end, or when it can't be listed.
 int fs_list(const char *path, int index, char *name, int namelen, int *size);
 int fs_mount_count(void);
 const char *fs_mount_name(int index);

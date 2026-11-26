@@ -8,6 +8,7 @@
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
+#include "kernel/errstr.h"
 #include <cstdio>
 
 static int rm_run(const char *in, int inlen, int argc, char **argv, char *out, int outlen)
@@ -18,7 +19,10 @@ static int rm_run(const char *in, int inlen, int argc, char **argv, char *out, i
     for (int i = 0; i < argc; i++) {
         if (fs_remove(argv[i]) == 0) continue;
         int avail = outlen - pos;
-        int n = snprintf(out + pos, avail, "rm: %s: no such file\n", argv[i]);
+        // The file layer's reason, path included ("/fram/x: no such file",
+        // "/n/beta/dev/lamp: a device can't be removed").
+        int n = errstr()[0] ? snprintf(out + pos, avail, "rm: %s\n", errstr())
+                            : snprintf(out + pos, avail, "rm: %s: can't be removed\n", argv[i]);
         if (n < 0 || n >= avail) break;
         pos += n;
     }

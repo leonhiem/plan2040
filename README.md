@@ -615,7 +615,8 @@ the LAMP button to the lamp output, as on babywarmer
 | `df` | `df` | Total, used and free space on every mount. |
 | `mkfs` | `mkfs /fram` | Format: every file on it is gone. Never happens on its own. |
 | `serve` | `serve`, `serve -r`, `serve off` | Answer 9P from the other board over `/dev/eia0`: all of this board's devices and `/fram` files, or read-only. Nothing is served until a `serve` line says so. Plan 9's `exportfs`. |
-| `import` | `import /dev/eia0 [/n/<name>]` | The other board's files here, as `/n/<its /dev/sysname>` (or the name given): `cat /n/beta/dev/rtc`, `echo on > /n/beta/dev/lamp`. If it doesn't answer, says so; with a name given it mounts anyway and keeps trying every second (`/n/beta: ok again`). Plan 9's `import`. Writing a file that isn't there creates it. Not yet: `ls` of a remote directory, removing remote files. |
+| `import` | `import /dev/eia0 [/n/<name>]` | The other board's files here, as `/n/<its /dev/sysname>` (or the name given): `cat /n/beta/dev/rtc`, `echo on > /n/beta/dev/lamp`. If it doesn't answer, says so; with a name given it mounts anyway and keeps trying every second (`/n/beta: ok again`). Plan 9's `import`. Writing a file that isn't there creates it; `rm` and `ls /n/beta/dev` work too (a directory ends in `/`). Not yet: hops through a board (`/n/alpha/n/beta`), rename. |
+| `unmount` | `unmount /n/<name>` | Undo an `import`: `/n/beta` is gone, and `import` can run again. |
 | `hexdump` | `hexdump [-s off] [-n len] [path]` | Hex + ASCII, `hexdump -C` layout, of a path or piped input. Repeated lines become `*`. See [hexdump](#hexdump). |
 | `remember` | `remember <device> <file>` | Keep a file equal to a device: write the device's value to the file when they differ. Run with `&`. See [Settings that survive a power cycle](#settings-that-survive-a-power-cycle). |
 
@@ -2045,6 +2046,19 @@ alpha and beta as above, both powered together):
 | beta powered again, `serve` on beta | ok: alpha printed `/n/beta: ok again` by itself (the background retry: Tversion, Tattach, a new session on the restarted beta), and `cat /n/beta/dev/rtc` answered `2026-11-27 00:16:21`. Beta started fine this time |
 | `/fram/boot` on both: `date`, `toggle /dev/buttons/lamp /dev/lamp &`, `serve`, `import /dev/eia0 /n/<the other>` | ok: after a power-up both serve and import each other, in either order (with the name given, `import` mounts at once and retries until the other board answers) |
 | powering one board while the other runs | still needs several tries: the back-powering through TX/RTS (see above); both together on the hub is fine |
+
+**2026-11-27, 9P step 5: ls, rm, unmount** (alpha imports beta, both
+with `serve` + `import` in `/fram/boot`):
+
+| Test | Result |
+|---|---|
+| `ls /n/beta` | ok: `/n/beta/dev/`, `/n/beta/fram/` |
+| `ls /n/beta/dev` | ok: beta's 16 devices. Not shown: names below a device (`/dev/rtc/vl`, `/dev/buttons/lamp`): in 9P a name is a file or a directory, not both, so `rtc` is listed as the file; `cat /n/beta/dev/rtc/vl` still works |
+| `ls -l /n/beta/fram` | ok: `sysname 5`, `leon 14`, `note 31`, `boot 74` |
+| `rm /n/beta/fram/note`, `ls /n/beta/fram` | ok: gone |
+| `rm /n/beta/dev/lamp` | refused, but said `no such file`: `rm` printed that for every failure. Now the file layer's reason (`rm: /n/beta/dev/lamp: a device can't be removed`); a missing local file reads as before (`rm: /fram/x: no such file`, `rmsim` unchanged) |
+| `unmount /n/beta`, `ls` | ok: `/n/beta unmounted`, gone from the list |
+| `import /dev/eia0`, `cat /n/beta/dev/sysname` | ok: imported again, `beta` |
 
 ## `bringup` — board test
 

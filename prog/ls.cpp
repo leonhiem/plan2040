@@ -4,6 +4,7 @@
  *   ls            every device, every mount point ("/fram/"), every program
  *   ls /fram      the files on that mount, one path per line
  *   ls -l /fram   the same with sizes in bytes
+ *   ls /n/beta/dev  another board's directory, over 9P (a directory ends in /)
  *
  * ls is a program too, not a shell builtin -- a text-out filter with no
  * input, same shape as everything else. Devices print as their own path
@@ -14,6 +15,7 @@
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
+#include "kernel/errstr.h"
 #include <cstdio>
 #include <cstring>
 
@@ -34,15 +36,21 @@ static bool add(char *out, int outlen, int *pos, const char *fmt, const char *a,
 
 static int list_mount(const char *path, bool sizes, char *out, int outlen)
 {
-    char name[16];
+    char name[32];
     int size, f, t;
     int pos = 0;
     // Not a mount, or not formatted: say so, rather than an empty listing --
-    // "no files" isn't the same thing.
-    if (fs_df(path, &f, &t) < 0)
-        return snprintf(out, outlen, "ls: %s: not a mount, or no filesystem yet (mkfs %s)\n", path, path);
+    // "no files" isn't the same thing. Another board's directory (9P,
+    // /n/beta/dev) has no df: it's listed if it can be, else ls says why.
+    if (fs_df(path, &f, &t) < 0) {
+        errstr_clear();
+        if (fs_list(path, 0, name, sizeof(name), &size) < 0) {
+            if (errstr()[0]) return snprintf(out, outlen, "ls: %s: %s\n", path, errstr());
+            return snprintf(out, outlen, "ls: %s: not a mount, or no filesystem yet (mkfs %s)\n", path, path);
+        }
+    }
     for (int i = 0; fs_list(path, i, name, sizeof(name), &size) == 0; i++) {
-        char full[40];
+        char full[64];
         snprintf(full, sizeof(full), "%s/%s", path, name);
         if (!add(out, outlen, &pos, sizes ? "%-24s %d\n" : "%s\n", full, size)) break;
     }
@@ -58,7 +66,7 @@ static int ls_run(const char *in, int inlen, int argc, char **argv, char *out, i
     if (argc >= 1 && strcmp(argv[0], "-l") == 0) { sizes = true; argc--; argv++; }
     if (argc >= 1) {
         // Allow "ls /fram/" as well as "ls /fram".
-        char path[32];
+        char path[48];
         snprintf(path, sizeof(path), "%s", argv[0]);
         int n = strlen(path);
         if (n > 1 && path[n - 1] == '/') path[n - 1] = '\0';

@@ -35,7 +35,7 @@ set(PLAN2040_DEVS
 set(PLAN2040_PROGS
     cat echo label thresh hyst toggle adjust follow select date uptime
     wc grep headtail tee hexdump remember cpmv rm fsck mkfs df ls
-    serve import
+    serve import unmount
 )
 
 # Built-in scripts: scripts/<name> (or the app's), "boot" runs at power-up

@@ -23,10 +23,14 @@
  * path in front (the client puts the remote path there):
  *   cat: /n/beta/dev/rtc: RTC (0x51, local bus) not answering
  *
- * Creating a file (Tcreate) works on a mount (/fram).
+ * Creating (Tcreate) and removing (Tremove) work for files on a mount
+ * (/fram). A directory read returns its entries as Dirs (stat(5)): the
+ * made-up directories, then a mount's files; Tstat describes one file.
+ * Every file belongs to this board's name; devices have length 0, as in
+ * Plan 9; no times yet.
  *
- * Not yet (step 5): directory listings, stat, remove, and walking
- * into this board's own /n mounts (hops through a board).
+ * Not yet: wstat (rename), and walking into this board's own /n mounts
+ * (hops through a board).
  */
 #include "9p/p9.h"
 #include "kernel/fs.h"
@@ -47,6 +51,8 @@ typedef struct {
     uint8_t  mode;             // Topen's
     bool     wrote;            // a write happened on this open
     uint32_t vlen;             // length of the value read at offset 0
+    uint16_t diridx;           // a directory read: the next entry
+    uint32_t diroff;           //   and the offset the next read must ask for
 } Sfid;
 
 static Sfid fids[SRV_NFID];
@@ -137,6 +143,78 @@ static Qid qidof(const char *path, bool dir)
     q.vers = 0;
     q.type = dir ? QTDIR : QTFILE;
     return q;
+}
+
+// The size of a file on a mount, 0 for anything else.
+static uint32_t file_size(const char *path)
+{
+    for (int i = 0; i < fs_mount_count(); i++) {
+        const char *m = fs_mount_name(i);
+        if (!starts_dir(path, m)) continue;
+        char n[FS_NAME_MAX];
+        int size;
+        for (int k = 0; fs_list(m, k, n, sizeof(n), &size) >= 0; k++)
+            if (!strcmp(n, path + strlen(m) + 1)) return size;
+    }
+    return 0;
+}
+
+// The first name below dir in full ("/dev/rtc/vl" below "/dev": "rtc"),
+// its length in *len.
+static const char *below(const char *full, const char *dir, int *len)
+{
+    const char *c = full + strlen(dir) + 1;
+    const char *e = strchr(c, '/');
+    *len = e ? (int)(e - c) : (int)strlen(c);
+    return c;
+}
+
+// The k-th entry of directory dir: the names of devices and mounts below
+// it (each once), then, for a mount, its files. False past the end.
+static bool child(const char *dir, int k, char *name, int namelen)
+{
+    int nd = fs_count(), nm = fs_mount_count();
+    for (int i = 0; i < nd + nm; i++) {
+        const char *full = i < nd ? fs_name(i) : fs_mount_name(i - nd);
+        if (!starts_dir(full, dir)) continue;
+        int len;
+        const char *c = below(full, dir, &len);
+        if (dir[0] == '\0' && len == 1 && c[0] == 'n') continue;   // /n: hops, not yet
+        bool seen = false;
+        for (int j = 0; j < i && !seen; j++) {
+            const char *f2 = j < nd ? fs_name(j) : fs_mount_name(j - nd);
+            if (!starts_dir(f2, dir)) continue;
+            int l2;
+            const char *c2 = below(f2, dir, &l2);
+            seen = (l2 == len && !strncmp(c, c2, len));
+        }
+        if (seen) continue;
+        if (k-- == 0) {
+            snprintf(name, namelen, "%.*s", len, c);
+            return true;
+        }
+    }
+    if (is_mount(dir)) {
+        int size;
+        for (int j = 0; fs_list(dir, j, name, namelen, &size) >= 0; j++)
+            if (k-- == 0) return true;
+    }
+    return false;
+}
+
+static char owner[16];          // this board's name: uid, gid, muid of every file
+
+// The Dir of path ("" is the root), named name.
+static void dirof(const char *path, const char *name, Dir *d)
+{
+    bool dir = kind(path) == 2;
+    sysname_get(owner, sizeof(owner));
+    memset(d, 0, sizeof(*d));
+    d->qid = qidof(path, dir);
+    d->mode = dir ? (DMDIR | 0555) : (serving == SRV_RO ? 0444 : 0664);
+    d->length = dir ? 0 : file_size(path);
+    d->name = name;
+    d->uid = d->gid = d->muid = owner;
 }
 
 /* ── replies ───────────────────────────────────────────────────────── */
@@ -295,7 +373,37 @@ static void s_read(Fcall *t)
     Sfid *f = findfid(t->fid);
     if (!f) { rerror(t->tag, "unknown fid"); return; }
     if (!f->open || (f->mode & 3) == OWRITE) { rerror(t->tag, "not open for reading"); return; }
-    if (f->isdir) { rerror(t->tag, "listing a directory over 9P: not yet"); return; }
+    if (f->isdir) {                     // the entries as Dirs, back to back
+        if (t->offset == 0) { f->diridx = 0; f->diroff = 0; }
+        else if (t->offset != f->diroff) { rerror(t->tag, "directory read at a bad offset"); return; }
+        uint32_t max = t->count < msize - IOHDRSZ ? t->count : msize - IOHDRSZ;
+        uint32_t used = 0;
+        char name[FS_NAME_MAX], path[SRV_PATH];
+        while (child(f->path, f->diridx, name, sizeof(name))) {
+            if (snprintf(path, sizeof(path), "%s/%s", f->path, name) >= (int)sizeof(path)) {
+                f->diridx++;                  // a name too long to be a path: skip it
+                continue;
+            }
+            Dir d;
+            dirof(path, name, &d);
+            unsigned m = convD2M(&d, (uint8_t *)data + used, max - used);
+            if (m == 0) break;            // no room: the next read continues here
+            used += m;
+            f->diridx++;
+        }
+        if (used == 0 && child(f->path, f->diridx, name, sizeof(name))) {
+            rerror(t->tag, "count too small for a directory entry");
+            return;
+        }
+        f->diroff += used;
+        memset(&r, 0, sizeof(r));
+        r.type = Rread;
+        r.tag = t->tag;
+        r.count = used;
+        r.data = data;
+        reply(&r);
+        return;
+    }
 
     int n = 0;
     if (t->offset == 0 || t->offset < f->vlen) {
@@ -377,6 +485,43 @@ static void s_create(Fcall *t)
     reply(&r);
 }
 
+static void s_stat(Fcall *t)
+{
+    Sfid *f = findfid(t->fid);
+    if (!f) { rerror(t->tag, "unknown fid"); return; }
+    const char *name = strrchr(f->path, '/');
+    name = name ? name + 1 : "/";
+    Dir d;
+    dirof(f->path, name, &d);
+    static uint8_t st[STATFIXLEN + 3 * 16 + SRV_PATH];
+    unsigned n = convD2M(&d, st, sizeof(st));
+    if (!n) { rerror(t->tag, "stat too big"); return; }
+    memset(&r, 0, sizeof(r));
+    r.type = Rstat;
+    r.tag = t->tag;
+    r.nstat = n;
+    r.stat = st;
+    reply(&r);
+}
+
+// Remove a file on a mount. The fid goes, whether it worked or not (9P).
+static void s_remove(Fcall *t)
+{
+    Sfid *f = findfid(t->fid);
+    if (!f) { rerror(t->tag, "unknown fid"); return; }
+    f->used = false;
+    if (serving == SRV_RO) { rerror(t->tag, "read-only (serve -r)"); return; }
+    if (!is_mount_file(f->path)) {
+        rerror(t->tag, is_device(f->path) ? "a device can't be removed" : "only files on a mount (/fram) can be removed");
+        return;
+    }
+    if (fs_remove(f->path) < 0) { rerror_errstr(t->tag, "remove failed"); return; }
+    memset(&r, 0, sizeof(r));
+    r.type = Rremove;
+    r.tag = t->tag;
+    reply(&r);
+}
+
 static void s_clunk(Fcall *t)
 {
     Sfid *f = findfid(t->fid);
@@ -416,8 +561,8 @@ void srv_request(uint8_t *msg, unsigned n)
     case Twrite:   s_write(t); break;
     case Tclunk:   s_clunk(t); break;
     case Tcreate:  s_create(t); break;
-    case Tremove:  rerror(t->tag, "removing a file over 9P: not yet"); break;
-    case Tstat:    rerror(t->tag, "stat over 9P: not yet"); break;
+    case Tremove:  s_remove(t); break;
+    case Tstat:    s_stat(t); break;
     case Twstat:   rerror(t->tag, "wstat over 9P: not yet"); break;
     default:       rerror(t->tag, "not a request"); break;
     }

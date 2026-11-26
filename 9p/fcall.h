@@ -129,6 +129,31 @@ unsigned convS2M(const Fcall *f, uint8_t *ap, unsigned nap);
 // The size convS2M would make: 0 for an invalid Fcall.
 unsigned sizeS2M(const Fcall *f);
 
+// A file's description (Plan 9's Dir, stat(5)): what Tstat returns and
+// what a directory read is made of, one after the other.
+//   size[2] type[2] dev[4] qid[13] mode[4] atime[4] mtime[4] length[8]
+//   name[s] uid[s] gid[s] muid[s]
+// size counts the bytes after itself.
+#define STATFIXLEN (2 + 2 + 4 + QIDSZ + 4 + 4 + 4 + 8 + 4 * 2)   // 49: all strings empty
+
+typedef struct {
+    uint16_t type;
+    uint32_t dev;
+    Qid      qid;
+    uint32_t mode;          // permissions, DMDIR for a directory
+    uint32_t atime, mtime;  // seconds since 1970
+    uint64_t length;        // bytes; 0 for a device (as Plan 9's)
+    const char *name, *uid, *gid, *muid;
+} Dir;
+
+unsigned sizeD2M(const Dir *d);
+// Dir -> bytes (size field included). Returns the length, 0 if no room.
+unsigned convD2M(const Dir *d, uint8_t *buf, unsigned nbuf);
+// Bytes -> Dir, the strings copied into strs (nstrs bytes), so buf stays
+// as it was (a directory read is parsed entry by entry, more than once).
+// Returns the entry's length (size field included), or 0 if it isn't one.
+unsigned convM2D(const uint8_t *buf, unsigned nbuf, Dir *d, char *strs, unsigned nstrs);
+
 // One line describing a message, for logs and tests (Plan 9's fcallfmt):
 // "Twalk tag 1 fid 0 newfid 1 nwname 2 'dev' 'rtc'".
 int fcallfmt(char *buf, int len, const Fcall *f);

@@ -218,7 +218,22 @@ int fs_list(const char *path, int index, char *name, int namelen, int *size)
 {
     const char *rest;
     const mount_t *m = find_mount(path, &rest);
-    return (m && !*rest) ? m->list(index, name, namelen, size) : -1;
+    if (!m) return -1;
+    if (!*rest) return m->list(index, name, namelen, size);
+    return m->listdir ? m->listdir(rest, index, name, namelen, size) : -1;
+}
+
+int fs_unmount(const char *prefix)
+{
+    for (int i = 0; i < mount_count; i++) {
+        if (strcmp(mounts[i]->prefix, prefix) != 0) continue;
+        for (int s = 0; s < FS_MAX_OPEN; s++)
+            if (files[s].used && files[s].m == mounts[i]) files[s].used = false;
+        for (int j = i; j + 1 < mount_count; j++) mounts[j] = mounts[j + 1];
+        mount_count--;
+        return 0;
+    }
+    return -1;
 }
 
 int fs_mount_count(void)

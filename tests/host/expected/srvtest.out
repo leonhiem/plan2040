@@ -28,7 +28,7 @@ Rread tag 12 count 4 'off
 Rread tag 12 count 5 'date
 '
 Rerror tag 12 ename 'ADS1115 (0x48, header bus) not answering'
-Rerror tag 12 ename 'listing a directory over 9P: not yet'
+Rread tag 12 count 263
 Rerror tag 11 ename 'already open'
 -- write
 Ropen tag 11 qid (5f4bbb92dd501b28 0 00) iounit 1024
@@ -50,11 +50,23 @@ Rwrite tag 13 count 14
 Rcreate tag 15 qid (db536af1b69a293b 0 00) iounit 1024
 Rerror tag 15 ename 'files can only be made on a mount (/fram)'
 Rerror tag 15 ename 'not a valid name'
+-- stat, directories, remove
+Rstat tag 30 nstat 62
+  root: name '/' mode 20000000555 uid 'beta'
+  ls /: dev/(0) fram/(0)
+  ls /dev: rtc(0) lamp(0) skintemp(0) fram(0)
+  ls /fram: boot(15) leon(0)
+Rerror tag 32 ename 'directory read at a bad offset'
+Rerror tag 32 ename 'count too small for a directory entry'
+Rremove tag 33
+Rerror tag 14 ename 'unknown fid'
+Rerror tag 33 ename 'a device can't be removed'
+Rerror tag 33 ename 'only files on a mount (/fram) can be removed'
 -- read-only, then off
 Rerror tag 11 ename 'read-only (serve -r)'
 Ropen tag 11 qid (5f4bbb92dd501b28 0 00) iounit 1024
 Rerror tag 15 ename 'read-only (serve -r)'
-Rerror tag 20 ename 'stat over 9P: not yet'
+Rstat tag 20 nstat 62
 Rflush tag 21
 fids in use: 1
 Rversion tag 65535 msize 512 version '9P2000'

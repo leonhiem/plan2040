@@ -42,6 +42,7 @@ void srv_request(uint8_t *msg, unsigned n);      // a T-message arrived
 
 // The client (9p/mnt.cpp).
 int  mnt_import(const char *mountpoint, char *msg, int msglen); // 0, or -1 (msg says why)
+int  mnt_unmount(const char *mountpoint, char *msg, int msglen);
 void mnt_reply(uint8_t *msg, unsigned n);        // an R-message arrived
 void mnt_tick(void);                             // retry a link that went quiet
 int  mnt_status(char *buf, int len);
