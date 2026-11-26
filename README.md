@@ -2059,6 +2059,10 @@ with `serve` + `import` in `/fram/boot`):
 | `rm /n/beta/dev/lamp` | refused, but said `no such file`: `rm` printed that for every failure. Now the file layer's reason (`rm: /n/beta/dev/lamp: a device can't be removed`); a missing local file reads as before (`rm: /fram/x: no such file`, `rmsim` unchanged) |
 | `unmount /n/beta`, `ls` | ok: `/n/beta unmounted`, gone from the list |
 | `import /dev/eia0`, `cat /n/beta/dev/sysname` | ok: imported again, `beta` |
+| retest with the new `rm`: `rm /n/beta/dev/lamp` | ok: `rm: /n/beta/dev/lamp: a device can't be removed` |
+| `cp /n/beta/fram/leon /n/beta/fram/note`, `ls -l`, `cat`, `rm`, `cat` again | ok: a copy on beta made from alpha (read over 9P, then created and written over 9P), 14 bytes like the original; after `rm`: `'note': file does not exist` |
+| `cp /fram/to_cp /n/beta/fram/to_cp` (a file from alpha's FRAM to beta's) | ok: 16 bytes on beta, the same four lines |
+| `cat > /n/beta/fram/cozybaby` (three lines), then `cp /n/beta/fram/cozybaby /fram/cozybaby` (beta's FRAM to alpha's) | ok: 24 bytes both sides, the same lines: copying works both ways |
 
 ## `bringup` — board test
 
