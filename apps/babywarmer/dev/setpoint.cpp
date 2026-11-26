@@ -2,7 +2,7 @@
  * apps/babywarmer/dev/setpoint.cpp — /dev/setpoint, /dev/setpoint/raised
  *
  *   cat /dev/setpoint          the skin setpoint, e.g. "35.0"
- *   echo 36.5 > /dev/setpoint  set it, within 34.0-37.5 C
+ *   echo 36.5 > /dev/setpoint  set it, within 30.0-37.5 C
  *   cat /dev/setpoint/high     "on" while above 37.5 C is allowed (up to 39.0)
  *
  * Above 37.5 C only on purpose (IEC 60601-2-21, as commercial warmers): at
@@ -11,7 +11,8 @@
  * the last, allow up to 39.0 (the field warmer's maximum). From the shell:
  * `echo on > /dev/setpoint/high`. Back at 37.5 or below, the limit returns.
  * ledwire blinks the small display while it's above 37.5.
- *   cat /dev/setpoint/raised   how many times it was raised by RAISE_C (2 C)
+ *   cat /dev/setpoint/raised   how many times it was raised (by RAISE_C,
+ *                              0.1 C, or more)
  *                              or more
  *
  * A raise counts when the presses stop (EDIT_SETTLE_MS, 5 s, after the
@@ -26,14 +27,15 @@
 #include <cstdlib>
 #include <cstring>
 
-#define SETPOINT_MIN     34.0f
+#define SETPOINT_MIN     30.0f   // Leon, 2026-11-26 (was 34.0, the GE Panda warmer's)
 #define SETPOINT_NORMAL  37.5f   // the limit ...
 #define SETPOINT_MAX     39.0f   // ... and above it, on purpose
 #define SETPOINT_DEF     35.0f   // the field warmer's
 #define HIGH_HOLD_MS     3000    // pushing past 37.5 this long ...
 #define HIGH_GAP_MS      400     // ... with writes this close together (UP's repeat: 150 ms)
 
-#define RAISE_C          2.0f
+#define RAISE_C          0.1f    // any raise (was 2 C: a raise of 1.5 C with the skin far
+                                 // below looked like a sensor off the baby, 2026-11-26)
 #define EDIT_SETTLE_MS   5000
 
 static float setpoint = SETPOINT_DEF;

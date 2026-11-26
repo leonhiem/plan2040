@@ -3,7 +3,8 @@
  *
  *   toggle /dev/buttons/manual /dev/heaterauto &    the MANUAL button
  *
- * Starts off (manual). Every switch to manual sets /dev/percent to 10 %,
+ * Starts on (auto), as the field warmer (Leon, 2026-11-26; after a power
+ * cut under 10 minutes dev/resume.cpp restores the last mode). Every switch to manual sets /dev/percent to 10 %,
  * no memory of an earlier value (the field warmer's customer request);
  * whoever wants another manual power (the guard in none) writes
  * /dev/percent after switching.
@@ -12,7 +13,7 @@
 #include <cstdio>
 #include <cstring>
 
-static bool auto_mode = false; // starts in manual
+static bool auto_mode = true; // starts in auto
 
 static int heaterauto_read(char *buf, int len)
 {

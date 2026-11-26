@@ -5,7 +5,7 @@
  *   cat /dev/heater            the power applied: what was asked, within
  *                              the guard's say (/dev/heater/limit)
  *   cat /dev/heater/ssr        the SSR now and for how long: "on 1300"
- *   cat /dev/heater/limit      "cap 80.0" (the jobs' power, at most that)
+ *   cat /dev/heater/limit      "cap 100.0" (the jobs' power, at most that)
  *                              or "set 39.0" (the guard's own power)
  *
  * The "tpo" kernel task (heater.cpp, every 100 ms) switches the SSR over a

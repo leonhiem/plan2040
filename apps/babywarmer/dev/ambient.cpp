@@ -2,8 +2,8 @@
  * apps/babywarmer/dev/ambient.cpp — /dev/ambient: the room temperature
  *
  * As /dev/skintemp, on the ADS1115's channels 2-3, through the same NTC
- * table. Read by fftable (the feed-forward) and the guard (the safe
- * mode's power).
+ * table. Read by warmer (the feed-forward, feedforward.h) and the guard
+ * (the safe mode's power).
  */
 #include "board.h"
 #include "kernel/fs.h"

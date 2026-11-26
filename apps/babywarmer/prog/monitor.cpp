@@ -6,7 +6,8 @@
  * The field-tested warmer.cpp's telemetry line, column for column (state
  * setp skin amb heat low high curr fail warn pid_i pid_pm), with ff (the
  * feed-forward) added at the end, so logs compare side by side with the
- * April 2026 field logs. warn is the guard not ok; pid_pm (warmer.cpp's
+ * April 2026 field logs. low and high: 0 off, 1 warning (LED, face,
+ * beeps), 2 alarm (2026-11-26; the field warmer's were 0/1). warn is the guard not ok; pid_pm (warmer.cpp's
  * last measurement) is the skin now. The header line
  * repeats every 10 lines, as warmer.cpp's did.
  */
@@ -52,6 +53,14 @@ static bool is_on(const char *path)
     char b[8];
     read_dev_str(path, b, sizeof(b));
     return strncmp(b, "on", 2) == 0;
+}
+
+// An alarm condition's level: 0 off, 1 warn (LED, face, beeps), 2 on.
+static int level_of(const char *path)
+{
+    char b[8];
+    read_dev_str(path, b, sizeof(b));
+    return strncmp(b, "on", 2) == 0 ? 2 : strncmp(b, "warn", 4) == 0 ? 1 : 0;
 }
 
 // The field warmer's state names (warmer.cpp's state_str).
@@ -103,7 +112,7 @@ static int monitor_run(const char *in, int inlen, int argc, char **argv, char *o
     int n = snprintf(out + pos, avail,
         "[%s] %.1f %.1f %.1f %.1f   %d     %d   %d   %d   %d   %+.2f  %.2f  %.1f\n",
         field_state(auto_mode, phase), setp, skin, amb, heat,
-        is_on("/dev/alarm/templow"), is_on("/dev/alarm/temphigh"), (int)curr,
+        level_of("/dev/alarm/templow"), level_of("/dev/alarm/temphigh"), (int)curr,
         is_on("/dev/alarm/heater"), strncmp(guard, "ok", 2) != 0,
         integral, skin, ff);
     if (n >= 0 && n < avail) pos += n;

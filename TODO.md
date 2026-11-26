@@ -863,6 +863,72 @@ Order, one commit each, tested on the PC and then the board:
     and its alarms go on, it's a repair job. CHK (ledwire, tftwire) now
     means any sensor alarm, /dev/alarm/sensor not off; the big digits
     still blink only for an untrusted skin reading.
+    **First warm-up on the board, 2026-11-26 (Leon):** setpoint 37.0,
+    boost 80 %, ~25 min to 37.0, then an **overshoot to 38.5** before it
+    came down. Changed (Leon): the setpoint minimum 30.0 (was 34.0); auto
+    up to 100 % (/dev/pid/outmax 100, the guard's cap in auto 100; manual
+    stays at most 80 %; boost stays 80 % until a logged warm-up, Leon); the skin 1 C off the setpoint
+    beeps every 5 s (`alarm -w`), 2 C off the continuous buzzer (was: the
+    LED only at 1 C); power-up in auto, as the field warmer (was manual:
+    inherited from picoos, no reason found); the guard waits up to 3 s
+    for the first readings at boot (the lamp test blocks: auto at
+    power-up mustn't look like "no sensors"). tests/host/alarmtest.
+    **Open:** the overshoot (and boost 80 or 100 %). The field warmer's
+    own note says 100 % overshot, which is why it boosted at 80; at 100 %
+    it will be worse unless the boost ends earlier (exit at setpoint - 3 C, then 45 s
+    coast). To decide from a logged warm-up (Claude logging the serial
+    port, `watch 1000 monitor`). Also: the PID's part is still capped at
+    +25 % over the feed-forward, so outside the boost auto reaches ~55 %
+    at most, not 100.
+    **Logged warm-up and sensor-off test, 2026-11-26** (Claude logging
+    the USB serial port; plan2040-logs/): the warm-up slow (24 min: the
+    feed-forward table 30 % where 47.5 % was needed, the integral made up
+    18 % at ~1.2 %/min), no overshoot; the sensor off: safe in 16 s, but
+    safe's 38 % held the skin 2.7 C under the setpoint, so it never
+    recovered (needed within 2 C). Changed (Leon): `feedforward.h`, FF_K
+    3.7 % per C of (setpoint - room), replaces fftable and safelut; safe
+    90 % of it (at most 55 %), recovery within 3 C; safe beeps (sensor
+    "warn"), none continuous ("on"); `/dev/alarm/room` for the room
+    sensor (silent, CHK); any raise with the skin > 3 C below boosts
+    (RAISE_C 0.1); the "stays low" check waits until the setpoint has
+    settled (6 s); PID max +50 %. bwsim's model re-fitted to the log
+    (3 lags of 51 s, G 0.0775, loss 347 s: rms 0.18 C, steady 3.72 %/C).
+    **Open:** PID tuning (Kp 3, Ti 200 s are slow for this plant: a draught
+    x1.8 in bwsim drops the skin 3 C in 4 min and ends in a false safe);
+    to tune on the board with a fan, logged. And boost 80 or 100 %.
+    **Second warm-up and sensor-off, 2026-11-26** (logged): 37.0 at 10:19
+    (was 23:42), peak +0.7, a slow wave to 36.6; K ≈ 3.8 from the steady
+    end. A 14 s LOW blip as the skin passed 36.0 (fixed: reached within
+    0.8 C). Sensor off: safe in 13 s at 41 %; recovered at 34.6, but then
+    LOW screamed and the PID crept from the safe power. Changed (Leon):
+    recovery = a new warm-up (guard: start_warmup; warmer: PID from the
+    feed-forward, integral 0, or boost if > 3 C below); small display
+    shows the setpoint in safe. **Next to discuss:** the integral seed
+    after the coast (+3 % -> 0: less overshoot), K 3.7 -> 3.8, then the
+    PID tuning with a fan.
+    **Third warm-up and sensor-off, 2026-11-26** (logged): the cold bed
+    took 18:35 to 37.0 (4.3 %/C needed early), peak 37.4, no LOW blip;
+    recovery from safe clean (no LOW, PID from 49.8 %) but +0.9 C
+    overshoot. Compared on a model of warmer.cpp on the fitted plant
+    (scratch study, reproduces the board's peaks within 0.1-0.3 C):
+    integral only within 1 C of the setpoint wins (recovery peak 37.8 ->
+    37.2, step 37.7 -> 37.2, after a draught 39.2 -> 37.2; ~2 min slower);
+    a longer derivative barely helps; starting at the feed-forward is
+    slow. Done (Leon: change little): `/dev/pid/band`, 1.0 C. Later: the
+    +3 % integral start after the coast (warm bed peak 37.5 -> 37.2 at 0,
+    cold bed 3 min slower).
+    **The TFT face (Leon, 2026-11-26):** it showed the alarms (yellow
+    whenever LOW was kept quiet, also in safe), now how warm the baby is:
+    the skin vs the setpoint, 1 C either way (tftwire -> /dev/tft/face);
+    unchanged while the reading isn't trusted (the display code has no
+    "no face"). bwsim's status lines show it.
+    **Warm-up 4 and sensor-off 4, 2026-11-26 evening** (logged): warm-up
+    overshoot +1.3 C (a 23.3 C room, this load 3.57 %/C where run 3 needed
+    4.3: the setup varies +-15 % run to run; the PID started at 54.5 %
+    while the boost's stored heat still came out). Recovery from safe:
+    no overshoot with the band (37.0, was 37.9), 11 min to 37.0. Changed
+    (Leon): COAST_SEED 3 -> 0. On the model a later boost exit or a
+    longer coast made it worse, not better.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

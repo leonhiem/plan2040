@@ -1,5 +1,5 @@
 power-up                                         setpoint 35.0, high off
-echo 30 > /dev/setpoint                          setpoint 34.0, high off
+echo 25 > /dev/setpoint                          setpoint 30.0, high off
 echo 37 > /dev/setpoint                          setpoint 37.0, high off
 UP pressed 10 times, 1 s apart                   setpoint 37.5, high off
 UP held 2.25 s at the limit (repeats)            setpoint 37.5, high off

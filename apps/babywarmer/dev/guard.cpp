@@ -12,20 +12,22 @@
  *
  * /dev/guard, how far the skin reading can be trusted, with the reason:
  *
- *   ok           the jobs' power, at most AUTO_CAP (80 %, boost's) in auto
+ *   ok           the jobs' power, at most AUTO_CAP (100 %) in auto
  *   safe: <why>  auto mode, the skin reading not usable: the guard heats
- *                from the room temperature itself (safelut.h)
- *   none: <why>  skin and room unreadable: manual at the room table's power
- *                for the last room seen (else 10 %), UP/DOWN adjust it;
+ *                by itself, SAFE_FRACTION (90 %) of the feed-forward for the
+ *                setpoint and the last room seen (feedforward.h), at most
+ *                SAFE_CAP (55 %): a little under what holds the setpoint
+ *   none: <why>  skin and room unreadable: manual at that same power
+ *                (else 10 %), UP/DOWN adjust it;
  *                back to auto by itself when the sensors answer
  *
  * Why safe (the field warmer's watchdogs and numbers, plus the hardware):
  *   - the sensor falls off a warm baby: the skin falls > 0.08 C/s for 3 s
  *     while more than 2 C below the setpoint, or stays more than 3 C below
  *     it for 20 s (not during the boost and the coast after it, 0 % on
- *     purpose, WARMUP_COAST_S);
+ *     purpose, WARMUP_COAST_S, nor while the setpoint is being changed);
  *   - the sensor is out from the start: less than 0.3 C rise in 5 minutes
- *     of warm-up (auto switched on, or the setpoint raised 2 C or more with
+ *     of warm-up (auto switched on, or the setpoint raised with
  *     the skin more than 3 C below it). The April 2026 field logs: the
  *     0.3 C came after 2.5-3 min at 100 %; a longer window means more heat
  *     with nothing watching the baby;
@@ -34,8 +36,9 @@
  * No cleverer plausibility checks: too many false alarms (a ceiling fan
  * makes the heater work harder). Known limit: a sensor on the mattress
  * under the heater warms up and isn't caught.
- * Back to ok by itself: 2 minutes with the skin within 2 C of the setpoint
- * (sensor causes), 5 s after the reading or the control is back (others).
+ * Back to ok by itself: 2 minutes with the skin within 3 C of the setpoint
+ * (sensor causes), 5 s after the reading or the control is back (others);
+ * then a new warm-up (LOW quiet until the skin is within 0.8 C).
  *
  * The decision acts at the heater: heater_guard() (heater.h), applied by
  * tpo_apply() within 100 ms. Manual mode is the nurse's choice: hardware
@@ -50,11 +53,12 @@
  * than 3 C above the setpoint, on when heating); the heater current against
  * the SSR's real state; a stuck SSR (relay held off until `echo off >
  * /dev/alarm/heater` or a reboot). And the alarm files the jobs alarm,
- * ledwire, tftwire show: heater; sensor ("on" with the level's reason, or "warn" for the room
- * sensor down: the PID then runs on the last feed-forward, then 30 %);
+ * ledwire, tftwire show: heater; sensor (the level's reason: "warn" in
+ * safe, beeps; "on" in none, the buzzer); room (auto, the room sensor
+ * down: "warn", CHK only; the PID runs on the last room seen, then 24 C);
  * check (manual's timer); and the deviation from the setpoint (IEC
  * 60601-2-21, as the GE Panda warmer), in auto with a trusted reading:
- * temphigh / templow "warn" at 1 C off (LED), "on" at 2 C off (buzzer).
+ * temphigh / templow "warn" at 1 C off (LED, beeps), "on" at 2 C off (buzzer).
  * templow is quiet during a warm-up (until the skin first comes within
  * 1 C of the setpoint) and for 10 minutes after the setpoint was changed,
  * while the skin climbs. In manual, where the setpoint means
@@ -69,7 +73,7 @@
 #include "kernel/task.h"
 #include "kernel/errstr.h"
 #include "heater.h"
-#include "safelut.h"
+#include "feedforward.h"
 #include "warmup.h"
 #include "drivers/buttons.h"
 #include "pico/stdlib.h"
@@ -79,6 +83,7 @@
 #include <cstring>
 
 #define GUARD_MS              1000
+#define BOOT_WAIT_S           3      // at boot: wait this long for the first readings
 
 // The watchdogs (the field warmer's numbers).
 #define NO_RISE_S             300    // 5 minutes of warm-up ...
@@ -87,13 +92,17 @@
 #define DROP_DELTA            2.0f   // ... and this far below the setpoint
 #define DROP_S                3
 #define LOW_MARGIN            3.0f   // more than this below the setpoint ...
-#define LOW_S                 20     // ... for this long
-#define RECOVER_MARGIN        2.0f   // back: within this of the setpoint ...
+#define LOW_S                 20     // ... for this long, the setpoint unchanged for
+#define SP_SETTLE_S           6      // this long (a raise counts 5 s after the last press)
+#define RECOVER_MARGIN        3.0f   // back: within this of the setpoint ... (was 2: blind heating
+                                     // at 90 % of the estimate sat 2.7 C under, 2026-11-26)
 #define RECOVER_S             120    // ... for 2 minutes
 #define HW_RECOVER_S          5      // a reading or the control back this long
 #define CONTROL_DEAD_S        10     // auto mode, nobody writes /dev/heater
 #define NONE_DEFAULT_PERCENT  10.0f  // no room temperature ever seen
-#define AUTO_CAP              WARMUP_POWER  // the backstop in auto: the most auto asks
+#define SAFE_FRACTION         0.9f   // safe: this much of the feed-forward ...
+#define SAFE_CAP              55.0f  // ... at most this (the field warmer's DUTY_SAFE_CAP)
+#define AUTO_CAP              100.0f // the backstop in auto: the most auto asks (Leon, 2026-11-26)
 
 // Manual mode's check timer.
 #define CHECK_POWER           25.0f  // manual above this ...
@@ -129,7 +138,7 @@ static int   drop_s, low_s, recover_s, back_s;
 static int   coast_left;                   // after the boost: the coast, no drop checks
 static bool  last_auto;
 static int   raised_seen = -1;             // /dev/setpoint/raised
-static bool  reached;                      // the skin came within DEV_WARN_C since the warm-up began
+static bool  reached;                      // the skin came within 0.8 C since the warm-up began
 static float last_sp;
 static int   high_lv, low_lv;              // 0 off, 1 warn, 2 on (with hysteresis)
 static int   sp_same_s;                    // seconds since the setpoint changed
@@ -186,6 +195,16 @@ static void alarm_set(const char *path, char *last, int lastlen, const char *tex
 
 // ---- the level --------------------------------------------------------
 
+// The guard's own heating without a trusted skin reading (safe, none).
+static float safe_power(void)
+{
+    if (!have_room) return NONE_DEFAULT_PERCENT;
+    float sp = 35.0f;
+    read_float("/dev/setpoint", &sp);
+    float p = SAFE_FRACTION * feedforward_power(sp, last_room);
+    return p > SAFE_CAP ? SAFE_CAP : p;
+}
+
 static void say_level(void)
 {
     float v;
@@ -236,7 +255,7 @@ static void power(void)
         if (!read_float("/dev/percent", &pct)) pct = NONE_DEFAULT_PERCENT;
         heater_guard(HEATER_GUARD_SET, pct);
     } else if (level == G_SAFE && last_auto) {
-        heater_guard(HEATER_GUARD_SET, have_room ? safelut_power(last_room) : NONE_DEFAULT_PERCENT);
+        heater_guard(HEATER_GUARD_SET, safe_power());
     } else {
         heater_guard(HEATER_GUARD_CAP, last_auto ? AUTO_CAP : 100.0f);
     }
@@ -280,7 +299,10 @@ static void deviation(bool autom, bool skin_ok, float skin, float sp, char *s, i
     if (sp != last_sp) { last_sp = sp; sp_same_s = 0; }
     else if (sp_same_s < LOW_QUIET_S) sp_same_s++;
     float d = skin - sp;
-    if (skin_ok && d >= -DEV_WARN_C) reached = true;
+    // Reached: well inside the LOW threshold (by its hysteresis), so the
+    // noise of a skin just arriving at 1 C below can't blip LOW on and
+    // off (it did on the board, 2026-11-26: 14 s of LOW at 36.0 of 37.0).
+    if (skin_ok && d >= -(DEV_WARN_C - DEV_HYST_C)) reached = true;
 
     // HIGH: in auto with a trusted reading, 1 C over warns, 2 C alarms; in
     // manual (any reading) above MANUAL_HIGH_C. LOW: auto, a trusted
@@ -344,6 +366,13 @@ static void guard_task(void)
     if (!skin_ok) snprintf(skin_err, sizeof(skin_err), "%s", errstr()[0] ? errstr() : "/dev/skintemp: no reading");
     char room_err[ERRMAX] = "";
     bool room_ok = read_float("/dev/ambient", &room);
+
+    // The first tick can come before the first readings (the lamp test
+    // blocks at boot): judged then, auto at power-up would look like "no
+    // sensors". Wait a moment; the relay stays off meanwhile, so no heat.
+    static int boot_s;
+    if (boot_s < BOOT_WAIT_S && (!skin_ok || !room_ok)) { boot_s++; return; }
+    boot_s = BOOT_WAIT_S;
     if (room_ok) { last_room = room; have_room = true; }
     else snprintf(room_err, sizeof(room_err), "%s", errstr()[0] ? errstr() : "/dev/ambient: no reading");
     read_float("/dev/setpoint", &sp);
@@ -374,7 +403,7 @@ static void guard_task(void)
     } else if (autom) {
         if (!skin_ok && !room_ok) {
             char pct[16];
-            snprintf(pct, sizeof(pct), "%.0f", have_room ? safelut_power(last_room) : NONE_DEFAULT_PERCENT);
+            snprintf(pct, sizeof(pct), "%.0f", safe_power());
             write_str("/dev/heaterauto", "off");     // first: switching to manual resets /dev/percent to 10
             write_str("/dev/percent", pct);
             forced_manual = true;
@@ -407,14 +436,19 @@ static void guard_task(void)
                     if (++drop_s >= DROP_S)
                         set_level(G_SAFE, C_SENSOR, "skin fell to %.1f C in %d s (sensor off the baby?)", skin, DROP_S);
                 } else drop_s = 0;
-                if (level == G_OK && skin < sp - LOW_MARGIN) {
+                if (level == G_OK && skin < sp - LOW_MARGIN && sp_same_s >= SP_SETTLE_S) {
                     if (++low_s >= LOW_S)
                         set_level(G_SAFE, C_SENSOR, "skin %.1f C, more than 3 C below the setpoint for 20 s (sensor off the baby?)", skin);
                 } else low_s = 0;
             }
         } else if (level == G_SAFE && cause == C_SENSOR) {
             if (skin >= sp - RECOVER_MARGIN) {
-                if (++recover_s >= RECOVER_S) { warming = false; set_level(G_OK, C_SENSOR, "skin %.1f C, plausible for 2 minutes", skin); }
+                if (++recover_s >= RECOVER_S) {
+                    // A new warm-up (Leon, 2026-11-26): LOW quiet until the skin is
+                    // within 0.8 C again; it isn't there yet and nobody can hurry it.
+                    start_warmup(skin);
+                    set_level(G_OK, C_SENSOR, "skin %.1f C, plausible for 2 minutes", skin);
+                }
             } else recover_s = 0;
         }
     } else {
@@ -435,16 +469,22 @@ static void guard_task(void)
     else if (heater_get_power() > 0.0f && !stuck) write_str("/dev/relay", "on");
     current_check(overtemp);
 
-    static char a_heater[100] = "off", a_high[100] = "off", a_low[100] = "off", a_sensor[128] = "off";
+    static char a_heater[100] = "off", a_high[100] = "off", a_low[100] = "off", a_sensor[128] = "off", a_room[128] = "off";
     alarm_set("/dev/alarm/heater", a_heater, sizeof(a_heater),
               stuck ? "on: current while switched off (SSR stuck on?), relay held off"
               : nocurrent ? "on: no current while switched on (element, fuse or SSR?)" : "off");
     char s[sizeof(a_sensor)];
     deviation(autom && !forced_manual, skin_ok, skin, sp, s, sizeof(s), a_high, sizeof(a_high), a_low, sizeof(a_low));
-    if (level != G_OK) snprintf(s, sizeof(s), "on: %s", why);
-    else if (!room_ok && autom) snprintf(s, sizeof(s), "warn: room sensor: %.80s", room_err);   // CHK, no buzzer: the skin control goes on
-    else snprintf(s, sizeof(s), "off");
+    // The skin reading: safe "warn" (the guard heats by itself; beeps, CHK),
+    // none "on" (no sensors at all; the buzzer). The room sensor on its own
+    // (auto): "warn" in /dev/alarm/room (CHK only: the skin control goes on).
+    if (level == G_SAFE)      snprintf(s, sizeof(s), "warn: %s", why);
+    else if (level == G_NONE) snprintf(s, sizeof(s), "on: %s", why);
+    else                      snprintf(s, sizeof(s), "off");
     alarm_set("/dev/alarm/sensor", a_sensor, sizeof(a_sensor), s);
+    if (!room_ok && autom && level != G_NONE) snprintf(s, sizeof(s), "warn: %.100s", room_err);
+    else snprintf(s, sizeof(s), "off");
+    alarm_set("/dev/alarm/room", a_room, sizeof(a_room), s);
     static char a_check[100] = "off";
     if (check_off)              snprintf(s, sizeof(s), "on: manual %.0f %%, not answered: heater off, check the baby, press MUTE", check_power);
     else if (check_s >= CHECK_S) snprintf(s, sizeof(s), "on: manual %.0f %% for 12 min: check the baby, press MUTE", check_power);

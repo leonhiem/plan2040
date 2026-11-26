@@ -9,8 +9,8 @@
  *
  * During a power cut the RP2040 is dead and the hardware's own buzzer
  * sounds, from a supercapacitor. Power back is a cold boot: without this
- * the warmer would start in manual at 10 %, setpoint 35.0, and a baby left
- * in auto mode would silently be in manual.
+ * the warmer would start with the defaults (auto, setpoint 35.0), and a
+ * baby's setpoint or manual mode would silently be lost.
  *
  * The "resume" kernel task, once a second, saves the nurse's settings in
  * /fram/resume when they change, and the RTC time at least once a minute.

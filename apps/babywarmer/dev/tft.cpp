@@ -11,6 +11,8 @@
  *   chk            the guard not ok: SENSOR and warning icons blink
  *   low, high, fail  the alarm conditions: warning and ALARM icons blink;
  *                  fail also blinks the heater bar red/grey
+ *   face           the baby's face: cold, ok or hot (tftwire: the skin vs
+ *                  the setpoint, not the alarms)
  *   heater         the heater bar, 0-100
  *   apgar          on (re)starts the APGAR clock (the display edge-detects it)
  *   mode           graphical (the warmer screen) or text (a 21x16 console)
@@ -45,6 +47,7 @@ static_assert(ST7735_SCK_PIN  == PIN_TFT_SCK  && ST7735_MOSI_PIN == PIN_TFT_MOSI
 
 static bool    aut = true, man = false, chk = false;
 static bool    low = false, high = false, fail = false;
+static baby_state_t face = BABY_OK;
 static uint8_t heater = 0;
 static bool    apgar = false; // as tftwire wrote it; display.c edge-detects
 
@@ -70,6 +73,16 @@ static int bool_write(bool *field, const char *buf, int len)
 {
     if (len >= 2 && strncmp(buf, "on", 2) == 0)  { *field = true;  return len; }
     if (len >= 3 && strncmp(buf, "off", 3) == 0) { *field = false; return len; }
+    return -1;
+}
+
+static const char *FACE_NAMES[] = { "cold", "cold", "ok", "hot" };   // baby_state_t order
+static int face_read(char *buf, int len) { return snprintf(buf, len, "%s\n", FACE_NAMES[face]); }
+static int face_write(const char *buf, int len)
+{
+    if (len >= 4 && strncmp(buf, "cold", 4) == 0) { face = BABY_COLD; return len; }
+    if (len >= 2 && strncmp(buf, "ok", 2) == 0)   { face = BABY_OK;   return len; }
+    if (len >= 3 && strncmp(buf, "hot", 3) == 0)  { face = BABY_HOT;  return len; }
     return -1;
 }
 
@@ -161,6 +174,7 @@ static const device_t dev_tft_aut    = {"/dev/tft/aut",    0, 0, aut_read,    au
 static const device_t dev_tft_man    = {"/dev/tft/man",    0, 0, man_read,    man_write};
 static const device_t dev_tft_chk    = {"/dev/tft/chk",    0, 0, chk_read,    chk_write};
 static const device_t dev_tft_low    = {"/dev/tft/low",    0, 0, low_read,    low_write};
+static const device_t dev_tft_face   = {"/dev/tft/face",   0, 0, face_read,   face_write};
 static const device_t dev_tft_high   = {"/dev/tft/high",   0, 0, high_read,   high_write};
 static const device_t dev_tft_fail   = {"/dev/tft/fail",   0, 0, fail_read,   fail_write};
 static const device_t dev_tft_heater = {"/dev/tft/heater", 0, 0, heater_read, heater_write};
@@ -181,6 +195,7 @@ void dev_tft_register(void)
     fs_register(&dev_tft_man);
     fs_register(&dev_tft_chk);
     fs_register(&dev_tft_low);
+    fs_register(&dev_tft_face);
     fs_register(&dev_tft_high);
     fs_register(&dev_tft_fail);
     fs_register(&dev_tft_heater);
@@ -220,9 +235,7 @@ static void tft_flush_task(void)
     state.warning |= any_fault;
     state.alarm    = any_fault;
 
-    if      (low)  state.baby = BABY_COLD;
-    else if (high) state.baby = BABY_HOT;
-    else           state.baby = BABY_OK;
+    state.baby = face;
 
     if (fail) {
         state.heater_percent = 0;

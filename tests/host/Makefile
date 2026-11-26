@@ -23,7 +23,7 @@ UNIT = fstest hourstest fscktest mvcut luttest p9test srvtest
 # whole-shell simulations (-w: the fakes are quick and dirty)
 SIMS = sim quotesim cronsim catsim cpsim remsim hexsim rmsim fscksim helpsim progtest
 # babywarmer app tests (the real babywarmer_v1 pin map, fake GPIO/PWM)
-APP  = outtest bwsim adctest eetest drvtest btntest sptest resumetest
+APP  = outtest bwsim adctest eetest drvtest btntest sptest resumetest alarmtest
 ALL  = $(UNIT) $(SIMS) bootsim $(APP)
 
 all: $(ALL)
@@ -49,7 +49,7 @@ adctest:  adctest.cpp $(P)/drivers/ads1115.cpp $(BW)/ntcadc.cpp ntcstub.cpp $(BW
 	$(CXX) -w -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 BWSRC = $(P)/kernel/task.cpp $(P)/kernel/shell.cpp $(P)/kernel/jobs.cpp $(P)/kernel/fs.cpp $(P)/kernel/prog.cpp $(P)/kernel/errstr.cpp conf_scripts_bw.cpp \
         $(P)/dev/lamp.cpp $(P)/dev/buttons.cpp $(call pr,cat echo follow toggle adjust select) \
-        $(BW)/heater.cpp $(BW)/seg7.cpp $(foreach n,heater relay alarm seg7 setpoint heaterauto percent warmer guard tft,$(BW)/dev/$(n).cpp) $(BW)/safelut.cpp $(BW)/fftable.cpp \
+        $(BW)/heater.cpp $(BW)/seg7.cpp $(foreach n,heater relay alarm seg7 setpoint heaterauto percent warmer guard tft,$(BW)/dev/$(n).cpp) \
         $(foreach n,warmer alarm ledwire monitor tftwire,$(BW)/prog/$(n).cpp) $(P)/prog/label.cpp
 # The TFT code is C (a blackbox copy of the st7735 repo): compiled with
 # the C compiler, against the same fakes.
@@ -61,6 +61,8 @@ sptest:   sptest.cpp $(BW)/dev/setpoint.cpp $(P)/kernel/fs.cpp $(P)/kernel/errst
 	$(CXX) -Wall -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 resumetest: resumetest.cpp $(foreach n,resume setpoint heaterauto percent,$(BW)/dev/$(n).cpp) $(P)/dev/fram.cpp \
           $(P)/drivers/fm24cl64.cpp $(P)/drivers/pcf8563.cpp $(P)/fs/framfs.cpp $(P)/kernel/task.cpp $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp
+	$(CXX) -Wall -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
+alarmtest: alarmtest.cpp $(BW)/prog/alarm.cpp $(BW)/dev/alarm.cpp $(P)/kernel/prog.cpp $(P)/kernel/fs.cpp $(P)/kernel/errstr.cpp
 	$(CXX) -Wall -I fake_bw -I fake -I $(P) -I $(BW) -o $@ $^
 btntest:  btntest.cpp $(P)/drivers/buttons.cpp
 	$(CXX) -Wall -I fake_bw -I fake -I $(P) -o $@ $^

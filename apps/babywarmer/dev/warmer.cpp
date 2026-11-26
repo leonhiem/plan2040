@@ -9,8 +9,11 @@
  *   /dev/pid/kp, ti, td        the PID's tuning: 3.0 %/C, 200 s, 5 s (the
  *                              field warmer's, tuned on its logs)
  *   /dev/pid/min, max          the PID's part around the feed-forward:
- *                              -35..+25 %
- *   /dev/pid/outmax            feed-forward + PID at most 75 %
+ *                              -35..+50 % (+25 until 2026-11-26: too little
+ *                              for a strong draught)
+ *   /dev/pid/outmax            feed-forward + PID at most 100 %
+ *   /dev/pid/band              the integral only moves within this of the
+ *                              setpoint: 1.0 C (2026-11-26)
  *   /dev/pid/integral, ff      what warmer uses, published every second
  *                              (for cat and monitor; a write is overwritten)
  *
@@ -27,7 +30,7 @@ static const char *STATE_NAMES[] = { "idle", "boost", "coast", "pid", "safe" };
 static char  state[8] = "idle";
 static float autopower;
 static float kp = 3.0f, ti = 200.0f, td = 5.0f;
-static float pmin = -35.0f, pmax = 25.0f, outmax = 75.0f;
+static float pmin = -35.0f, pmax = 50.0f, outmax = 100.0f, band = 1.0f;
 static float integral, ff;
 
 // A number into *dst, within lo..hi; -1 if it isn't one.
@@ -68,6 +71,7 @@ FLOAT_DEV(td,        td,        0.0f, 1000.0f, "%.1f")
 FLOAT_DEV(pmin,      pmin,   -100.0f, 0.0f,   "%.1f")
 FLOAT_DEV(pmax,      pmax,      0.0f, 100.0f, "%.1f")
 FLOAT_DEV(outmax,    outmax,    0.0f, 100.0f, "%.1f")
+FLOAT_DEV(band,      band,      0.1f, 50.0f,  "%.1f")
 FLOAT_DEV(integral,  integral, -100.0f, 100.0f, "%.3f")
 FLOAT_DEV(ff,        ff,        0.0f, 100.0f, "%.1f")
 
@@ -80,6 +84,7 @@ static const device_t devs[] = {
     { "/dev/pid/min",      0, 0, pmin_read,      pmin_write },
     { "/dev/pid/max",      0, 0, pmax_read,      pmax_write },
     { "/dev/pid/outmax",   0, 0, outmax_read,    outmax_write },
+    { "/dev/pid/band",     0, 0, band_read,      band_write },
     { "/dev/pid/integral", 0, 0, integral_read,  integral_write },
     { "/dev/pid/ff",       0, 0, ff_read,        ff_write },
 };

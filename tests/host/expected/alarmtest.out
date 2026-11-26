@@ -1,0 +1,16 @@
+alarm /dev/alarm/heater /dev/alarm/check -w /dev/alarm/sensor /dev/alarm/temphigh /dev/alarm/templow
+(one character per 150 ms: # buzzer sounding, . quiet)
+
+all off                                      ....................  LED off
+templow warn: beeps                          ##................................##...............................##...........  LED lit
+templow on: continuous                       ####################  LED lit
+back to warn: beeps again                    ##................................##....  LED lit
+MUTE: quiet, LED lit                         ........................................  LED lit
+a minute after MUTE: beeps again at once     ##................................##....  LED lit
+cleared                                      ....................  LED off
+a warn before -w: quiet                      ........................................  LED off
+room warn (not listed): quiet                ........................................  LED off
+sensor warn (safe, after -w): beeps          ##................................##....  LED lit
+sensor on (none): continuous                 ####################  LED lit
+heater on + temphigh warn: continuous        ####################  LED lit
+exit 0

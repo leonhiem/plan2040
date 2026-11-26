@@ -2,21 +2,24 @@
 // simulated time. The real kernel scheduler (task.cpp), shell, jobs, the
 // real babywarmer boot script, every real device and program, and the
 // guard (dev/guard.cpp, the kernel task that owns the heater safety);
-// only the sensors are fakes, fed by a thermal model fitted to the field
-// warmer's log of 5 April 2026 (../warmer-5apr/warmerlog7.txt, 32 minutes
-// of warm-up, coast and PID; rms error 0.37 C):
+// only the sensors are fakes, fed by a thermal model fitted to the first
+// logged warm-up of plan2040 on the board (2026-11-26,
+// plan2040-logs/warmup-2026-11-26.log: 50 minutes of boost, coast and PID
+// at 37.0 C; rms error 0.18 C):
 //
-//   power -> 3 lags of 60 s each (heater, mattress) -> skin
-//   skin' = 0.0405 C/s * lagged power (0..1) - (skin - room) / 600 s
+//   power -> 3 lags of 51 s each (heater, mattress) -> skin
+//   skin' = 0.0775 C/s * lagged power (0..1) - (skin - room) / 347 s
 //
 // so the skin rises ~2 minutes after the heater goes on, and keeps rising
-// through the coast after it goes off, as in the log. The heat only flows
-// with the relay on and the element whole (or the SSR stuck on). The April
-// 1 logs show a plant 3-4x faster (the sensor on something lighter?), so
-// this is one plausible baby, not the only one.
+// through the coast after it goes off, as on the board. Its steady state,
+// 3.72 % per C of (skin - room), is the feed-forward's FF_K. The heat only
+// flows with the relay on and the element whole (or the SSR stuck on).
+// (Until 2026-11-26 the model was fitted to the field warmer's log of 5
+// April, warmerlog7: a heavier plant, ~4.1 %/C.)
 //
 // Story (each step with what the guard should do):
-//   0:00  manual 10 %; the skin sensor is NOT on the baby (reads the room)
+//   0:00  power-up in auto (as the field warmer); 0:02 MANUAL -> manual
+//         10 %; the skin sensor is NOT on the baby (reads the room)
 //   1:00  MANUAL -> auto: boost; scenario (2), sensor out during warm-up:
 //         "no rise" after 5 min -> safe, heating from the room (33.5 %)
 //  14:00  the sensor goes on the baby -> ok after 2 min plausible, warmer's pid
@@ -30,10 +33,10 @@
 //  55:00  the heater element breaks; 57:00 works again
 //  60:00  the SSR sticks on -> relay held off; 62:00 replaced; 63:00 released
 //  66:00  UP 20 times, 1 s apart -> the setpoint stops at 37.5 (gap d:
-//         34-37.5 C; above only by holding UP 3 s, tests/host/sptest);
+//         30-37.5 C; above only by holding UP 3 s, tests/host/sptest);
 //         the skin within 3 C: no re-boost, the PID climbs
-//  75:00  the room NTC opens: /dev/alarm/sensor "warn" (CHK, no buzzer),
-//         the PID runs on the last feed-forward (30 % after 10 min); 88:00 back
+//  75:00  the room NTC opens: /dev/alarm/room "warn" (CHK, no buzzer),
+//         the PID runs on the last room seen (24 C after 10 min); 88:00 back
 //  90:00  MANUAL -> manual at 10 % (step 5: always); 91:00 UP -> 15 %;
 //         92:00 MANUAL -> auto
 // 100:00  the ADS1115 stops answering -> none: manual at the room table's
@@ -46,11 +49,14 @@
 // Gap c, the deviation from the setpoint: 22:00-26:00 a phototherapy lamp
 // (HIGH warns at 1 C over, alarms at 2 C, the relay drops at 3 C);
 // 44:00-49:00 a draught (LOW warns at 1 C under, alarms at 2 C).
-// Real deviations the model shows: 63:57 LOW warns (the relay was held off
-// 3 minutes for the stuck SSR); 66:00 and 92:00 the PID climbs slowly after
-// a large step (its part stops at +25 %, the integrator gains 0.015 %/C/s):
-// the skin sags 1.5-2 C for ~10 minutes, LOW warns at 95:10. The field log
-// the model comes from shows the same sag (35.8 -> 33.3 C, 540-1200 s).
+// Real deviations the model shows: 44:00 the draught drops the skin to
+// LOW "on" (the PID, Kp 3 %/C, Ti 200 s, can't follow it); afterwards back
+// to 36.0 without overshoot (the integral only moves within 1 C of the
+// setpoint, /dev/pid/band: before it, the skin overshot to 37.3 and to 38.6
+// after the raise at 66:00). 58:05 LOW after the broken element, 63:22
+// after the relay was held off for the stuck SSR; 93:36 LOW while the PID
+// climbs after manual mode. Recovering from safe (16:01, 35:01) is a new
+// warm-up: no LOW right after it.
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -82,7 +88,7 @@ static void type(const char *line) { typed_len = snprintf(typed, sizeof typed, "
 int getchar_timeout_us(uint32_t) { return typed_pos < typed_len ? (unsigned char)typed[typed_pos++] : -1; }
 
 // ---- the world
-static const float ROOM = 27.0f, LAG_S = 60.0f, GAIN = 0.0405f, LOSS_S = 600.0f;
+static const float ROOM = 27.0f, LAG_S = 50.7f, GAIN = 0.0775f, LOSS_S = 347.0f;
 static float skin = 27.0f;       // what's under the sensor
 static float lag1, lag2, lag3;   // the heater's and the mattress's warmth, 0..1
 static bool sensor_on_baby = false, adc_dead = false, room_dead = false;
@@ -179,12 +185,13 @@ static void status(int sec)
     char big[8], small[8], blink[8], chk[8];
     decode(seg_all, big, small);
     rd("/dev/seg7big/blink", blink, sizeof blink); rd("/dev/leds/chk", chk, sizeof chk);
+    char face[8]; rd("/dev/tft/face", face, sizeof face);
     char bigs[16];
     if (!strcmp(blink, "on")) snprintf(bigs, sizeof bigs, "%s~", big_lit);   // ~ = blinking
     else snprintf(bigs, sizeof bigs, "%s", big[0] ? big : "-");               // - = blank
-    SAY("%3d:%02d  auto %-3s %-5s guard %-4s set %-4s skin %5.2f%s heater %5.1f ff %-4s autopower %-6s relay %d buzzer %d  big %-5s small %-4s chk %-3s alarms heater %-3s high %-3s low %-3s\n",
+    SAY("%3d:%02d  auto %-3s %-5s guard %-4s set %-4s skin %5.2f%s heater %5.1f ff %-4s autopower %-6s relay %d buzzer %d  big %-5s small %-4s chk %-3s alarms heater %-3s high %-3s low %-3s face %s\n",
            sec / 60, sec % 60, ha, st, gd, sp, skin, sensor_on_baby ? " " : "*", heater_now(), ff, po,
-           fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], bigs, small[0] ? small : "-", chk, ah, th, tl);
+           fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], bigs, small[0] ? small : "-", chk, ah, th, tl, face);
 }
 
 // End of the quiet window: stdout back, and what the jobs printed meanwhile.
@@ -230,6 +237,7 @@ int main()
             lag1 += (p - lag1) / LAG_S; lag2 += (lag1 - lag2) / LAG_S; lag3 += (lag2 - lag3) / LAG_S;
             skin += GAIN * lag3 - (skin - ROOM) / LOSS_S * draught + lamp;
         }
+        if (sec == 2)        { SAY("--- 0:02 press MANUAL (power-up is auto since 2026-11-26; -> manual 10 %%)\n"); button[BUTTON_MANUAL] = true; }
         if (sec == 60)       { SAY("--- 1:00 press MANUAL (-> auto); the skin sensor is not on the baby\n"); button[BUTTON_MANUAL] = true; }
         if (sec == 14 * 60)  { SAY("--- 14:00 the skin sensor goes on the baby\n"); sensor_on_baby = true; }
         if (sec == 20 * 60)  SAY("--- 20:00 press UP 10 times (0.1 C each: setpoint 36.0)\n");
@@ -241,7 +249,7 @@ int main()
         if (sec == 33 * 60)  { SAY("--- 33:00 the skin sensor back on the baby\n"); sensor_on_baby = true; }
         if (sec == 40 * 60)  { SAY("--- 40:00 type `kill 5` (follow ... /dev/heater: the job that sets the power)\n"); type("kill 5\n"); }
         if (sec == 43 * 60)  { SAY("--- 43:00 start it again\n"); type("follow /dev/heaterauto /dev/autopower /dev/percent /dev/heater &\n"); }
-        if (sec == 44 * 60)  { SAY("--- 44:00 a draught: heat loss x1.8 (the PID's part tops out at +25 %%)\n"); draught = 1.8f; }
+        if (sec == 44 * 60)  { SAY("--- 44:00 a draught: heat loss x1.8 (more than the PID can follow)\n"); draught = 1.8f; }
         if (sec == 49 * 60)  { SAY("--- 49:00 the draught stops\n"); draught = 1.0f; }
         if (sec == 50 * 60)  { SAY("--- 50:00 press START (APGAR clock); type `run tftmon`\n"); button[BUTTON_START] = true; type("run tftmon\n"); }
         if (sec == 52 * 60)  { SAY("--- 52:00 type `echo graphical > /dev/tft/mode`\n"); type("echo graphical > /dev/tft/mode\n"); }
@@ -276,12 +284,9 @@ int main()
             static char lastc[120] = "off";
             rd("/dev/alarm/check", now, sizeof now);
             if (strcmp(now, lastc)) { SAY("%7d:%02d  /dev/alarm/check: %s (heater %.1f)\n", sec / 60, sec % 60, now, heater_now()); strcpy(lastc, now); }
-            static char lasts[120] = "off";   // the sensor alarm, where it isn't the guard's level: the room sensor
-            rd("/dev/alarm/sensor", now, sizeof now);
-            if (strcmp(now, lasts)) {
-                if (strstr(now, "/dev/ambient") || strstr(lasts, "/dev/ambient")) SAY("%7d:%02d  /dev/alarm/sensor: %s\n", sec / 60, sec % 60, now);
-                strcpy(lasts, now);
-            }
+            static char lasts[120] = "off";   // the room sensor's own alarm
+            rd("/dev/alarm/room", now, sizeof now);
+            if (strcmp(now, lasts)) { SAY("%7d:%02d  /dev/alarm/room: %s\n", sec / 60, sec % 60, now); strcpy(lasts, now); }
             rd("/dev/guard", now, sizeof now);
             if (strcmp(now, lastg)) {
                 char lim[24]; rd("/dev/heater/limit", lim, sizeof lim);

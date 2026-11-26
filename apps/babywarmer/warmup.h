@@ -8,7 +8,8 @@
  */
 #pragma once
 
-#define WARMUP_POWER   80.0f   // boost: 40 % was too little, 100 % overshot (the field warmer)
+#define WARMUP_POWER   80.0f   // boost: 40 % was too little, 100 % overshot (the field
+                               // warmer); to re-evaluate from a logged warm-up (2026-11-26)
 #define WARMUP_EXIT_C  3.0f    // boost until the skin is within this of the setpoint
 #define WARMUP_COAST_S 45      // then 0 % this long, so the heat stored in the mattress
                                // shows; the guard judges no drop meanwhile (as the field

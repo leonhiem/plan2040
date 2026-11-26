@@ -3,7 +3,7 @@
  * the big display's blink, in one job
  *
  *   aut   auto mode (/dev/heaterauto on)     man   manual mode
- *   warm  boost (/dev/state)                 chk   /dev/alarm/sensor (warn or on)
+ *   warm  boost (/dev/state)                 chk   /dev/alarm/sensor or room (warn or on)
  *   low   /dev/alarm/templow (warn or on)    high  /dev/alarm/temphigh (warn or on)
  *   fail  /dev/alarm/heater
  *
@@ -56,7 +56,7 @@ static int ledwire_run(const char *in, int inlen, int argc, char **argv, char *o
     // the room), blank in none (there is no reading).
     bool guard_ok   = dev_is("/dev/guard", "ok");
     bool guard_none = dev_is("/dev/guard", "none");
-    set_led("/dev/leds/chk", !dev_is("/dev/alarm/sensor", "off"));
+    set_led("/dev/leds/chk", !dev_is("/dev/alarm/sensor", "off") || !dev_is("/dev/alarm/room", "off"));
     set_led("/dev/seg7big/blink", !guard_ok && !guard_none);
     // The small display blinks the setpoint while it is above 37.5 C.
     set_led("/dev/seg7small/blink", auto_mode && dev_is("/dev/setpoint/high", "on"));
