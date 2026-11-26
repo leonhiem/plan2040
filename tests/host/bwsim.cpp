@@ -49,12 +49,12 @@
 // Gap c, the deviation from the setpoint: 22:00-26:00 a phototherapy lamp
 // (HIGH warns at 1 C over, alarms at 2 C, the relay drops at 3 C);
 // 44:00-49:00 a draught (LOW warns at 1 C under, alarms at 2 C).
-// Real deviations the model shows (the PID, Kp 3 %/C, Ti 200 s, is slow
-// for this plant: its tuning is for the board, with a fan): 44:00 the
-// draught drops the skin to LOW "on"; after long climbs the integral
-// overshoots: HIGH warns at 54:38 (37.3 of 36.0) and 76:58 (38.6 of 37.5,
-// after the raise at 66:00 with the skin low: a new boost). 63:03 LOW
-// after the relay was held off for the stuck SSR; 93:32 LOW while the PID
+// Real deviations the model shows: 44:00 the draught drops the skin to
+// LOW "on" (the PID, Kp 3 %/C, Ti 200 s, can't follow it); afterwards back
+// to 36.0 without overshoot (the integral only moves within 1 C of the
+// setpoint, /dev/pid/band: before it, the skin overshot to 37.3 and to 38.6
+// after the raise at 66:00). 58:05 LOW after the broken element, 63:22
+// after the relay was held off for the stuck SSR; 93:35 LOW while the PID
 // climbs after manual mode. Recovering from safe (16:01, 35:01) is a new
 // warm-up: no LOW right after it.
 #include <cstdio>
@@ -185,12 +185,13 @@ static void status(int sec)
     char big[8], small[8], blink[8], chk[8];
     decode(seg_all, big, small);
     rd("/dev/seg7big/blink", blink, sizeof blink); rd("/dev/leds/chk", chk, sizeof chk);
+    char face[8]; rd("/dev/tft/face", face, sizeof face);
     char bigs[16];
     if (!strcmp(blink, "on")) snprintf(bigs, sizeof bigs, "%s~", big_lit);   // ~ = blinking
     else snprintf(bigs, sizeof bigs, "%s", big[0] ? big : "-");               // - = blank
-    SAY("%3d:%02d  auto %-3s %-5s guard %-4s set %-4s skin %5.2f%s heater %5.1f ff %-4s autopower %-6s relay %d buzzer %d  big %-5s small %-4s chk %-3s alarms heater %-3s high %-3s low %-3s\n",
+    SAY("%3d:%02d  auto %-3s %-5s guard %-4s set %-4s skin %5.2f%s heater %5.1f ff %-4s autopower %-6s relay %d buzzer %d  big %-5s small %-4s chk %-3s alarms heater %-3s high %-3s low %-3s face %s\n",
            sec / 60, sec % 60, ha, st, gd, sp, skin, sensor_on_baby ? " " : "*", heater_now(), ff, po,
-           fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], bigs, small[0] ? small : "-", chk, ah, th, tl);
+           fake_gpio[PIN_HEATERSAFE], fake_gpio[PIN_ALARM], bigs, small[0] ? small : "-", chk, ah, th, tl, face);
 }
 
 // End of the quiet window: stdout back, and what the jobs printed meanwhile.

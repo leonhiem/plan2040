@@ -43,7 +43,7 @@ set(PLAN2040_DEVS
     warmer       # /dev/state, /dev/autopower, /dev/pid/{kp,ti,td,min,max,outmax,integral,ff}
     guard        # /dev/guard: all heater safety, an unkillable kernel task
     resume       # /dev/resume: after a power cut < 10 min, the settings from /fram/resume
-    tft          # /dev/tft/<name>: the ST7735 screen, 12 files; the "tftflush" task
+    tft          # /dev/tft/<name>: the ST7735 screen, 13 files; the "tftflush" task
 )
 
 set(PLAN2040_PROGS

@@ -16,7 +16,8 @@
  *            ff     = FF_K * (setpoint - room)  (the steady load, feedforward.h)
  *            part   = Kp*error + integral - Kp*Td*d(skin)/dt, within
  *                     /dev/pid/min..max (-35..+50 %); the integral only
- *                     moves while part is within them (anti-windup)
+ *                     moves while part is within them (anti-windup) and
+ *                     the skin within /dev/pid/band (1 C) of the setpoint
  *            power  = ff + part, within 0../dev/pid/outmax (100 %)
  *          The derivative is on the skin, not the error: no kick when the
  *          setpoint changes. A setpoint raised (any amount) with the skin
@@ -44,6 +45,7 @@
 #include "pico/stdlib.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cmath>
 #include <cstring>
 
 #define COAST_SEED        3.0f      // the integral after coast, on top of ff
@@ -122,11 +124,15 @@ static float pid_step(float sp, float skin, float lo, float hi, float outmax)
     float kp = get("/dev/pid/kp", 3.0f);
     float ti = get("/dev/pid/ti", 200.0f);
     float td = get("/dev/pid/td", 5.0f);
+    float band = get("/dev/pid/band", 1.0f);
     float error = sp - skin;
     float i_new = integral + (kp / ti) * error * DT;
     float part  = kp * error + i_new - kp * td * (skin - prev_skin) / DT;
     prev_skin = skin;
-    if (part >= lo && part <= hi) integral = i_new;      // else frozen: anti-windup
+    // The integral only moves near the setpoint (within band) and while part
+    // is within its limits: far off, it would build a reserve that overshoots
+    // later (the board: +0.9 C after a recovery; a draught: +2.2 C after).
+    if (part >= lo && part <= hi && fabsf(error) < band) integral = i_new;
     part = part < lo ? lo : part > hi ? hi : part;
     float p = ff + part;
     return p < 0.0f ? 0.0f : p > outmax ? outmax : p;

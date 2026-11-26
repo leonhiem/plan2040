@@ -294,7 +294,7 @@ The control, as devices that hold values and programs that run as jobs
 | `/dev/heaterauto` | read/write | `on` = auto (the PID), `off` = manual (`/dev/percent`). Starts `off`. Every switch to manual sets `/dev/percent` to 10 (the field warmer's customer request). |
 | `/dev/percent` | read/write | Manual heater power, 0-80 (the field warmer's maximum), default 10. |
 | `/dev/pid/kp`, `ti`, `td` | read/write | The PID's tuning (3.0 %/°C, 200 s, 5 s), read by `warmer` every second. |
-| `/dev/pid/min`, `max`, `outmax` | read/write | The PID's part around the feed-forward within `min`..`max` (-35..+50 %), the total at most `outmax` (100 %). |
+| `/dev/pid/min`, `max`, `outmax`, `band` | read/write | The PID's part around the feed-forward within `min`..`max` (-35..+50 %), the total at most `outmax` (100 %); the integral only moves while the skin is within `band` (1.0 °C) of the setpoint. |
 | `/dev/pid/integral`, `ff` | read | What `warmer` uses now: the integral and the feed-forward, 3.7 % per °C of (setpoint − room) (`feedforward.h`; 47 % at 37.0 °C in a 24.3 °C room; the room sensor down: the last room for 10 minutes, then 24 °C). |
 | `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `warmer`). |
 | `/dev/autopower` | read/write | The power auto mode asks for (from `select`; in safe, what the guard heats with). |
@@ -318,6 +318,7 @@ a baby face (ok, cold, hot), and the APGAR clock (START starts it), or a
 | Device | | |
 |---|---|---|
 | `/dev/tft/aut`, `man`, `chk`, `low`, `high`, `fail` | read/write | The screen's conditions, `on`/`off` (`tftwire` sets them from the same sources as the LEDs). |
+| `/dev/tft/face` | read/write | The baby's face: `cold`, `ok` or `hot`. `tftwire` sets it from the skin vs the setpoint (more than 1 °C below or above, 0.2 °C hysteresis), not from the alarms, so it shows how warm the baby is, also during a warm-up; while the guard doesn't trust the reading it stays as it was. |
 | `/dev/tft/heater` | read/write | The heater bar, 0-100. |
 | `/dev/tft/apgar` | read/write | `on` (re)starts the APGAR clock. |
 | `/dev/tft/mode` | read/write | `graphical` (the warmer screen) or `text` (the console). |
@@ -1515,7 +1516,19 @@ than 3 °C below); the small display shows the setpoint in safe.
 
 | Test | Result |
 |---|---|
-| The sensor out and back again, logged | pending: after the recovery no LOW, the PID from ~52 %, a steady climb to 37.0 |
+| The sensor out and back again, logged (`sensoroff3-2026-11-26.log`) | ok: safe 12 s after the fall, 40 %, beeps, the small display at 37.0; recovered at 35.2 (10 min after the fall); no LOW; the PID from 49.8 %, 37.0 five minutes later; **overshoot to 37.9** (+0.9) |
+| Warm-up 3, cold bed, logged (`warmup3-2026-11-26.log`) | ok: boost 7:38 (24.5 → 34.0), 37.0 at 18:35, peak 37.4, no LOW blip, within ±0.3 °C from 23:40; the cold bed needed 52 % at the end (4.3 % per °C) |
+
+Changed after it: the PID's integral only moves within 1 °C of the
+setpoint (`/dev/pid/band`). Compared on a model of `warmer` fitted to
+these runs (it reproduces their peaks within 0.1-0.3 °C): the recovery's
+overshoot 37.8 → 37.2, a +1.5 °C step 37.7 → 37.2, after a draught 39.2
+→ 37.2; about 2 minutes slower to 37.0 after a recovery or a step.
+
+| Test | Result |
+|---|---|
+| The sensor out and back, logged | pending: recovery, then 37.0 in ~8 min with a peak of ~37.2 |
+| The TFT face during a warm-up (since 2026-11-26 the skin vs the setpoint, Leon) | pending: cold until the skin is within 1 °C (36.0 for 37.0), then yellow; hot above 38.0; no sound from it |
 | A fan on the baby (a draught), logged | pending: how fast the PID follows (Kp 3, Ti 200 s): tuning |
 
 **2026-11-26, the first warm-up, and what changed after it**

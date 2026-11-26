@@ -906,6 +906,22 @@ Order, one commit each, tested on the PC and then the board:
     shows the setpoint in safe. **Next to discuss:** the integral seed
     after the coast (+3 % -> 0: less overshoot), K 3.7 -> 3.8, then the
     PID tuning with a fan.
+    **Third warm-up and sensor-off, 2026-11-26** (logged): the cold bed
+    took 18:35 to 37.0 (4.3 %/C needed early), peak 37.4, no LOW blip;
+    recovery from safe clean (no LOW, PID from 49.8 %) but +0.9 C
+    overshoot. Compared on a model of warmer.cpp on the fitted plant
+    (scratch study, reproduces the board's peaks within 0.1-0.3 C):
+    integral only within 1 C of the setpoint wins (recovery peak 37.8 ->
+    37.2, step 37.7 -> 37.2, after a draught 39.2 -> 37.2; ~2 min slower);
+    a longer derivative barely helps; starting at the feed-forward is
+    slow. Done (Leon: change little): `/dev/pid/band`, 1.0 C. Later: the
+    +3 % integral start after the coast (warm bed peak 37.5 -> 37.2 at 0,
+    cold bed 3 min slower).
+    **The TFT face (Leon, 2026-11-26):** it showed the alarms (yellow
+    whenever LOW was kept quiet, also in safe), now how warm the baby is:
+    the skin vs the setpoint, 1 C either way (tftwire -> /dev/tft/face);
+    unchanged while the reading isn't trusted (the display code has no
+    "no face"). bwsim's status lines show it.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,
