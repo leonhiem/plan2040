@@ -922,6 +922,13 @@ Order, one commit each, tested on the PC and then the board:
     the skin vs the setpoint, 1 C either way (tftwire -> /dev/tft/face);
     unchanged while the reading isn't trusted (the display code has no
     "no face"). bwsim's status lines show it.
+    **Warm-up 4 and sensor-off 4, 2026-11-26 evening** (logged): warm-up
+    overshoot +1.3 C (a 23.3 C room, this load 3.57 %/C where run 3 needed
+    4.3: the setup varies +-15 % run to run; the PID started at 54.5 %
+    while the boost's stored heat still came out). Recovery from safe:
+    no overshoot with the band (37.0, was 37.9), 11 min to 37.0. Changed
+    (Leon): COAST_SEED 3 -> 0. On the model a later boost exit or a
+    longer coast made it worse, not better.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

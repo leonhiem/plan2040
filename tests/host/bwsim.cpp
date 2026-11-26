@@ -54,7 +54,7 @@
 // to 36.0 without overshoot (the integral only moves within 1 C of the
 // setpoint, /dev/pid/band: before it, the skin overshot to 37.3 and to 38.6
 // after the raise at 66:00). 58:05 LOW after the broken element, 63:22
-// after the relay was held off for the stuck SSR; 93:35 LOW while the PID
+// after the relay was held off for the stuck SSR; 93:36 LOW while the PID
 // climbs after manual mode. Recovering from safe (16:01, 35:01) is a new
 // warm-up: no LOW right after it.
 #include <cstdio>

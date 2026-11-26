@@ -178,58 +178,58 @@ echo off > /dev/alarm/heater
      66:01  /dev/alarm/templow: off
  67:00  auto on  boost guard ok   set 37.5 skin 33.83  heater  80.0 ff 38.9 autopower 80.0   relay 1 buzzer 0  big 33.8  small 37.5 chk off alarms heater off high off low off face cold
  68:00  auto on  coast guard ok   set 37.5 skin 34.72  heater   0.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 34.7  small 37.5 chk off alarms heater off high off low off face cold
- 69:00  auto on  pid   guard ok   set 37.5 skin 35.76  heater  45.5 ff 38.9 autopower 45.5   relay 1 buzzer 0  big 35.8  small 37.5 chk off alarms heater off high off low off face cold
- 70:00  auto on  pid   guard ok   set 37.5 skin 36.34  heater  45.5 ff 38.9 autopower 45.5   relay 1 buzzer 0  big 36.3  small 37.5 chk off alarms heater off high off low off face cold
- 71:00  auto on  pid   guard ok   set 37.5 skin 36.68  heater  44.5 ff 38.9 autopower 44.5   relay 1 buzzer 0  big 36.7  small 37.5 chk off alarms heater off high off low off face ok
- 72:00  auto on  pid   guard ok   set 37.5 skin 36.97  heater  44.2 ff 38.9 autopower 44.2   relay 1 buzzer 0  big 37.0  small 37.5 chk off alarms heater off high off low off face ok
- 73:00  auto on  pid   guard ok   set 37.5 skin 37.24  heater  43.9 ff 38.9 autopower 43.9   relay 1 buzzer 0  big 37.2  small 37.5 chk off alarms heater off high off low off face ok
- 74:00  auto on  pid   guard ok   set 37.5 skin 37.49  heater  43.1 ff 38.9 autopower 43.1   relay 1 buzzer 0  big 37.5  small 37.5 chk off alarms heater off high off low off face ok
+ 69:00  auto on  pid   guard ok   set 37.5 skin 35.76  heater  44.3 ff 38.9 autopower 44.3   relay 1 buzzer 0  big 35.7  small 37.5 chk off alarms heater off high off low off face cold
+ 70:00  auto on  pid   guard ok   set 37.5 skin 36.33  heater  42.5 ff 38.9 autopower 42.5   relay 1 buzzer 0  big 36.3  small 37.5 chk off alarms heater off high off low off face cold
+ 71:00  auto on  pid   guard ok   set 37.5 skin 36.61  heater  41.7 ff 38.9 autopower 41.7   relay 1 buzzer 0  big 36.6  small 37.5 chk off alarms heater off high off low off face cold
+ 72:00  auto on  pid   guard ok   set 37.5 skin 36.83  heater  41.8 ff 38.9 autopower 41.8   relay 1 buzzer 0  big 36.8  small 37.5 chk off alarms heater off high off low off face ok
+ 73:00  auto on  pid   guard ok   set 37.5 skin 37.02  heater  41.6 ff 38.9 autopower 41.6   relay 1 buzzer 0  big 37.0  small 37.5 chk off alarms heater off high off low off face ok
+ 74:00  auto on  pid   guard ok   set 37.5 skin 37.19  heater  41.3 ff 38.9 autopower 41.3   relay 1 buzzer 0  big 37.2  small 37.5 chk off alarms heater off high off low off face ok
 --- 75:00 the room NTC opens (the skin sensor still works)
- 75:00  auto on  pid   guard ok   set 37.5 skin 37.69  heater  42.4 ff 38.9 autopower 42.4   relay 1 buzzer 0  big 37.7  small 37.5 chk off alarms heater off high off low off face ok
+ 75:00  auto on  pid   guard ok   set 37.5 skin 37.34  heater  41.2 ff 38.9 autopower 41.2   relay 1 buzzer 0  big 37.3  small 37.5 chk off alarms heater off high off low off face ok
      75:01  /dev/alarm/room: warn: /dev/ambient: code 32767 is outside the calibrated range (open or shorted?)
- 76:00  auto on  pid   guard ok   set 37.5 skin 37.85  heater  41.9 ff 38.9 autopower 41.9   relay 1 buzzer 0  big 37.8  small 37.5 chk on  alarms heater off high off low off face ok
- 77:00  auto on  pid   guard ok   set 37.5 skin 37.96  heater  41.0 ff 38.9 autopower 41.0   relay 1 buzzer 0  big 38.0  small 37.5 chk on  alarms heater off high off low off face ok
- 78:00  auto on  pid   guard ok   set 37.5 skin 38.03  heater  40.6 ff 38.9 autopower 40.6   relay 1 buzzer 0  big 38.0  small 37.5 chk on  alarms heater off high off low off face ok
- 79:00  auto on  pid   guard ok   set 37.5 skin 38.06  heater  39.9 ff 38.9 autopower 39.9   relay 1 buzzer 0  big 38.1  small 37.5 chk on  alarms heater off high off low off face ok
- 80:00  auto on  pid   guard ok   set 37.5 skin 38.06  heater  39.4 ff 38.9 autopower 39.4   relay 1 buzzer 0  big 38.1  small 37.5 chk on  alarms heater off high off low off face ok
- 81:00  auto on  pid   guard ok   set 37.5 skin 38.03  heater  39.2 ff 38.9 autopower 39.2   relay 1 buzzer 0  big 38.0  small 37.5 chk on  alarms heater off high off low off face ok
- 82:00  auto on  pid   guard ok   set 37.5 skin 37.99  heater  38.8 ff 38.9 autopower 38.8   relay 1 buzzer 0  big 38.0  small 37.5 chk on  alarms heater off high off low off face ok
- 83:00  auto on  pid   guard ok   set 37.5 skin 37.93  heater  38.8 ff 38.9 autopower 38.8   relay 1 buzzer 0  big 37.9  small 37.5 chk on  alarms heater off high off low off face ok
- 84:00  auto on  pid   guard ok   set 37.5 skin 37.87  heater  38.4 ff 38.9 autopower 38.4   relay 1 buzzer 0  big 37.9  small 37.5 chk on  alarms heater off high off low off face ok
- 85:00  auto on  pid   guard ok   set 37.5 skin 37.81  heater  38.5 ff 38.9 autopower 38.5   relay 1 buzzer 0  big 37.8  small 37.5 chk on  alarms heater off high off low off face ok
- 86:00  auto on  pid   guard ok   set 37.5 skin 37.75  heater  38.5 ff 38.9 autopower 38.5   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
- 87:00  auto on  pid   guard ok   set 37.5 skin 37.70  heater  49.5 ff 50.0 autopower 49.5   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 76:00  auto on  pid   guard ok   set 37.5 skin 37.47  heater  40.7 ff 38.9 autopower 40.7   relay 1 buzzer 0  big 37.5  small 37.5 chk on  alarms heater off high off low off face ok
+ 77:00  auto on  pid   guard ok   set 37.5 skin 37.57  heater  40.4 ff 38.9 autopower 40.4   relay 1 buzzer 0  big 37.6  small 37.5 chk on  alarms heater off high off low off face ok
+ 78:00  auto on  pid   guard ok   set 37.5 skin 37.64  heater  40.3 ff 38.9 autopower 40.3   relay 1 buzzer 0  big 37.6  small 37.5 chk on  alarms heater off high off low off face ok
+ 79:00  auto on  pid   guard ok   set 37.5 skin 37.69  heater  39.9 ff 38.9 autopower 39.9   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 80:00  auto on  pid   guard ok   set 37.5 skin 37.72  heater  39.7 ff 38.9 autopower 39.7   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 81:00  auto on  pid   guard ok   set 37.5 skin 37.73  heater  39.5 ff 38.9 autopower 39.5   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 82:00  auto on  pid   guard ok   set 37.5 skin 37.73  heater  39.4 ff 38.9 autopower 39.4   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 83:00  auto on  pid   guard ok   set 37.5 skin 37.72  heater  39.2 ff 38.9 autopower 39.2   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 84:00  auto on  pid   guard ok   set 37.5 skin 37.71  heater  39.0 ff 38.9 autopower 39.0   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 85:00  auto on  pid   guard ok   set 37.5 skin 37.69  heater  38.9 ff 38.9 autopower 38.9   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 86:00  auto on  pid   guard ok   set 37.5 skin 37.67  heater  38.7 ff 38.9 autopower 38.7   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 87:00  auto on  pid   guard ok   set 37.5 skin 37.65  heater  49.7 ff 50.0 autopower 49.7   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
 --- 88:00 the room NTC works again
- 88:00  auto on  pid   guard ok   set 37.5 skin 37.75  heater  49.3 ff 50.0 autopower 49.3   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
+ 88:00  auto on  pid   guard ok   set 37.5 skin 37.73  heater  49.5 ff 50.0 autopower 49.5   relay 1 buzzer 0  big 37.7  small 37.5 chk on  alarms heater off high off low off face ok
      88:01  /dev/alarm/room: off
- 89:00  auto on  pid   guard ok   set 37.5 skin 37.91  heater  37.3 ff 38.9 autopower 37.3   relay 1 buzzer 0  big 37.9  small 37.5 chk off alarms heater off high off low off face ok
+ 89:00  auto on  pid   guard ok   set 37.5 skin 37.91  heater  37.6 ff 38.9 autopower 37.6   relay 1 buzzer 0  big 37.9  small 37.5 chk off alarms heater off high off low off face ok
 --- 90:00 press MANUAL (-> manual: 10 %)
- 90:00  auto on  pid   guard ok   set 37.5 skin 38.04  heater  36.7 ff 38.9 autopower 36.7   relay 1 buzzer 0  big 38.0  small 37.5 chk off alarms heater off high off low off face ok
+ 90:00  auto on  pid   guard ok   set 37.5 skin 38.05  heater  36.9 ff 38.9 autopower 36.9   relay 1 buzzer 0  big 38.0  small 37.5 chk off alarms heater off high off low off face ok
 --- 91:00 press UP (manual: +5 %)
- 91:00  auto off idle  guard ok   set 37.5 skin 38.00  heater  10.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 38.0  small 10.0 chk off alarms heater off high off low off face ok
+ 91:00  auto off idle  guard ok   set 37.5 skin 38.01  heater  10.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 38.0  small 10.0 chk off alarms heater off high off low off face ok
 --- 92:00 press MANUAL (-> auto)
- 92:00  auto off idle  guard ok   set 37.5 skin 37.61  heater  15.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 37.6  small 15.0 chk off alarms heater off high off low off face ok
- 93:00  auto on  pid   guard ok   set 37.5 skin 36.92  heater  43.7 ff 38.9 autopower 43.7   relay 1 buzzer 0  big 36.9  small 37.5 chk off alarms heater off high off low off face ok
-     93:35  /dev/alarm/templow: warn: skin 36.4 C, 1.1 C below the setpoint
- 94:00  auto on  pid   guard ok   set 37.5 skin 36.10  heater  46.4 ff 38.9 autopower 46.4   relay 1 buzzer 1  big 36.1  small 37.5 chk off alarms heater off high off low warn face cold
- 95:00  auto on  pid   guard ok   set 37.5 skin 35.64  heater  47.9 ff 38.9 autopower 47.9   relay 1 buzzer 1  big 35.6  small 37.5 chk off alarms heater off high off low warn face cold
- 96:00  auto on  pid   guard ok   set 37.5 skin 35.65  heater  47.9 ff 38.9 autopower 47.9   relay 1 buzzer 1  big 35.6  small 37.5 chk off alarms heater off high off low warn face cold
- 97:00  auto on  pid   guard ok   set 37.5 skin 35.98  heater  46.7 ff 38.9 autopower 46.7   relay 1 buzzer 1  big 36.0  small 37.5 chk off alarms heater off high off low warn face cold
- 98:00  auto on  pid   guard ok   set 37.5 skin 36.43  heater  45.5 ff 38.9 autopower 45.5   relay 1 buzzer 1  big 36.4  small 37.5 chk off alarms heater off high off low warn face cold
-     98:31  /dev/alarm/templow: off
- 99:00  auto on  pid   guard ok   set 37.5 skin 36.87  heater  44.4 ff 38.9 autopower 44.4   relay 1 buzzer 0  big 36.9  small 37.5 chk off alarms heater off high off low off face ok
+ 92:00  auto off idle  guard ok   set 37.5 skin 37.63  heater  15.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 37.6  small 15.0 chk off alarms heater off high off low off face ok
+ 93:00  auto on  pid   guard ok   set 37.5 skin 36.94  heater  40.4 ff 38.9 autopower 40.4   relay 1 buzzer 0  big 37.0  small 37.5 chk off alarms heater off high off low off face ok
+     93:36  /dev/alarm/templow: warn: skin 36.4 C, 1.1 C below the setpoint
+ 94:00  auto on  pid   guard ok   set 37.5 skin 36.12  heater  43.4 ff 38.9 autopower 43.4   relay 1 buzzer 0  big 36.1  small 37.5 chk off alarms heater off high off low warn face cold
+ 95:00  auto on  pid   guard ok   set 37.5 skin 35.61  heater  44.9 ff 38.9 autopower 44.9   relay 1 buzzer 0  big 35.6  small 37.5 chk off alarms heater off high off low warn face cold
+ 96:00  auto on  pid   guard ok   set 37.5 skin 35.55  heater  45.2 ff 38.9 autopower 45.2   relay 1 buzzer 0  big 35.5  small 37.5 chk off alarms heater off high off low warn face cold
+ 97:00  auto on  pid   guard ok   set 37.5 skin 35.79  heater  44.3 ff 38.9 autopower 44.3   relay 1 buzzer 0  big 35.8  small 37.5 chk off alarms heater off high off low warn face cold
+ 98:00  auto on  pid   guard ok   set 37.5 skin 36.16  heater  41.6 ff 38.9 autopower 41.6   relay 1 buzzer 0  big 36.2  small 37.5 chk off alarms heater off high off low warn face cold
+ 99:00  auto on  pid   guard ok   set 37.5 skin 36.54  heater  42.2 ff 38.9 autopower 42.2   relay 1 buzzer 0  big 36.5  small 37.5 chk off alarms heater off high off low warn face cold
+     99:20  /dev/alarm/templow: off
 --- 100:00 the ADS1115 stops answering
-100:00  auto on  pid   guard ok   set 37.5 skin 37.25  heater  43.9 ff 38.9 autopower 43.9   relay 1 buzzer 0  big 37.2  small 37.5 chk off alarms heater off high off low off face ok
+100:00  auto on  pid   guard ok   set 37.5 skin 36.87  heater  41.6 ff 38.9 autopower 41.6   relay 1 buzzer 0  big 36.9  small 37.5 chk off alarms heater off high off low off face ok
     100:01  /dev/guard: none: no temperature sensors (/dev/skintemp: ADS1115 (0x48) not answering) (heater set 35.0)
-101:00  auto off idle  guard none set 37.5 skin 37.54  heater  35.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 35.0 chk on  alarms heater off high off low off face ok
+101:00  auto off idle  guard none set 37.5 skin 37.12  heater  35.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 35.0 chk on  alarms heater off high off low off face ok
 --- 102:00 press UP
-102:00  auto off idle  guard none set 37.5 skin 37.66  heater  35.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 35.0 chk on  alarms heater off high off low off face ok
-103:00  auto off idle  guard none set 37.5 skin 37.65  heater  40.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 40.0 chk on  alarms heater off high off low off face ok
+102:00  auto off idle  guard none set 37.5 skin 37.24  heater  35.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 35.0 chk on  alarms heater off high off low off face ok
+103:00  auto off idle  guard none set 37.5 skin 37.25  heater  40.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 40.0 chk on  alarms heater off high off low off face ok
 --- 104:00 type `jobs`
 while the ADS1115 was dead: 2 lines printed by the jobs, 0 of them "cat: error":
     | [6] cat: /dev/skintemp: ADS1115 (0x48) not answering
     | guard: none: no temperature sensors (/dev/skintemp: ADS1115 (0x48) not answering), manual at 35 %
-104:00  auto off idle  guard none set 37.5 skin 37.60  heater  40.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 40.0 chk on  alarms heater off high off low off face ok
+104:00  auto off idle  guard none set 37.5 skin 37.24  heater  40.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 40.0 chk on  alarms heater off high off low off face ok
 jobs
 [1] toggle /dev/buttons/lamp /dev/lamp &
 [2] toggle /dev/buttons/manual /dev/heaterauto &
@@ -243,48 +243,48 @@ jobs
 [9] ledwire &
 [10] tftwire &
 % --- 105:00 the ADS1115 answers again
-105:00  auto off idle  guard none set 37.5 skin 37.57  heater  40.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 40.0 chk on  alarms heater off high off low off face ok
+105:00  auto off idle  guard none set 37.5 skin 37.27  heater  40.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big -     small 40.0 chk on  alarms heater off high off low off face ok
 [6] ok again
 guard: ok: sensors answer again, back to auto
     105:05  /dev/guard: ok (heater cap 100.0)
-106:00  auto on  pid   guard ok   set 37.5 skin 37.52  heater  41.9 ff 38.9 autopower 41.9   relay 1 buzzer 0  big 37.5  small 37.5 chk off alarms heater off high off low off face ok
-107:00  auto on  pid   guard ok   set 37.5 skin 37.20  heater  42.8 ff 38.9 autopower 42.8   relay 1 buzzer 0  big 37.2  small 37.5 chk off alarms heater off high off low off face ok
-108:00  auto on  pid   guard ok   set 37.5 skin 36.88  heater  44.1 ff 38.9 autopower 44.1   relay 1 buzzer 0  big 36.9  small 37.5 chk off alarms heater off high off low off face ok
-109:00  auto on  pid   guard ok   set 37.5 skin 36.78  heater  45.0 ff 38.9 autopower 45.0   relay 1 buzzer 0  big 36.8  small 37.5 chk off alarms heater off high off low off face ok
+106:00  auto on  pid   guard ok   set 37.5 skin 37.26  heater  39.5 ff 38.9 autopower 39.5   relay 1 buzzer 0  big 37.3  small 37.5 chk off alarms heater off high off low off face ok
+107:00  auto on  pid   guard ok   set 37.5 skin 36.98  heater  40.6 ff 38.9 autopower 40.6   relay 1 buzzer 0  big 37.0  small 37.5 chk off alarms heater off high off low off face ok
+108:00  auto on  pid   guard ok   set 37.5 skin 36.66  heater  42.1 ff 38.9 autopower 42.1   relay 1 buzzer 0  big 36.7  small 37.5 chk off alarms heater off high off low off face ok
+109:00  auto on  pid   guard ok   set 37.5 skin 36.54  heater  43.3 ff 38.9 autopower 43.3   relay 1 buzzer 0  big 36.5  small 37.5 chk off alarms heater off high off low off face ok
 --- 110:00 press MANUAL (-> manual 10 %), then UP 4 times (30 %)
-110:00  auto on  pid   guard ok   set 37.5 skin 36.89  heater  45.2 ff 38.9 autopower 45.2   relay 1 buzzer 0  big 36.9  small 37.5 chk off alarms heater off high off low off face ok
-111:00  auto off idle  guard ok   set 37.5 skin 37.08  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 37.1  small 30.0 chk off alarms heater off high off low off face ok
-112:00  auto off idle  guard ok   set 37.5 skin 37.13  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 37.1  small 30.0 chk off alarms heater off high off low off face ok
-113:00  auto off idle  guard ok   set 37.5 skin 37.03  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 37.0  small 30.0 chk off alarms heater off high off low off face ok
-114:00  auto off idle  guard ok   set 37.5 skin 36.82  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.8  small 30.0 chk off alarms heater off high off low off face ok
-115:00  auto off idle  guard ok   set 37.5 skin 36.60  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.6  small 30.0 chk off alarms heater off high off low off face ok
-116:00  auto off idle  guard ok   set 37.5 skin 36.37  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.4  small 30.0 chk off alarms heater off high off low off face cold
-117:00  auto off idle  guard ok   set 37.5 skin 36.17  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.2  small 30.0 chk off alarms heater off high off low off face cold
-118:00  auto off idle  guard ok   set 37.5 skin 36.00  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.0  small 30.0 chk off alarms heater off high off low off face cold
-119:00  auto off idle  guard ok   set 37.5 skin 35.85  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.9  small 30.0 chk off alarms heater off high off low off face cold
-120:00  auto off idle  guard ok   set 37.5 skin 35.73  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.7  small 30.0 chk off alarms heater off high off low off face cold
-121:00  auto off idle  guard ok   set 37.5 skin 35.62  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.6  small 30.0 chk off alarms heater off high off low off face cold
-122:00  auto off idle  guard ok   set 37.5 skin 35.54  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.5  small 30.0 chk off alarms heater off high off low off face cold
+110:00  auto on  pid   guard ok   set 37.5 skin 36.62  heater  43.5 ff 38.9 autopower 43.5   relay 1 buzzer 0  big 36.6  small 37.5 chk off alarms heater off high off low off face ok
+111:00  auto off idle  guard ok   set 37.5 skin 36.78  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.8  small 30.0 chk off alarms heater off high off low off face ok
+112:00  auto off idle  guard ok   set 37.5 skin 36.83  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.8  small 30.0 chk off alarms heater off high off low off face ok
+113:00  auto off idle  guard ok   set 37.5 skin 36.73  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.7  small 30.0 chk off alarms heater off high off low off face ok
+114:00  auto off idle  guard ok   set 37.5 skin 36.56  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.6  small 30.0 chk off alarms heater off high off low off face ok
+115:00  auto off idle  guard ok   set 37.5 skin 36.37  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.4  small 30.0 chk off alarms heater off high off low off face cold
+116:00  auto off idle  guard ok   set 37.5 skin 36.18  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.2  small 30.0 chk off alarms heater off high off low off face cold
+117:00  auto off idle  guard ok   set 37.5 skin 36.01  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 36.0  small 30.0 chk off alarms heater off high off low off face cold
+118:00  auto off idle  guard ok   set 37.5 skin 35.86  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.9  small 30.0 chk off alarms heater off high off low off face cold
+119:00  auto off idle  guard ok   set 37.5 skin 35.74  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.7  small 30.0 chk off alarms heater off high off low off face cold
+120:00  auto off idle  guard ok   set 37.5 skin 35.63  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.6  small 30.0 chk off alarms heater off high off low off face cold
+121:00  auto off idle  guard ok   set 37.5 skin 35.54  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.5  small 30.0 chk off alarms heater off high off low off face cold
+122:00  auto off idle  guard ok   set 37.5 skin 35.47  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 35.5  small 30.0 chk off alarms heater off high off low off face cold
 guard: manual 30 % for 12 min: check the baby, then press MUTE
     122:15  /dev/alarm/check: on: manual 30 % for 12 min: check the baby, press MUTE (heater 30.0)
-123:00  auto off idle  guard ok   set 37.5 skin 35.46  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.5  small 30.0 chk off alarms heater off high off low off face cold
-124:00  auto off idle  guard ok   set 37.5 skin 35.40  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.4  small 30.0 chk off alarms heater off high off low off face cold
-125:00  auto off idle  guard ok   set 37.5 skin 35.35  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.3  small 30.0 chk off alarms heater off high off low off face cold
+123:00  auto off idle  guard ok   set 37.5 skin 35.40  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.4  small 30.0 chk off alarms heater off high off low off face cold
+124:00  auto off idle  guard ok   set 37.5 skin 35.35  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.4  small 30.0 chk off alarms heater off high off low off face cold
+125:00  auto off idle  guard ok   set 37.5 skin 35.30  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.3  small 30.0 chk off alarms heater off high off low off face cold
 guard: check not answered for 3 min: heater off until MUTE
     125:17  /dev/alarm/check: on: manual 30 %, not answered: heater off, check the baby, press MUTE (heater 0.0)
-126:00  auto off idle  guard ok   set 37.5 skin 35.28  heater   0.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.3  small 30.0 chk off alarms heater off high off low off face cold
+126:00  auto off idle  guard ok   set 37.5 skin 35.25  heater   0.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.3  small 30.0 chk off alarms heater off high off low off face cold
 --- 127:00 a nurse comes: press MUTE
-127:00  auto off idle  guard ok   set 37.5 skin 34.99  heater   0.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.0  small 30.0 chk off alarms heater off high off low off face cold
+127:00  auto off idle  guard ok   set 37.5 skin 34.96  heater   0.0 ff 38.9 autopower 0.0    relay 1 buzzer 1  big 35.0  small 30.0 chk off alarms heater off high off low off face cold
 guard: check answered, heater back on
     127:01  /dev/alarm/check: off (heater 30.0)
-128:00  auto off idle  guard ok   set 37.5 skin 34.41  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 34.4  small 30.0 chk off alarms heater off high off low off face cold
-129:00  auto off idle  guard ok   set 37.5 skin 33.92  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.9  small 30.0 chk off alarms heater off high off low off face cold
+128:00  auto off idle  guard ok   set 37.5 skin 34.38  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 34.4  small 30.0 chk off alarms heater off high off low off face cold
+129:00  auto off idle  guard ok   set 37.5 skin 33.90  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.9  small 30.0 chk off alarms heater off high off low off face cold
 --- 130:00 press DOWN twice (20 %: no more check timer)
-130:00  auto off idle  guard ok   set 37.5 skin 33.71  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.7  small 30.0 chk off alarms heater off high off low off face cold
-131:00  auto off idle  guard ok   set 37.5 skin 33.71  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.7  small 20.0 chk off alarms heater off high off low off face cold
-132:00  auto off idle  guard ok   set 37.5 skin 33.71  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.7  small 20.0 chk off alarms heater off high off low off face cold
-133:00  auto off idle  guard ok   set 37.5 skin 33.64  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.6  small 20.0 chk off alarms heater off high off low off face cold
-134:00  auto off idle  guard ok   set 37.5 skin 33.51  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.5  small 20.0 chk off alarms heater off high off low off face cold
+130:00  auto off idle  guard ok   set 37.5 skin 33.70  heater  30.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.7  small 30.0 chk off alarms heater off high off low off face cold
+131:00  auto off idle  guard ok   set 37.5 skin 33.69  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.7  small 20.0 chk off alarms heater off high off low off face cold
+132:00  auto off idle  guard ok   set 37.5 skin 33.70  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.7  small 20.0 chk off alarms heater off high off low off face cold
+133:00  auto off idle  guard ok   set 37.5 skin 33.63  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.6  small 20.0 chk off alarms heater off high off low off face cold
+134:00  auto off idle  guard ok   set 37.5 skin 33.50  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.5  small 20.0 chk off alarms heater off high off low off face cold
 135:00  auto off idle  guard ok   set 37.5 skin 33.36  heater  20.0 ff 38.9 autopower 0.0    relay 1 buzzer 0  big 33.4  small 20.0 chk off alarms heater off high off low off face cold
 big display bytes at the end: 66f3f2
 exit 0

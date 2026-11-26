@@ -11,7 +11,7 @@
  *   idle   manual mode (/dev/heaterauto off): asks 0. Auto on: boost.
  *   boost  80 % until the skin is within 3 C of the setpoint: coast.
  *   coast  0 % for 45 s, so the heat stored in the mattress shows: pid,
- *          the integral starting at 3 %.
+ *          the integral starting at 0 (the feed-forward carries the load).
  *   pid    feed-forward + PID:
  *            ff     = FF_K * (setpoint - room)  (the steady load, feedforward.h)
  *            part   = Kp*error + integral - Kp*Td*d(skin)/dt, within
@@ -48,7 +48,9 @@
 #include <cmath>
 #include <cstring>
 
-#define COAST_SEED        3.0f      // the integral after coast, on top of ff
+#define COAST_SEED        0.0f      // the integral after coast, on top of ff (was 3: with the
+                                    // feed-forward from setpoint and room it overshot, +1.3 C
+                                    // in warm-up 4, 2026-11-26)
 #define DT                1.0f      // seconds per step
 #define ROOM_FRESH_S      600       // the room sensor down: the last room seen this long ...
 #define ROOM_FALLBACK     24.0f     // ... then this

@@ -1527,8 +1527,17 @@ overshoot 37.8 → 37.2, a +1.5 °C step 37.7 → 37.2, after a draught 39.2
 
 | Test | Result |
 |---|---|
-| The sensor out and back, logged | pending: recovery, then 37.0 in ~8 min with a peak of ~37.2 |
-| The TFT face during a warm-up (since 2026-11-26 the skin vs the setpoint, Leon) | pending: cold until the skin is within 1 °C (36.0 for 37.0), then yellow; hot above 38.0; no sound from it |
+| Warm-up 4, cold bed, a cooler evening, logged (`warmup4-2026-11-26.log`) | ok but **overshoot 38.3 (+1.3)**, HIGH + beeps ~15:00-19:00: boost 7:17 (23.6 → 34.0), coast → 35.7, the PID from 54.5 % (feed-forward 49.6 in a 23.3 °C room + the +3 % start), 37.0 at 9:51; steady 43.6 % at 37.1 in 24.9 °C: 3.57 % per °C (run 3: 4.3 early). The band isn't the cause (the model: 38.1 with, 38.2 without) |
+| The TFT face during warm-up 4 | ok: cold from the start, no LED or beeps meanwhile (`low` 0) |
+| The sensor out and back, logged (`sensoroff4-2026-11-26.log`) | ok: safe 15 s after the fall, 40 %; recovered at 34.6, the PID from 52.3 %, no LOW; 37.0 after 11:06 (the integral only from 36.0 on), **peak 37.0** (was 37.9) |
+
+Changed after it: the integral starts at 0 after the coast (was +3 %).
+The model: the warm-up peak 0.3-0.4 °C lower (tonight's 38.3 → ~37.9),
+about 3 minutes slower with a cold bed.
+
+| Test | Result |
+|---|---|
+| Warm-up from a cold bed, logged | pending: peak ~37.7-37.9 instead of 38.3 |
 | A fan on the baby (a draught), logged | pending: how fast the PID follows (Kp 3, Ti 200 s): tuning |
 
 **2026-11-26, the first warm-up, and what changed after it**
