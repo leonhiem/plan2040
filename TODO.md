@@ -938,6 +938,10 @@ Order, one commit each, tested on the PC and then the board:
     Check with a thermometer, then move the NTC out of the pole and re-fit
     K (probably ~3.5 against the real room). No software correction
     (guesswork per pole and room).
+    **Done 2026-11-27 (Leon):** the room NTC moved behind the pole, away
+    from it: the reading now stays flat while heating. K re-fitted: 3.5
+    (48 % at 37.3 C in 23.4 C; the first warm-up against the real room
+    gives 3.5 too). The no-rise message says "fell" for a negative change.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

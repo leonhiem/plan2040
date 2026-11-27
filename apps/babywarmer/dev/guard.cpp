@@ -423,9 +423,11 @@ static void guard_task(void)
                 warm_s++;
                 if (skin >= sp - WARMUP_EXIT_C) { warming = false; coast_left = WARMUP_COAST_S; }
                 else if (warm_s >= NO_RISE_S) {
-                    if (skin - warm_start_skin < NO_RISE_MIN_DELTA)
-                        set_level(G_SAFE, C_SENSOR, "skin rose only %.1f C in 5 min of warm-up (sensor off the baby?)",
-                                  skin - warm_start_skin);
+                    if (skin - warm_start_skin < NO_RISE_MIN_DELTA) {
+                        float d = skin - warm_start_skin;
+                        if (d < 0.0f) set_level(G_SAFE, C_SENSOR, "skin fell %.1f C in 5 min of warm-up (sensor off the baby?)", -d);
+                        else set_level(G_SAFE, C_SENSOR, "skin rose only %.1f C in 5 min of warm-up (sensor off the baby?)", d);
+                    }
                     else { warm_start_skin = skin; warm_s = 0; }
                 }
             } else if (coast_left > 0) {
