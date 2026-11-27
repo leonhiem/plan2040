@@ -946,6 +946,12 @@ Order, one commit each, tested on the PC and then the board:
     alarms, within 0.3 C from 16:21, the room reading +0.4 C in 22 min.
     The warm-up is done for now (Leon: "pretty good"). Later: re-fit
     bwsim's model to this clean log; PID tuning with a fan; boost 80/100 %.
+    **The sensor in a corner, 2026-11-27** (logged): the corner reads ~4 C
+    below the centre; the guard went to safe after 1:45 (stays > 3 C below),
+    after 2 min of LOW and the PID at up to 58 %. Back in the centre:
+    recovered, 37.0 15:30 later, peak 37.4. A sensor only 1-2 C off isn't
+    caught (a limit for the IFU, not for software). The slow last degree
+    and the small overshoot after a recovery: the PID tuning (Ti 200 s).
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

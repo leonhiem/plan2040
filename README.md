@@ -1562,6 +1562,14 @@ says "fell 2.7 C" when the skin fell.
 | Test | Result |
 |---|---|
 | Warm-up 6 from a cold bed with K 3.5, logged (`warmup6-2026-11-27.log`) | ok, **the best so far**: boost 7:41 (23.4 → 33.9), coast → 35.2, the PID from 50.4 %, within 0.3 °C from 16:21, 37.0 at 19:06, **peak 37.0 (+0.0)**, then 37.0 at 49 %; the integral rose quietly to +3.7 % (a cold bed needs more at first), never negative; no LOW, HIGH, CHK or FAIL; the room reading +0.4 °C in 22 min (was +1.5-2 °C with the NTC in the pole) |
+| The skin sensor moved from the centre to a corner of the bed, logged (`corner-2026-11-27.log`) | ok: the reading fell 37.0 → 33.6 in 1:45 (0.05 °C/s, slower than the fall check); LOW warned, then alarmed (2 °C below) for ~1 min while the PID pushed 48 → 58 %; then **safe** (`skin 33.6 C, more than 3 C below the setpoint for 20 s`), 41 %. The corner reads ~4 °C below the centre at the same power |
+| The sensor back in the centre (same log) | ok: recovered at 34.7, new warm-up, no LOW; the last 0.6 °C took 8 min (the integral, Ti 200 s), 37.0 15:30 after the recovery, peak 37.4 (+0.4), then 37.2 |
+
+**A known limit, confirmed:** a sensor 4 °C too cold (the corner) is
+caught (safe heats less); a sensor only 1-2 °C too cold (half-way to the
+edge) would not be: the PID would heat the centre 1-2 °C too warm, with
+no alarm. Only the placement can prevent it (IFU.md section 4: the centre
+of the abdomen, facing the heater, checked every time the baby is).
 | A fan on the baby (a draught), logged | pending: how fast the PID follows (Kp 3, Ti 200 s): tuning |
 
 **2026-11-26, the first warm-up, and what changed after it**
