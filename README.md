@@ -1537,7 +1537,22 @@ about 3 minutes slower with a cold bed.
 
 | Test | Result |
 |---|---|
-| Warm-up from a cold bed, logged | pending: peak ~37.7-37.9 instead of 38.3 |
+| Warm-up 5 from a cold bed, logged (`warmup5-2026-11-27.log`) | ok, **the best so far**: boost 7:54 (23.6 → 34.0), coast → 35.1, the PID from 54.7 %, within 0.3 °C from 15:00, 37.0 at 20:46, **peak 37.0 (+0.0)**, then 36.8-37.0 at 48 %; no LOW, HIGH, CHK or FAIL. (Part of the difference with warm-up 4 is the load: 35.1 after the coast against 35.7.) |
+| The sensor out and back, logged (`sensoroff5-2026-11-27.log`) | ok but slow: safe 14 s after the fall, 39 %; recovered at 34.2, the PID from 51.7 %, no LOW; **stuck at 36.0 for ~6 min** (the edge of the band: the proportional part alone, 43 + 3 %, short of the 49 % this load needed), then 37.0 at 25:44 after the recovery, peak 37.0 |
+
+**The room NTC sits in the metal pole that carries the heater head**
+(Leon): its reading rose 1-2 °C in every run, also late in the evening
+(run 4, 21:42-22:41: 23.3 → 24.8) and back to ~23.2-23.8 after a pause.
+The pole conducts the heater's heat. So the feed-forward (and the safe
+power) used a room ~1.5-2 °C too warm: ~7 % too little power, which the
+slow integral had to make up (the stall at 36.0 above). K = 3.7 was
+fitted against that warm reading too: against the real room it's
+probably ~3.5.
+
+| Test | Result |
+|---|---|
+| A thermometer at bed height next to `/dev/ambient` during a run | pending: if it stays flat while `/dev/ambient` rises 1.5-2 °C, the pole is confirmed |
+| The room NTC moved out of the pole (hardware), then a logged warm-up | pending: K re-fitted against the real room |
 | A fan on the baby (a draught), logged | pending: how fast the PID follows (Kp 3, Ti 200 s): tuning |
 
 **2026-11-26, the first warm-up, and what changed after it**
