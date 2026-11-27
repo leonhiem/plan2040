@@ -942,6 +942,10 @@ Order, one commit each, tested on the PC and then the board:
     from it: the reading now stays flat while heating. K re-fitted: 3.5
     (48 % at 37.3 C in 23.4 C; the first warm-up against the real room
     gives 3.5 too). The no-rise message says "fell" for a negative change.
+    **Warm-up 6, 2026-11-27** (logged, K 3.5, the NTC moved): peak 37.0, no
+    alarms, within 0.3 C from 16:21, the room reading +0.4 C in 22 min.
+    The warm-up is done for now (Leon: "pretty good"). Later: re-fit
+    bwsim's model to this clean log; PID tuning with a fan; boost 80/100 %.
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

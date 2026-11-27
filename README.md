@@ -1561,7 +1561,7 @@ says "fell 2.7 C" when the skin fell.
 
 | Test | Result |
 |---|---|
-| A cold-bed warm-up with K 3.5, logged | pending: no overshoot, ~37.0 steady without the integral going negative |
+| Warm-up 6 from a cold bed with K 3.5, logged (`warmup6-2026-11-27.log`) | ok, **the best so far**: boost 7:41 (23.4 → 33.9), coast → 35.2, the PID from 50.4 %, within 0.3 °C from 16:21, 37.0 at 19:06, **peak 37.0 (+0.0)**, then 37.0 at 49 %; the integral rose quietly to +3.7 % (a cold bed needs more at first), never negative; no LOW, HIGH, CHK or FAIL; the room reading +0.4 °C in 22 min (was +1.5-2 °C with the NTC in the pole) |
 | A fan on the baby (a draught), logged | pending: how fast the PID follows (Kp 3, Ti 200 s): tuning |
 
 **2026-11-26, the first warm-up, and what changed after it**
