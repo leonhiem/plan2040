@@ -19,9 +19,9 @@ cp: /fram/boot and /fram/boot are the same file
 % cp /fram/boot /fram/boot
 cp: /fram/boot and /fram/boot are the same file
 % cp /fram/nope /fram/x
-cp: /fram/nope: not found
+cp: /fram/nope: no such file
 % cp /fram/boot /fram/waytoolongname
-cp: /fram/waytoolongname: write failed (full? name over 11 chars?)
+cp: /fram/waytoolongname: bad name (1-11 characters, no spaces or /)
 % ls -l /fram
 /fram/boot               5
 /fram/boot.old           5
@@ -39,13 +39,13 @@ date
 % mv /fram/w2 /fram
 mv: /fram/w2 and /fram/w2 are the same file
 % mv /fram/nope /fram/x
-mv: /fram/nope -> /fram/x: failed (not found? a device? another mount: cp + rm; name over 11 chars?)
+mv: /fram/nope: no such file
 % mv /dev/rtc /fram/r
-mv: /dev/rtc -> /fram/r: failed (not found? a device? another mount: cp + rm; name over 11 chars?)
+mv: /dev/rtc: can only rename a file within one mount (else: cp, then rm)
 % mv /fram/w2 /dev/x
-mv: /fram/w2 -> /dev/x: failed (not found? a device? another mount: cp + rm; name over 11 chars?)
+mv: /fram/w2: can only rename a file within one mount (else: cp, then rm)
 % mv /fram/w2 /fram/waytoolongname
-mv: /fram/w2 -> /fram/waytoolongname: failed (not found? a device? another mount: cp + rm; name over 11 chars?)
+mv: /fram/w2: bad name (1-11 characters, no spaces or /)
 % mv /fram/w2 /fram/w2
 mv: /fram/w2 and /fram/w2 are the same file
 % ls -l /fram

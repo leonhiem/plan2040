@@ -1427,6 +1427,67 @@ How picoos carries over:
 - First step whenever it starts: two RP2040 boards and one link, one
   remote device file read through it.
 
+### 7a. 9P between boards, over a UART — built 2026-11-25..28 (branch `9p`)
+
+The first step of idea 7: two cpu_rp2040 boards (`alpha`, `beta`) joined
+by UART0, each seeing the other's devices and files as `/n/<name>`, by
+Plan 9's file protocol 9P2000 (Bell Labs). Designed in Leon's ideas chat
+(plan2040_ideas, `IDEAS.md` sections 1-3, 2026-11-24); built and
+board-tested step by step, see the README's test log (2026-11-25 to 28).
+
+**Decided:**
+- Namespace `/n/<name>` (Plan 9's); the name is the board's
+  `/dev/sysname` (`/fram/sysname`, else `rp-` + 4 hex digits of the flash
+  ID). Not the Newcastle Connection's `/../name`.
+- Links: the hardware UART first, Ethernet (W5500 on SPI; WiFi on a Pico
+  W) later. Never PIO, I2C, SPI or CAN *as the board-to-board link*.
+- Explicit mounting, as Plan 9: `import` in the boot script; nothing is
+  served until a `serve` line says so.
+- Plain 9P2000 on the wire, msize 1048 (a 1 KB file in one write: /fram's
+  "old or new, never half" holds across the link); on the UART framed as
+  `0x00 | COBS(message | CRC-16) | 0x00`.
+- Every board sees every board (no supervisor in the file path).
+- Waiting: "wait, but keep serving" now (the client answers the other
+  board while it waits); cooperative threads with their own stacks
+  later; never copies of remote values.
+
+**Built (and tested on the boards):**
+- `/dev/sysname`; `/dev/eia0` + `/dev/eia0ctl` (drivers/eia: UART0, GPIO
+  28 TX / 29 RX / 18 CTS / 19 RTS, 1 Mbaud, RTS/CTS, interrupt into a
+  2 KB ring buffer, nothing lost when it's full; sending never hangs).
+- `9p/`: fcall (messages, stat), frame (COBS + CRC), link (both
+  directions on one wire), srv (server), mnt (client); `/dev/9p` status.
+- `serve [-r | off]`, `import /dev/eia0 [/n/<name>]`, `unmount /n/<name>`.
+- Over 9P: cat, echo `>`/`>>`, `cat >`, creating files, `ls` (and `-l`),
+  `rm`, `cp` (any direction, local or remote), `mv` within a directory,
+  `hexdump -s` of another board's `/dev/fram` and `/dev/mem`.
+- The link going down is said once and in words, later reads fail at
+  once; it comes back by itself (`/n/beta: ok again`), also after the
+  other board restarted.
+- `kernel/fs`: `fs_unmount()`, and two optional mount operations,
+  `listdir()` and `pread()`. `ls`, `rm`, `cp`, `mv` and `cat >` print the
+  file layer's reason now, not a fixed guess.
+- PC tests: `p9test` (messages, framing), `srvtest` (the server).
+- Cost on cpu_rp2040: ~+35 KB flash (now ~140 KB of 2 MB), ~+13 KB RAM, all of it
+  together (UART driver, 9P, programs; measured 2026-11-28).
+
+**Open:**
+- `serve -r /dev`: serve only part of the tree (decided for a babywarmer,
+  which joins over its UART only, through a gateway board).
+- Hops through a board (`/n/alpha/n/beta`): with a third board or
+  Ethernet.
+- Names below a device (`/dev/rtc/vl`) don't show in a remote `ls`: in
+  9P a name is a file or a directory, not both. `cat` of them works.
+- Ethernet (W5500), 9P over TCP, port 564, names in `/fram/ndb`; then a
+  Linux PC can mount a board (`mount -t 9p`).
+- Hardware: an RP2040 pin isn't fail-safe: a running board feeds an
+  unpowered one through TX/RTS (2.14 V, still 1 V with 1 kΩ), which then
+  starts badly. Next board: an RS-232 transceiver (MAX3232 family; mind
+  its speed) on a DE-9. See `boards/cpu_rp2040/board.h`.
+- The prompt redraw (below) matters more now.
+- Next big steps (ideas chat): `/proc` + `cpu` (run a job on another
+  board), the rack computer.
+
 ## Known open items
 
 - **babywarmer back, later**: cpu_rp2040 (73 × 54 mm, 2 × 20-pin

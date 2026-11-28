@@ -615,7 +615,7 @@ the LAMP button to the lamp output, as on babywarmer
 | `df` | `df` | Total, used and free space on every mount. |
 | `mkfs` | `mkfs /fram` | Format: every file on it is gone. Never happens on its own. |
 | `serve` | `serve`, `serve -r`, `serve off` | Answer 9P from the other board over `/dev/eia0`: all of this board's devices and `/fram` files, or read-only. Nothing is served until a `serve` line says so. Plan 9's `exportfs`. |
-| `import` | `import /dev/eia0 [/n/<name>]` | The other board's files here, as `/n/<its /dev/sysname>` (or the name given): `cat /n/beta/dev/rtc`, `echo on > /n/beta/dev/lamp`. If it doesn't answer, says so; with a name given it mounts anyway and keeps trying every second (`/n/beta: ok again`). Plan 9's `import`. Writing a file that isn't there creates it; `rm` and `ls /n/beta/dev` work too (a directory ends in `/`). Not yet: hops through a board (`/n/alpha/n/beta`), rename. |
+| `import` | `import /dev/eia0 [/n/<name>]` | The other board's files here, as `/n/<its /dev/sysname>` (or the name given): `cat /n/beta/dev/rtc`, `echo on > /n/beta/dev/lamp`. If it doesn't answer, says so; with a name given it mounts anyway and keeps trying every second (`/n/beta: ok again`). Plan 9's `import`. Writing a file that isn't there creates it; `rm`, `ls /n/beta/dev` (a directory ends in `/`), `mv` within a directory and `hexdump -s` of `/n/beta/dev/fram` work too. Not yet: hops through a board (`/n/alpha/n/beta`), serving part of the tree. |
 | `unmount` | `unmount /n/<name>` | Undo an `import`: `/n/beta` is gone, and `import` can run again. |
 | `hexdump` | `hexdump [-s off] [-n len] [path]` | Hex + ASCII, `hexdump -C` layout, of a path or piped input. Repeated lines become `*`. See [hexdump](#hexdump). |
 | `remember` | `remember <device> <file>` | Keep a file equal to a device: write the device's value to the file when they differ. Run with `&`. See [Settings that survive a power cycle](#settings-that-survive-a-power-cycle). |
@@ -2063,6 +2063,16 @@ with `serve` + `import` in `/fram/boot`):
 | `cp /n/beta/fram/leon /n/beta/fram/note`, `ls -l`, `cat`, `rm`, `cat` again | ok: a copy on beta made from alpha (read over 9P, then created and written over 9P), 14 bytes like the original; after `rm`: `'note': file does not exist` |
 | `cp /fram/to_cp /n/beta/fram/to_cp` (a file from alpha's FRAM to beta's) | ok: 16 bytes on beta, the same four lines |
 | `cat > /n/beta/fram/cozybaby` (three lines), then `cp /n/beta/fram/cozybaby /fram/cozybaby` (beta's FRAM to alpha's) | ok: 24 bytes both sides, the same lines: copying works both ways |
+
+**2026-11-28, 9P: reading at an offset, mv** (alpha imports beta):
+
+| Test | Result |
+|---|---|
+| `hexdump -n 64 /n/beta/dev/fram` | ok: beta's filesystem header (`pfs1 ...`) |
+| `hexdump -s 0x1000 -n 64 /n/beta/dev/fram` | ok: the dump starts at `00001000`: read there over 9P, not only the first 1 KB |
+| `hexdump -s 0x10000000 -n 32 /n/beta/dev/mem` | ok: the start of beta's flash (the boot stage, `00 b5 32 4b ...`) |
+| `mv /n/beta/fram/leon /n/beta/fram/hiemstra`, `ls /n/beta/fram` | ok: renamed (a 9P wstat of the name) |
+| `mv /n/beta/dev/lamp /n/beta/dev/x` | refused, but with `mv`'s own fixed guesses, cut off (`failed (not found? a device? ...`). Now `cp` and `mv` print the file layer's reason, as `rm` does (`mv: /n/beta/dev/lamp: a device can't be renamed`); the local cases in `cpsim` read better too (`mv: /fram/nope: no such file`, `can only rename a file within one mount (else: cp, then rm)`) |
 
 ## `bringup` — board test
 

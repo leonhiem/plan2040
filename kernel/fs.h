@@ -76,6 +76,11 @@ typedef struct {
     // ("dev" for /n/beta/dev), as list() does for its top. A mount
     // without directories (/fram) leaves it 0.
     int (*listdir)(const char *dir, int index, char *name, int namelen, int *size);
+    // Optional (2026-11-28, 9P): read starting at a byte offset, for a
+    // mount whose files can be longer than one read (another board's
+    // /dev/fram, /dev/mem). Without it, fs_pread() reads the whole file
+    // (at most 1 KB) and returns the part from offset on.
+    int (*pread)(const char *name, char *buf, int len, uint32_t offset);
 } mount_t;
 
 #define FS_MAX_MOUNTS 4

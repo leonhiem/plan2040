@@ -32,6 +32,18 @@ static const device_t d_rtc  = {"/dev/rtc", 0, 0, rtc_read, 0};
 static const device_t d_vl   = {"/dev/rtc/vl", 0, 0, vl_read, 0};
 static const device_t d_lamp = {"/dev/lamp", 0, 0, lamp_read, lamp_write};
 static const device_t d_bad  = {"/dev/skintemp", 0, 0, bad_read, 0};
+// A range of bytes, as /dev/fram: 8 KB, byte i = i & 0xff, read at an offset.
+static int range_pread(char *b, int len, uint32_t off)
+{
+    int n = 0;
+    while (n < len && off + n < 8192) { b[n] = (char)((off + n) & 0xff); n++; }
+    return n;
+}
+static int range_read(char *b, int len) { return range_pread(b, len, 0); }
+static const device_t d_range = {"/dev/range", 0, 0, range_read, 0, range_pread};
+static int presses = 3;   // a read-and-clear device, as /dev/buttons
+static int btn_read(char *b, int len) { int n = snprintf(b, len, "%d\n", presses); presses = 0; return n; }
+static const device_t d_btn = {"/dev/btn", 0, 0, btn_read, 0};
 void dev_fram_register(void);
 
 // Send one request, return the reply in words (and keep it in r).
@@ -66,7 +78,7 @@ static const char *data(void) { static char d[1100]; snprintf(d, sizeof d, "%.*s
 
 int main()
 {
-    fs_register(&d_rtc); fs_register(&d_vl); fs_register(&d_lamp); fs_register(&d_bad);
+    fs_register(&d_rtc); fs_register(&d_vl); fs_register(&d_lamp); fs_register(&d_bad); fs_register(&d_range); fs_register(&d_btn);
     dev_fram_register();
     CHECK(fs_format("/fram") >= 0 || true);
     framfs_mkfs(); framfs_mount();
@@ -201,7 +213,48 @@ int main()
         CHECK(srv_fids() == 1);
     }
 
-    printf("-- read-only, then off\n");
+    printf("-- reading at an offset, rename\n");
+    {
+        walk(0, 22, "dev", "range"); open_(22, OREAD);
+        Fcall rd = q(Tread, 40); rd.fid = 22; rd.offset = 0x1000; rd.count = 256;
+        printf("%s\n", ask(&rd)); CHECK(r.type == Rread && r.count == 256 && (uint8_t)r.data[0] == 0x00 && (uint8_t)r.data[255] == 0xff);
+        rd.offset = 8192 - 10;
+        printf("%s\n", ask(&rd)); CHECK(r.type == Rread && r.count == 10);
+        rd.offset = 8192;
+        printf("%s\n", ask(&rd)); CHECK(r.type == Rread && r.count == 0);
+        rd.offset = 0; rd.count = 1024;
+        printf("%s\n", ask(&rd)); CHECK(r.count == 1024);      // a full read: not the whole value
+        rd.offset = 1024;
+        printf("%s\n", ask(&rd)); CHECK(r.count == 1024 && (uint8_t)r.data[0] == 0x00);
+        clunk(22);
+        // read-and-clear: a read past a short value doesn't read it again
+        walk(0, 23, "dev", "btn"); open_(23, OREAD);
+        printf("%s", read_(23, 0)); printf(" '%.*s'\n", (int)r.count, r.data); CHECK(r.count == 2);
+        printf("%s\n", read_(23, 2)); CHECK(r.count == 0);
+        presses = 5;
+        printf("%s\n", read_(23, 2)); CHECK(r.count == 0 && presses == 5);  // not consumed
+        clunk(23);
+        // rename
+        fd = fs_open("/fram/old", FS_CREATE); fs_write(fd, "x\n", 2); fs_close(fd);
+        walk(0, 24, "fram", "old");
+        Dir d; memset(&d, 0xFF, sizeof d); d.name = "new"; d.uid = d.gid = d.muid = "";
+        static uint8_t st[128]; unsigned nst = convD2M(&d, st, sizeof st);
+        Fcall ws = q(Twstat, 41); ws.fid = 24; ws.nstat = nst; ws.stat = st;
+        printf("%s\n", ask(&ws)); CHECK(r.type == Rwstat && fs_open("/fram/old") < 0);
+        fd = fs_open("/fram/new"); CHECK(fd >= 0); fs_close(fd);
+        clunk(24);
+        walk(0, 24, "dev", "lamp"); ws.fid = 24;
+        printf("%s\n", ask(&ws)); CHECK(r.type == Rerror && !strcmp(r.ename, "a device can't be renamed"));
+        clunk(24);
+        walk(0, 24, "fram", "new"); d.name = "a/b"; nst = convD2M(&d, st, sizeof st); ws.fid = 24; ws.nstat = nst;
+        printf("%s\n", ask(&ws)); CHECK(r.type == Rerror);
+        d.name = ""; d.length = 0; nst = convD2M(&d, st, sizeof st); ws.nstat = nst;
+        printf("%s\n", ask(&ws)); CHECK(r.type == Rerror);     // a new length: refused
+        clunk(24);
+        CHECK(srv_fids() == 1);
+    }
+
+
     srv_serve(SRV_RO);
     walk(0, 9, "dev", "lamp");
     printf("%s\n", open_(9, OWRITE)); CHECK(r.type == Rerror && !strcmp(r.ename, "read-only (serve -r)"));

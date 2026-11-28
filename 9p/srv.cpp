@@ -9,10 +9,12 @@
  * stands for; walking joins names onto it, and the file layer
  * (kernel/fs.h) does the rest, exactly as for a local `cat`.
  *
- * Reading a device: it has no offset, a read gives a fresh value. A read
- * at offset 0 takes the value and remembers its length in the fid; a read
- * past that length is the end of the file (0 bytes). Plan 9's own device
- * files (/dev/time) work the same way, and it's what `cat` expects.
+ * Reading a device: most have no offset, a read gives a fresh value. A
+ * read at offset 0 takes the value and remembers its length in the fid; a
+ * read past that length is the end of the file (0 bytes). Plan 9's own
+ * device files (/dev/time) work the same way, and it's what `cat` expects.
+ * A device that is a range of bytes (/dev/fram, /dev/mem) is read at the
+ * offset asked (fs_pread), so `hexdump -s` works from another board.
  *
  * Writing a file on /fram: opened with OTRUNC (`>`), the first write
  * replaces the file and later ones add to it; without OTRUNC (`>>`) every
@@ -29,8 +31,10 @@
  * Every file belongs to this board's name; devices have length 0, as in
  * Plan 9; no times yet.
  *
- * Not yet: wstat (rename), and walking into this board's own /n mounts
- * (hops through a board).
+ * Renaming (wstat with a new name) works for files on a mount (mv).
+ *
+ * Not yet: walking into this board's own /n mounts (hops through a
+ * board), serving only part of the tree (serve -r /dev).
  */
 #include "9p/p9.h"
 #include "kernel/fs.h"
@@ -51,6 +55,7 @@ typedef struct {
     uint8_t  mode;             // Topen's
     bool     wrote;            // a write happened on this open
     uint32_t vlen;             // length of the value read at offset 0
+    bool     complete;         //   and it was shorter than asked: the whole value
     uint16_t diridx;           // a directory read: the next entry
     uint32_t diroff;           //   and the offset the next read must ask for
 } Sfid;
@@ -360,6 +365,7 @@ static void s_open(Fcall *t)
     f->mode = t->mode;
     f->wrote = false;
     f->vlen = 0;
+    f->complete = false;
     memset(&r, 0, sizeof(r));
     r.type = Ropen;
     r.tag = t->tag;
@@ -405,28 +411,29 @@ static void s_read(Fcall *t)
         return;
     }
 
+    // A read at an offset reads there (fs_pread): another board's
+    // /dev/fram or /dev/mem is read 256 bytes at a time by hexdump. But a
+    // value read at offset 0 that came back shorter than asked is the whole
+    // value: a read past it is the end, without reading the device again
+    // (a read-and-clear device such as /dev/buttons would lose a press).
+    uint32_t max = t->count < msize - IOHDRSZ ? t->count : msize - IOHDRSZ;
+    if (max > sizeof(data)) max = sizeof(data);
     int n = 0;
-    if (t->offset == 0 || t->offset < f->vlen) {
+    bool past_end = t->offset > 0xFFFFFFFFull ||
+                    (t->offset > 0 && f->complete && t->offset >= f->vlen);
+    if (!past_end) {
         int fd = fs_open(f->path);
         if (fd < 0) { rerror_errstr(t->tag, "can't open"); return; }
-        n = fs_read(fd, data, sizeof(data));
+        n = fs_pread(fd, data, max, (uint32_t)t->offset);
         fs_close(fd);
         if (n < 0) { rerror_errstr(t->tag, "read failed"); return; }
-        if (t->offset == 0) f->vlen = n;
-    }
-    uint32_t off = (uint32_t)t->offset;
-    uint32_t count = 0;
-    if (off < (uint32_t)n) {
-        count = n - off;
-        if (count > t->count) count = t->count;
-        uint32_t max = msize - IOHDRSZ;
-        if (count > max) count = max;
+        if (t->offset == 0) { f->vlen = n; f->complete = (uint32_t)n < max; }
     }
     memset(&r, 0, sizeof(r));
     r.type = Rread;
     r.tag = t->tag;
-    r.count = count;
-    r.data = count ? data + off : data;
+    r.count = n;
+    r.data = data;
     reply(&r);
 }
 
@@ -477,6 +484,7 @@ static void s_create(Fcall *t)
     f->mode = t->mode | OTRUNC;        // the first write replaces, later ones add
     f->wrote = false;
     f->vlen = 0;
+    f->complete = false;
     memset(&r, 0, sizeof(r));
     r.type = Rcreate;
     r.tag = t->tag;
@@ -522,6 +530,46 @@ static void s_remove(Fcall *t)
     reply(&r);
 }
 
+// wstat: only a new name, for a file on a mount (mv). The other fields
+// must say "don't touch" (~0, or "" for strings), as Plan 9's nulldir;
+// times and the mode are ignored, a new length is refused. 9P renames
+// within a directory, so the new name has no '/'.
+static void s_wstat(Fcall *t)
+{
+    Sfid *f = findfid(t->fid);
+    if (!f) { rerror(t->tag, "unknown fid"); return; }
+    if (serving == SRV_RO) { rerror(t->tag, "read-only (serve -r)"); return; }
+    Dir d;
+    char strs[96];
+    if (convM2D(t->stat, t->nstat, &d, strs, sizeof(strs)) == 0) { rerror(t->tag, "not a valid stat"); return; }
+    if (d.length != ~0ull) { rerror(t->tag, "changing a file's length: not supported"); return; }
+    if (!d.name[0]) {                                      // nothing to rename
+        memset(&r, 0, sizeof(r));
+        r.type = Rwstat;
+        r.tag = t->tag;
+        reply(&r);
+        return;
+    }
+    if (!is_mount_file(f->path)) {
+        rerror(t->tag, is_device(f->path) ? "a device can't be renamed" : "only files on a mount (/fram) can be renamed");
+        return;
+    }
+    if (strchr(d.name, '/') || !strcmp(d.name, ".") || !strcmp(d.name, "..")) {
+        rerror(t->tag, "a new name, without '/' (9P renames within a directory)");
+        return;
+    }
+    char to[SRV_PATH];
+    const char *slash = strrchr(f->path, '/');
+    int dirlen = (int)(slash - f->path);
+    if (snprintf(to, sizeof(to), "%.*s/%s", dirlen, f->path, d.name) >= (int)sizeof(to)) { rerror(t->tag, "name too long"); return; }
+    if (fs_rename(f->path, to) < 0) { rerror_errstr(t->tag, "rename failed"); return; }
+    strcpy(f->path, to);
+    memset(&r, 0, sizeof(r));
+    r.type = Rwstat;
+    r.tag = t->tag;
+    reply(&r);
+}
+
 static void s_clunk(Fcall *t)
 {
     Sfid *f = findfid(t->fid);
@@ -563,7 +611,7 @@ void srv_request(uint8_t *msg, unsigned n)
     case Tcreate:  s_create(t); break;
     case Tremove:  s_remove(t); break;
     case Tstat:    s_stat(t); break;
-    case Twstat:   rerror(t->tag, "wstat over 9P: not yet"); break;
+    case Twstat:   s_wstat(t); break;
     default:       rerror(t->tag, "not a request"); break;
     }
 }

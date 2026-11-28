@@ -21,6 +21,7 @@
  */
 #include "kernel/prog.h"
 #include "kernel/fs.h"
+#include "kernel/errstr.h"
 #include <cstdio>
 #include <cstring>
 
@@ -42,6 +43,15 @@ static const char *target(const char *from, const char *to, char *buf, int len)
     return to;
 }
 
+// The file layer's reason when it gave one (it names the file: "/fram/x:
+// no such file", "/n/beta/dev/lamp: a device can't be renamed"), else the
+// old hint. 2026-11-28: a fixed list of guesses hid the real reason.
+static int say(char *out, int outlen, const char *prog, const char *hint, const char *a, const char *b)
+{
+    if (errstr()[0]) return snprintf(out, outlen, "%s: %s\n", prog, errstr());
+    return b ? snprintf(out, outlen, hint, a, b) : snprintf(out, outlen, hint, a);
+}
+
 static int cp_run(const char *in, int inlen, int argc, char **argv, char *out, int outlen)
 {
     (void)in; (void)inlen;
@@ -52,15 +62,15 @@ static int cp_run(const char *in, int inlen, int argc, char **argv, char *out, i
 
     static char data[COPY_MAX];
     int fd = fs_open(argv[0]);
-    if (fd < 0) return snprintf(out, outlen, "cp: %s: not found\n", argv[0]);
+    if (fd < 0) return say(out, outlen, "cp", "cp: %s: not found\n", argv[0], 0);
     int n = fs_read(fd, data, sizeof(data));
     fs_close(fd);
-    if (n < 0) return snprintf(out, outlen, "cp: %s: can't read\n", argv[0]);
+    if (n < 0) return say(out, outlen, "cp", "cp: %s: can't read\n", argv[0], 0);
 
     fd = fs_open(to, FS_CREATE);
     int w = fd >= 0 ? fs_write(fd, data, n) : -1;
     if (fd >= 0) fs_close(fd);
-    if (w != n) return snprintf(out, outlen, "cp: %s: write failed (full? name over 11 chars?)\n", to);
+    if (w != n) return say(out, outlen, "cp", "cp: %s: write failed (full? name over 11 chars?)\n", to, 0);
     return 0;
 }
 
@@ -72,9 +82,9 @@ static int mv_run(const char *in, int inlen, int argc, char **argv, char *out, i
     const char *to = target(argv[0], argv[1], tbuf, sizeof(tbuf));
     if (strcmp(argv[0], to) == 0) return snprintf(out, outlen, "mv: %s and %s are the same file\n", argv[0], to);
     if (fs_rename(argv[0], to) < 0)
-        return snprintf(out, outlen,
-                        "mv: %s -> %s: failed (not found? a device? another mount: cp + rm; name over 11 chars?)\n",
-                        argv[0], to);
+        return say(out, outlen, "mv",
+                   "mv: %s -> %s: failed (not found? a device? another mount: cp + rm; name over 11 chars?)\n",
+                   argv[0], to);
     return 0;
 }
 

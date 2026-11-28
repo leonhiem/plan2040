@@ -23,9 +23,11 @@
  * Plan 9's equivalent is the mount driver (devmnt) plus import(4).
  *
  * Writing a file that isn't there creates it (Tcreate), as `>` does
- * locally; `rm` is Tremove; `ls /n/beta/dev` reads the directory (its
- * entries are Dirs, stat(5)); `unmount /n/beta` undoes the import. One
- * link, one import.
+ * locally; `rm` is Tremove; `mv` within a directory is a wstat of the
+ * name; `ls /n/beta/dev` reads the directory (its entries are Dirs,
+ * stat(5)); reads at an offset go over as such (`hexdump -s 0x1000
+ * /n/beta/dev/fram`); `unmount /n/beta` undoes the import. One link, one
+ * import.
  */
 #include "9p/p9.h"
 #include "kernel/fs.h"
@@ -281,7 +283,7 @@ static bool lost_session(void)
 }
 
 // len 0: does it exist? (kernel/fs.cpp asks that before opening a file)
-static int mnt_read(const char *name, char *buf, int len)
+static int read_at(const char *name, char *buf, int len, uint32_t offset)
 {
     for (int attempt = 0; attempt < 2; attempt++) {
         if (!usable()) return -1;
@@ -301,7 +303,7 @@ static int mnt_read(const char *name, char *buf, int len)
             t.type = Topen; t.fid = fid; t.mode = OREAD;
             if (!send(0, 0)) return send_failed(), -1;
             memset(&t, 0, sizeof(t));
-            t.type = Tread; t.fid = fid; t.offset = 0;
+            t.type = Tread; t.fid = fid; t.offset = offset;
             t.count = len < MNT_IOUNIT ? len : MNT_IOUNIT;
             if (!send(buf, len)) return send_failed(), -1;
         }
@@ -320,6 +322,19 @@ static int mnt_read(const char *name, char *buf, int len)
         return (int)pend[2].count;
     }
     return -1;
+}
+
+static int mnt_read(const char *name, char *buf, int len)
+{
+    return read_at(name, buf, len, 0);
+}
+
+// From an offset (hexdump -s of another board's /dev/fram): at most 1 KB
+// a time, as the server sends; hexdump asks for 256.
+static int mnt_pread(const char *name, char *buf, int len, uint32_t offset)
+{
+    if (len <= 0) return 0;
+    return read_at(name, buf, len, offset);
 }
 
 // One burst: walk to w[0..nw), then open it (create == 0) or create the
@@ -514,6 +529,55 @@ static int mnt_list(int index, char *name, int namelen, int *size)
     return mnt_listdir("", index, name, namelen, size);
 }
 
+// mv: 9P renames with a wstat that changes only the name, within one
+// directory: walk + wstat + clunk in one burst.
+static int mnt_rename(const char *from, const char *to)
+{
+    const char *fs = strrchr(from, '/'), *ts = strrchr(to, '/');
+    int fd = fs ? (int)(fs - from) : 0, td = ts ? (int)(ts - to) : 0;
+    if (fd != td || strncmp(from, to, fd) != 0) {
+        werrstr("can only rename within one directory (9P)");
+        return -1;
+    }
+    const char *newname = ts ? ts + 1 : to;
+    for (int attempt = 0; attempt < 2; attempt++) {
+        if (!usable()) return -1;
+        char tmp[FS_NAME_MAX];
+        const char *w[MAXWELEM];
+        int nw = split(from, tmp, sizeof(tmp), w);
+        if (nw < 0) { werrstr("more than %d names in the path", MAXWELEM); return -1; }
+
+        Dir d;                                     // Plan 9's nulldir: touch nothing...
+        memset(&d, 0xFF, sizeof(d));
+        d.name = newname;                          // ...but the name
+        d.uid = d.gid = d.muid = "";
+        static uint8_t st[STATFIXLEN + FS_NAME_MAX];
+        unsigned nst = convD2M(&d, st, sizeof(st));
+        if (!nst) { werrstr("name too long"); return -1; }
+
+        uint32_t fid = newfid();
+        begin();
+        memset(&t, 0, sizeof(t));
+        t.type = Twalk; t.fid = ROOTFID; t.newfid = fid; t.nwname = nw;
+        for (int i = 0; i < nw; i++) t.wname[i] = w[i];
+        if (!send(0, 0)) return send_failed(), -1;
+        memset(&t, 0, sizeof(t));
+        t.type = Twstat; t.fid = fid; t.nstat = nst; t.stat = st;
+        if (!send(0, 0)) return send_failed(), -1;
+        memset(&t, 0, sizeof(t));
+        t.type = Tclunk; t.fid = fid;
+        if (!send(0, 0)) return send_failed(), -1;
+        if (!wait_all()) return -1;
+        if (lost_session() && attempt == 0) {
+            if (!attach()) return -1;
+            continue;
+        }
+        if (!walk_ok(nw, w) || is_error(1)) return -1;
+        return 0;
+    }
+    return -1;
+}
+
 static int mnt_format(void)
 {
     werrstr("another board's filesystem can't be formatted from here");
@@ -528,7 +592,8 @@ static int mnt_df(int *free_bytes, int *total_bytes)
 }
 
 static const mount_t mnt = {
-    prefix, mnt_read, mnt_write, mnt_remove, mnt_list, mnt_format, mnt_df, 0, 0, mnt_listdir
+    prefix, mnt_read, mnt_write, mnt_remove, mnt_list, mnt_format, mnt_df,
+    mnt_rename, 0, mnt_listdir, mnt_pread
 };
 
 /* ── import, the retry, status ─────────────────────────────────────── */

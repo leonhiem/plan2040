@@ -165,6 +165,12 @@ int fs_pread(int fd, char *buf, int len, uint32_t offset)
 {
     if (file_slot(fd) < 0 && fd >= 0 && fd < device_count && devices[fd]->pread)
         return devices[fd]->pread(buf, len, offset);
+    int s = file_slot(fd);
+    if (s >= 0 && files[s].m->pread) {
+        errstr_clear();
+        int n = files[s].m->pread(files[s].name, buf, len, offset);
+        return n < 0 ? failed(files[s].m->prefix, files[s].name, "read failed") : n;
+    }
 
     static char whole[1024]; // device values are short; files are <= 1 KB
     int n = fs_read(fd, whole, sizeof(whole));
@@ -180,7 +186,7 @@ int fs_rename(const char *from, const char *to)
     const char *a, *b;
     const mount_t *m = find_mount(from, &a);
     errstr_clear();
-    if (!m || !*a || find_mount(to, &b) != m || !*b || !m->rename) return failed(from, "can only rename within one mount");
+    if (!m || !*a || find_mount(to, &b) != m || !*b || !m->rename) return failed(from, "can only rename a file within one mount (else: cp, then rm)");
     return m->rename(a, b) < 0 ? failed(from, "rename failed") : 0;
 }
 
