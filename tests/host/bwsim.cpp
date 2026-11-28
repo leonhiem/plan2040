@@ -53,10 +53,12 @@
 // LOW "on" (the PID, Kp 3 %/C, Ti 200 s, can't follow it); afterwards back
 // to 36.0 without overshoot (the integral only moves within 1 C of the
 // setpoint, /dev/pid/band: before it, the skin overshot to 37.3 and to 38.6
-// after the raise at 66:00). 58:05 LOW after the broken element, 63:22
+// after the raise at 66:00). 57:45 LOW after the broken element, 63:10
 // after the relay was held off for the stuck SSR; 93:36 LOW while the PID
-// climbs after manual mode. Recovering from safe (16:01, 35:01) is a new
-// warm-up: no LOW right after it.
+// climbs after manual mode, 107:21 after none. Recovering from safe
+// (16:01, 35:01) is a new warm-up: no LOW right after it. (The model needs
+// 3.72 %/C, fitted while the room NTC sat in the warm pole; the board's
+// FF_K is 3.5 since it moved: the feed-forward runs ~6 % short here.)
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>

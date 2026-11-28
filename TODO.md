@@ -929,6 +929,29 @@ Order, one commit each, tested on the PC and then the board:
     no overshoot with the band (37.0, was 37.9), 11 min to 37.0. Changed
     (Leon): COAST_SEED 3 -> 0. On the model a later boost exit or a
     longer coast made it worse, not better.
+    **Warm-up 5 and sensor-off 5, 2026-11-27** (logged): COAST_SEED 0 from a
+    cold bed: peak 37.0, no overshoot, within 0.3 C from 15:00. The
+    recovery stalled 6 min at 36.0 (the band's edge: P alone 3 % short).
+    **Open, hardware first:** the room NTC sits in the metal pole under the
+    heater head and reads 1-2 C high while the warmer runs (every run,
+    also late evening), so the feed-forward and the safe power are ~7 % low.
+    Check with a thermometer, then move the NTC out of the pole and re-fit
+    K (probably ~3.5 against the real room). No software correction
+    (guesswork per pole and room).
+    **Done 2026-11-27 (Leon):** the room NTC moved behind the pole, away
+    from it: the reading now stays flat while heating. K re-fitted: 3.5
+    (48 % at 37.3 C in 23.4 C; the first warm-up against the real room
+    gives 3.5 too). The no-rise message says "fell" for a negative change.
+    **Warm-up 6, 2026-11-27** (logged, K 3.5, the NTC moved): peak 37.0, no
+    alarms, within 0.3 C from 16:21, the room reading +0.4 C in 22 min.
+    The warm-up is done for now (Leon: "pretty good"). Later: re-fit
+    bwsim's model to this clean log; PID tuning with a fan; boost 80/100 %.
+    **The sensor in a corner, 2026-11-27** (logged): the corner reads ~4 C
+    below the centre; the guard went to safe after 1:45 (stays > 3 C below),
+    after 2 min of LOW and the PID at up to 58 %. Back in the centre:
+    recovered, 37.0 15:30 later, peak 37.4. A sensor only 1-2 C off isn't
+    caught (a limit for the IFU, not for software). The slow last degree
+    and the small overshoot after a recovery: the PID tuning (Ti 200 s).
 - **3f** the TFT: `drivers/st7735`, `apps/babywarmer/tft`, `/dev/tft`,
   tftwire, tftmon. **Built 2026-11-23**, board test pending. **Decided
   2026-11-23:** the whole `st7735` repo copy stays together, unmodified,

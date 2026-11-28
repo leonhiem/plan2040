@@ -327,7 +327,7 @@ The control, as devices that hold values and programs that run as jobs
 | `/dev/percent` | read/write | Manual heater power, 0-80 (the field warmer's maximum), default 10. |
 | `/dev/pid/kp`, `ti`, `td` | read/write | The PID's tuning (3.0 %/°C, 200 s, 5 s), read by `warmer` every second. |
 | `/dev/pid/min`, `max`, `outmax`, `band` | read/write | The PID's part around the feed-forward within `min`..`max` (-35..+50 %), the total at most `outmax` (100 %); the integral only moves while the skin is within `band` (1.0 °C) of the setpoint. |
-| `/dev/pid/integral`, `ff` | read | What `warmer` uses now: the integral and the feed-forward, 3.7 % per °C of (setpoint − room) (`feedforward.h`; 47 % at 37.0 °C in a 24.3 °C room; the room sensor down: the last room for 10 minutes, then 24 °C). |
+| `/dev/pid/integral`, `ff` | read | What `warmer` uses now: the integral and the feed-forward, 3.5 % per °C of (setpoint − room) (`feedforward.h`; 48 % at 37.3 °C in a 23.4 °C room; the room sensor down: the last room for 10 minutes, then 24 °C). |
 | `/dev/state` | read/write | The phase: `idle boost coast pid safe` (written by `warmer`). |
 | `/dev/autopower` | read/write | The power auto mode asks for (from `select`; in safe, what the guard heats with). |
 | `/dev/alarm/heater`, `temphigh`, `templow`, `sensor`, `room`, `check` | read/write | The alarm conditions (written by the guard): `off`, `warn: <why>` (the LEDs and the TFT show it; `sensor`, `temphigh`, `templow` also beep every 5 s, `alarm -w`) or `on: <why>` (the continuous buzzer too). `temphigh`/`templow`: the skin 1 °C off the setpoint warns, 2 °C alarms (below). `sensor`: `warn` in safe, `on` in none. `room`: the room sensor down in auto, `warn` (CHK only). `check` is manual mode's "check the baby". Reasons, e.g.: `on: no current while switched on (element, fuse or SSR?)`, `on: current while switched off (SSR stuck on?), relay held off`, `on: skin 24.0 C, more than 3 C below the setpoint for 20 s (sensor off the baby?)`. |
@@ -1576,7 +1576,39 @@ about 3 minutes slower with a cold bed.
 
 | Test | Result |
 |---|---|
-| Warm-up from a cold bed, logged | pending: peak ~37.7-37.9 instead of 38.3 |
+| Warm-up 5 from a cold bed, logged (`warmup5-2026-11-27.log`) | ok, **the best so far**: boost 7:54 (23.6 → 34.0), coast → 35.1, the PID from 54.7 %, within 0.3 °C from 15:00, 37.0 at 20:46, **peak 37.0 (+0.0)**, then 36.8-37.0 at 48 %; no LOW, HIGH, CHK or FAIL. (Part of the difference with warm-up 4 is the load: 35.1 after the coast against 35.7.) |
+| The sensor out and back, logged (`sensoroff5-2026-11-27.log`) | ok but slow: safe 14 s after the fall, 39 %; recovered at 34.2, the PID from 51.7 %, no LOW; **stuck at 36.0 for ~6 min** (the edge of the band: the proportional part alone, 43 + 3 %, short of the 49 % this load needed), then 37.0 at 25:44 after the recovery, peak 37.0 |
+
+**The room NTC sits in the metal pole that carries the heater head**
+(Leon): its reading rose 1-2 °C in every run, also late in the evening
+(run 4, 21:42-22:41: 23.3 → 24.8) and back to ~23.2-23.8 after a pause.
+The pole conducts the heater's heat. So the feed-forward (and the safe
+power) used a room ~1.5-2 °C too warm: ~7 % too little power, which the
+slow integral had to make up (the stall at 36.0 above). K = 3.7 was
+fitted against that warm reading too: against the real room it's
+probably ~3.5.
+
+| Test | Result |
+|---|---|
+| A thermometer at bed height next to `/dev/ambient` during a run | skipped (no second thermometer); instead the NTC was moved |
+| The room NTC moved behind the pole, away from it (Leon, 2026-11-27), then a logged run (`nosensor-2026-11-27.log`) | ok: the room reading 24.0 → 23.3 in 25 min while heating (it rose 1-2 °C in every run before) |
+| Warm-up with the skin sensor not in the bed (same log) | ok: **safe at exactly 5:00** (`skin rose only -2.7 C`: the loose sensor cooled), 44.6 %; the sensor on the bed: 23.9 → 34.9 in 6 min under safe; recovered at 35.2, PID from 54.6 %, no LOW, **37.0 4.5 min later** (no stall), peak 37.5 (+0.5): the feed-forward now ~6 % high, steady 48 % at 37.3 °C in 23.4 °C: K ≈ 3.45 |
+
+Changed after it: `FF_K` 3.7 → 3.5 (this run, and the first warm-up
+recalculated against the real room, both give ~3.5); the no-rise message
+says "fell 2.7 C" when the skin fell.
+
+| Test | Result |
+|---|---|
+| Warm-up 6 from a cold bed with K 3.5, logged (`warmup6-2026-11-27.log`) | ok, **the best so far**: boost 7:41 (23.4 → 33.9), coast → 35.2, the PID from 50.4 %, within 0.3 °C from 16:21, 37.0 at 19:06, **peak 37.0 (+0.0)**, then 37.0 at 49 %; the integral rose quietly to +3.7 % (a cold bed needs more at first), never negative; no LOW, HIGH, CHK or FAIL; the room reading +0.4 °C in 22 min (was +1.5-2 °C with the NTC in the pole) |
+| The skin sensor moved from the centre to a corner of the bed, logged (`corner-2026-11-27.log`) | ok: the reading fell 37.0 → 33.6 in 1:45 (0.05 °C/s, slower than the fall check); LOW warned, then alarmed (2 °C below) for ~1 min while the PID pushed 48 → 58 %; then **safe** (`skin 33.6 C, more than 3 C below the setpoint for 20 s`), 41 %. The corner reads ~4 °C below the centre at the same power |
+| The sensor back in the centre (same log) | ok: recovered at 34.7, new warm-up, no LOW; the last 0.6 °C took 8 min (the integral, Ti 200 s), 37.0 15:30 after the recovery, peak 37.4 (+0.4), then 37.2 |
+
+**A known limit, confirmed:** a sensor 4 °C too cold (the corner) is
+caught (safe heats less); a sensor only 1-2 °C too cold (half-way to the
+edge) would not be: the PID would heat the centre 1-2 °C too warm, with
+no alarm. Only the placement can prevent it (IFU.md section 4: the centre
+of the abdomen, facing the heater, checked every time the baby is).
 | A fan on the baby (a draught), logged | pending: how fast the PID follows (Kp 3, Ti 200 s): tuning |
 
 **2026-11-26, the first warm-up, and what changed after it**
